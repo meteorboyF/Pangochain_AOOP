@@ -56,28 +56,39 @@
 
 ---
 
-### 🔲 Phase 2 — Fabric Integration (NEXT)
+### ✅ Phase 2 — Fabric Integration (COMPLETE)
 
-Tasks:
-1. `pangochain-fabric/` — Docker Compose for 3-org Fabric network (FirmA, FirmB, Regulator)
-   - crypto-config, configtx.yaml, channel creation scripts
-   - CouchDB state DBs, Fabric CAs, single Raft orderer
-2. `pangochain-chaincode/` — Golang chaincode (`legalcc`):
-   - `RegisterDocument`, `GrantAccess`, `RevokeAccess`, `CheckAccess`
-   - `GetHistoryForKey`, `UpdateDocument`, `LogAuditEvent`, `RegisterCase`
-   - Evaluate Z-Version branch first for reusable logic
-3. Spring Boot `FabricGatewayService` — Java Gateway SDK integration
-4. PostgreSQL audit shadow log wiring to Fabric events
+**Fabric Network (`pangochain-fabric/`)**
+- `configtx.yaml` — 4 orgs (OrdererOrg, FirmAMSP, FirmBMSP, RegulatorMSP), Raft orderer
+- `crypto-config.yaml` — 1 orderer + 3 peer orgs with NodeOUs, 1 peer each
+- `docker-compose.fabric.yml` — orderer (7050), peer0.firma (7051), peer0.firmb (8051),
+  peer0.regulator (9051), 3×CouchDB, 3×Fabric CA, CLI
+- `scripts/start-network.sh` — cryptogen → configtxgen → docker-compose up → channel create/join → anchor peers
+- `scripts/deploy-chaincode.sh` — ccaas package → install all peers → approve all orgs → commit → start container → smoke test
 
-**Key files to create:**
-- `pangochain-fabric/docker-compose.fabric.yml`
-- `pangochain-fabric/configtx.yaml`
-- `pangochain-fabric/scripts/start-network.sh`
-- `pangochain-chaincode/legalcc/chaincode.go`
-- `pangochain-backend/src/.../blockchain/FabricGatewayService.java`
-- `pangochain-backend/src/.../blockchain/FabricConfig.java`
+**Golang Chaincode (`pangochain-chaincode/legalcc/`)**
+- `types.go` — `DocumentAsset` (ACL map), `Grant` (capability/expiry/wrappedKeyRef/status), `AuditEvent` (SHA-256 chained), `CaseAsset`
+- `chaincode.go` — `LegalContract` with 10 functions:
+  - `RegisterDocument`, `GrantAccess`, `RevokeAccess`, `CheckAccess` (two-layer ACL)
+  - `GetDocumentHistory`, `UpdateDocument`, `RegisterCase`, `LogAuditEvent`
+  - `RevokeUserCertificate`, `logAuditInternal`
+- `Dockerfile` — multi-stage Go build → alpine runtime, exposes port 7777 (ccaas)
 
-### 🔲 Phase 3 — Document Core
+**Spring Boot Fabric Integration (`pangochain-backend/src/.../blockchain/`)**
+- `FabricConfig.java` — `@Configuration` loads TLS credentials, X509 identity, builds Gateway + Network beans
+- `FabricGatewayService.java` — `submitTransaction`, `evaluateTransaction`, per-chaincode helper methods,
+  async chaincode event listener (reconnecting on disconnect), publishes `FabricChaincodEvent`
+- `FabricEventHandler.java` — `@EventListener` on `FabricChaincodEvent`: handles `KEY_ROTATION_REQUIRED`,
+  `ACCESS_REVOKED`, `DOC_REGISTERED`, logs to audit
+- `FabricException.java` — checked exception for Fabric errors
+- `FabricChaincodEvent.java` — Spring `ApplicationEvent` carrier
+
+**Updated files:**
+- `pom.xml` — added `fabric-gateway:1.4.0`, `grpc-netty-shaded:1.62.2`
+- `application.yml` — Fabric config keys: `fabric.peer-endpoint`, `msp-id`, `cert-path`, `key-path`, `tls-cert-path`, `channel-name`, `chaincode-name`
+- `AuditService.java` — added string-actor overload for system-generated events
+
+### 🔲 Phase 3 — Document Core (NEXT)
 
 - Client-side AES-256-GCM encrypt in browser → POST ciphertext → IPFS upload
 - `POST /api/documents/upload-ciphertext` endpoint
@@ -131,6 +142,13 @@ Tasks:
 ```
 DB_PASSWORD=pangochain_secret
 JWT_SECRET=<256-bit string>
-FABRIC_PEER_HOST=localhost
+FABRIC_PEER_ENDPOINT=peer0.firma.pangochain.com:7051
+FABRIC_PEER_HOST_OVERRIDE=peer0.firma.pangochain.com
+FABRIC_MSP_ID=FirmAMSP
+FABRIC_CERT_PATH=config/fabric/crypto/admin-cert.pem
+FABRIC_KEY_PATH=config/fabric/crypto/admin-key.pem
+FABRIC_TLS_CERT_PATH=config/fabric/crypto/tls-ca-cert.pem
+FABRIC_CHANNEL=legal-channel
+FABRIC_CHAINCODE=legalcc
 IPFS_API_HOST=http://localhost
 ```

@@ -1,0 +1,30 @@
+OrdererOrgs:
+  - Name: Orderer
+    Domain: orderer.pangochain.com
+    Specs:
+      - Hostname: orderer
+
+PeerOrgs:
+  - Name: FirmA
+    Domain: firma.pangochain.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 2
+
+  - Name: FirmB
+    Domain: firmb.pangochain.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 2
+
+  - Name: Regulator
+    Domain: regulator.pangochain.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1

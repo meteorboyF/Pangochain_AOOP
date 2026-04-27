@@ -33,15 +33,16 @@ jwt:
   refresh-token-expiry: 604800    # 7 days in seconds
 
 fabric:
-  gateway:
-    host: ${FABRIC_PEER_HOST:localhost}
-    port: ${FABRIC_PEER_PORT:7051}
-    msp-id: ${FABRIC_MSP_ID:FirmAMSP}
-    certificate-path: ${FABRIC_CERT_PATH:config/fabric/crypto/admin-cert.pem}
-    private-key-path: ${FABRIC_KEY_PATH:config/fabric/crypto/admin-key.pem}
-    tls-cert-path: ${FABRIC_TLS_CERT_PATH:config/fabric/crypto/tls-cert.pem}
-  channel: legalchannel
-  chaincode: legalcc
+  # Peer gRPC endpoint for Gateway SDK connection
+  peer-endpoint: ${FABRIC_PEER_ENDPOINT:localhost:7051}
+  peer-host-override: ${FABRIC_PEER_HOST_OVERRIDE:peer0.firma.pangochain.com}
+  msp-id: ${FABRIC_MSP_ID:FirmAMSP}
+  # Paths to admin identity material (mounted from crypto-config volume)
+  cert-path: ${FABRIC_CERT_PATH:config/fabric/crypto/admin-cert.pem}
+  key-path: ${FABRIC_KEY_PATH:config/fabric/crypto/admin-key.pem}
+  tls-cert-path: ${FABRIC_TLS_CERT_PATH:config/fabric/crypto/tls-ca-cert.pem}
+  channel-name: ${FABRIC_CHANNEL:legal-channel}
+  chaincode-name: ${FABRIC_CHAINCODE:legalcc}
 
 ipfs:
   api:

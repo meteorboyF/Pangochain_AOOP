@@ -21,6 +21,7 @@
     <properties>
         <java.version>21</java.version>
         <jjwt.version>0.12.5</jjwt.version>
+        <fabric-gateway.version>1.4.0</fabric-gateway.version>
     </properties>
 
     <dependencies>
@@ -85,6 +86,20 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!-- Hyperledger Fabric Gateway Java SDK -->
+        <dependency>
+            <groupId>org.hyperledger.fabric</groupId>
+            <artifactId>fabric-gateway</artifactId>
+            <version>${fabric-gateway.version}</version>
+        </dependency>
+
+        <!-- gRPC runtime for Fabric Gateway (Netty transport) -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.62.2</version>
         </dependency>
 
         <!-- Actuator -->

@@ -38,4 +38,26 @@ public class AuditService {
             log.error("Failed to write audit log entry: eventType={}, actorId={}", eventType, actorId, e);
         }
     }
+
+    /** Overload for system-generated events (no UUID actor — uses string identity). */
+    @Async
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void log(String eventType, String actorIdStr, String actorOrg,
+                    String resourceType, String resourceId, String fabricTxId,
+                    String metadataJson, String ipAddress) {
+        try {
+            AuditLog entry = AuditLog.builder()
+                    .eventType(eventType)
+                    .actorId(null)
+                    .resourceType(resourceType)
+                    .resourceId(resourceId)
+                    .fabricTxId(fabricTxId)
+                    .metadataJson(metadataJson != null ? metadataJson
+                            : String.format("{\"actor\":\"%s\",\"org\":\"%s\"}", actorIdStr, actorOrg))
+                    .build();
+            auditLogRepository.save(entry);
+        } catch (Exception e) {
+            log.error("Failed to write system audit log: eventType={}", eventType, e);
+        }
+    }
 }
