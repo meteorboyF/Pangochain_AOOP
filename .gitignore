@@ -1,0 +1,46 @@
+# Environment / secrets
+.env
+.env.local
+*.env
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+!.mvn/wrapper/maven-wrapper.properties
+
+# Node / React
+node_modules/
+dist/
+.vite/
+
+# Fabric crypto material (NEVER commit keys)
+pangochain-fabric/crypto-config/
+pangochain-fabric/channel-artifacts/
+pangochain-fabric/*.key
+pangochain-fabric/*.pem
+pangochain-fabric/wallet/
+
+# IPFS swarm key (private)
+pangochain-ipfs/swarm.key
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker
+*.override.yml

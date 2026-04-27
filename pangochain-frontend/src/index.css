@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply bg-surface text-text-primary font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg
+           font-medium text-sm transition-all duration-150
+           hover:bg-primary-600 active:bg-primary-700
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-white text-text-primary rounded-lg
+           font-medium text-sm border border-border transition-all duration-150
+           hover:bg-surface-muted active:bg-gray-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-accent {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg
+           font-medium text-sm transition-all duration-150
+           hover:bg-blue-700 active:bg-blue-800
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 bg-error text-white rounded-lg
+           font-medium text-sm transition-all duration-150
+           hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-border p-6;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border border-border bg-white text-text-primary text-sm
+           placeholder-text-muted
+           focus:outline-none focus:ring-2 focus:ring-primary-200 focus:border-primary
+           disabled:bg-surface-muted disabled:cursor-not-allowed
+           transition-colors duration-150;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-text-secondary mb-1.5;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-green  { @apply badge bg-emerald-100 text-emerald-700; }
+  .badge-amber  { @apply badge bg-amber-100 text-amber-700; }
+  .badge-red    { @apply badge bg-red-100 text-red-700; }
+  .badge-blue   { @apply badge bg-blue-100 text-blue-700; }
+  .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+  .badge-indigo { @apply badge bg-indigo-100 text-indigo-700; }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium
+           text-text-secondary transition-all duration-150
+           hover:bg-surface-muted hover:text-text-primary;
+  }
+
+  .sidebar-link.active {
+    @apply bg-primary-50 text-primary font-semibold;
+  }
+
+  .encryption-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+           bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200;
+  }
+
+  .blockchain-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+           bg-indigo-50 text-indigo-700 text-xs font-semibold border border-indigo-200;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #E5E7EB transparent;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}

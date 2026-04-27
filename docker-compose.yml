@@ -1,0 +1,88 @@
+version: '3.9'
+
+services:
+  # ─── PostgreSQL 16 ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: pangochain-postgres
+    environment:
+      POSTGRES_DB: pangochain
+      POSTGRES_USER: pangochain
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pangochain_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pangochain -d pangochain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pangochain-net
+
+  # ─── Spring Boot Backend ─────────────────────────────────────────────────────
+  pangochain-backend:
+    build:
+      context: ./pangochain-backend
+      dockerfile: Dockerfile
+    container_name: pangochain-backend
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: pangochain
+      DB_USER: pangochain
+      DB_PASSWORD: ${DB_PASSWORD:-pangochain_secret}
+      JWT_SECRET: ${JWT_SECRET:-pangochain-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+      FABRIC_PEER_HOST: fabric-peer-firma
+      FABRIC_PEER_PORT: 7051
+      IPFS_API_HOST: http://ipfs
+      IPFS_API_PORT: 5001
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pangochain-net
+      - fabric-net
+
+  # ─── React Frontend (served by Nginx) ────────────────────────────────────────
+  pangochain-frontend:
+    build:
+      context: ./pangochain-frontend
+      dockerfile: Dockerfile
+    container_name: pangochain-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - pangochain-backend
+    networks:
+      - pangochain-net
+
+  # ─── IPFS (Kubo — private swarm) ─────────────────────────────────────────────
+  ipfs:
+    image: ipfs/kubo:v0.27.0
+    container_name: pangochain-ipfs
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "5001:5001"   # API
+      - "8081:8080"   # Gateway
+      - "4001:4001"   # Swarm
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ./pangochain-ipfs/swarm.key:/data/ipfs/swarm.key:ro
+    networks:
+      - pangochain-net
+
+volumes:
+  postgres_data:
+  ipfs_data:
+
+networks:
+  pangochain-net:
+    driver: bridge
+  fabric-net:
+    external: true
+    name: fabric_test
