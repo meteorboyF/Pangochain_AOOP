@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
-import { EncryptionBadge } from '../components/ui/EncryptionBadge'
 import api from '../lib/api'
 
 function StatCard({ icon, label, value, to }: { icon: React.ReactNode; label: string; value: string | number; to: string }) {
@@ -44,7 +43,6 @@ export default function Dashboard() {
           <p className="text-text-muted text-sm mt-0.5">{roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')}</p>
         </div>
         <div className="flex items-center gap-3">
-          <EncryptionBadge />
           <Link to="/cases/new" className="btn-primary">
             <Plus className="w-4 h-4" /> New Case
           </Link>

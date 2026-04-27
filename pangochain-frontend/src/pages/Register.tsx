@@ -169,10 +169,10 @@ export default function Register() {
           {step === 'keypair' && (
             <div className="space-y-5">
               <div>
-                <h2 className="font-heading text-xl font-bold text-text-primary">Generate Encryption Keys</h2>
+                <h2 className="font-heading text-xl font-bold text-text-primary">Secure Your Account</h2>
                 <p className="text-text-muted text-sm mt-1">
-                  Your ECIES P-256 keypair is generated in your browser. The private key is encrypted
-                  with your password and stored locally — we never see it.
+                  We'll set up security keys on your device so only you can access your documents.
+                  This takes just a moment and happens entirely on your device.
                 </p>
               </div>
 
@@ -180,12 +180,12 @@ export default function Register() {
                 <div className="flex items-start gap-3">
                   <Key className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-primary-700 space-y-1">
-                    <p className="font-semibold">What happens here:</p>
+                    <p className="font-semibold">Your keys, your control</p>
                     <ul className="space-y-0.5 text-primary-600">
-                      <li>• ECDH P-256 keypair generated via WebCrypto API</li>
-                      <li>• Private key wrapped with PBKDF2 (600k iterations)</li>
-                      <li>• Encrypted private key stored in your browser only</li>
-                      <li>• Public key sent to server for key wrapping by others</li>
+                      <li>• Security keys are generated on your device</li>
+                      <li>• Your private key never leaves your browser</li>
+                      <li>• Documents can only be decrypted by you</li>
+                      <li>• Protected by your password — no one else can access</li>
                     </ul>
                   </div>
                 </div>
@@ -193,14 +193,14 @@ export default function Register() {
 
               {keypairStatus === 'idle' && (
                 <button className="btn-primary w-full justify-center" onClick={generateKeypair}>
-                  <Key className="w-4 h-4" /> Generate My Encryption Keypair
+                  <Key className="w-4 h-4" /> Set Up My Secure Account
                 </button>
               )}
 
               {keypairStatus === 'generating' && (
                 <div className="flex items-center justify-center gap-3 py-6 text-primary">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm font-medium">Generating P-256 keypair (PBKDF2 600k iterations)…</span>
+                  <span className="text-sm font-medium">Setting up your secure account…</span>
                 </div>
               )}
 
@@ -208,12 +208,7 @@ export default function Register() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2 text-success bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
                     <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-sm font-medium">Keypair generated successfully. Private key encrypted locally.</span>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 border border-border">
-                    <p className="text-xs text-text-muted font-mono break-all">
-                      Public Key (JWK): {generatedPubKeyJwk.slice(0, 80)}…
-                    </p>
+                    <span className="text-sm font-medium">Security keys ready. Your account is protected.</span>
                   </div>
                   <button className="btn-primary w-full justify-center" onClick={() => setStep('role')}>
                     Next →

@@ -63,7 +63,6 @@ export function Sidebar() {
         </div>
         <div>
           <span className="font-heading font-bold text-primary text-base leading-none">PangoChain</span>
-          <p className="text-xs text-text-muted leading-none mt-0.5">v2.0</p>
         </div>
       </div>
 

@@ -92,6 +92,39 @@
   }
 }
 
+/* ── Logo cloud marquee ─────────────────────────────────────────────────── */
+.logo-scroller {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.logo-scroller-inner {
+  display: flex;
+  gap: 4rem;
+  width: max-content;
+  animation: logo-scroll 30s linear infinite;
+}
+
+.logo-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 1rem;
+  opacity: 0.55;
+  transition: opacity 0.2s;
+}
+
+.logo-item:hover {
+  opacity: 0.85;
+}
+
+@keyframes logo-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
