@@ -22,7 +22,7 @@ export async function derivePbkdf2Key(password: string, saltBase64: string): Pro
   )
 
   return subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 600_000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, iterations: 600_000 },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -81,7 +81,7 @@ export async function unwrapPrivateKey(
   const iv = base64ToBytes(ivB64)
   const ciphertext = base64ToBytes(encryptedB64)
 
-  const rawPrivateKey = await subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, ciphertext)
+  const rawPrivateKey = await subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, ciphertext.buffer as ArrayBuffer)
 
   return subtle.importKey('pkcs8', rawPrivateKey, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey'])
 }
@@ -123,8 +123,8 @@ export async function decryptDocument(
   const iv = base64ToBytes(ivB64)
   const ciphertext = base64ToBytes(ciphertextB64)
 
-  const key = await subtle.importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt'])
-  return subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+  const key = await subtle.importKey('raw', rawKey.buffer as ArrayBuffer, { name: 'AES-GCM', length: 256 }, false, ['decrypt'])
+  return subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, key, ciphertext.buffer as ArrayBuffer)
 }
 
 // ─── ECIES Key Wrapping (ECDH + AES-GCM) ────────────────────────────────────
@@ -155,7 +155,7 @@ export async function eciesWrapKey(recipientPublicKeyJwk: JsonWebKey, keyB64: st
 
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const docKeyBytes = base64ToBytes(keyB64)
-  const wrapped = await subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, docKeyBytes)
+  const wrapped = await subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, docKeyBytes.buffer as ArrayBuffer)
 
   // Export ephemeral public key in raw (uncompressed) form — 65 bytes
   const ephPubRaw = new Uint8Array(await subtle.exportKey('raw', ephemeral.publicKey))
@@ -194,7 +194,7 @@ export async function eciesUnwrapKey(
     ['decrypt'],
   )
 
-  const rawKey = await subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, wrapped)
+  const rawKey = await subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, wrapped.buffer as ArrayBuffer)
   return bytesToBase64(new Uint8Array(rawKey))
 }
 

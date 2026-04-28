@@ -5,7 +5,7 @@ export const DEMO_USER = {
   id: 'demo-user-001',
   email: 'sarah.chen@firma.com',
   fullName: 'Sarah Chen',
-  role: 'SENIOR_ASSOCIATE' as const,
+  role: 'ASSOCIATE_SENIOR' as const,
   firmId: 'firm-a-001',
   mfaEnabled: true,
 }
