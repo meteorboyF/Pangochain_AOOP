@@ -6,6 +6,8 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Cases from './pages/Cases'
+import Documents from './pages/Documents'
+import AuditTrail from './pages/AuditTrail'
 import NotFound from './pages/NotFound'
 import { Suspense } from 'react'
 
@@ -43,10 +45,10 @@ export default function App() {
           <Route path="/cases" element={<Cases />} />
           <Route path="/cases/new" element={<div className="card"><p className="text-text-muted">New Case — Phase 2</p></div>} />
           <Route path="/cases/:id" element={<div className="card"><p className="text-text-muted">Case Detail — Phase 2</p></div>} />
-          <Route path="/documents" element={<div className="card"><p className="text-text-muted">Documents — Phase 3</p></div>} />
+          <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<div className="card"><p className="text-text-muted">Document Detail — Phase 3</p></div>} />
           <Route path="/messages" element={<div className="card"><p className="text-text-muted">Messages — Phase 5</p></div>} />
-          <Route path="/audit" element={<div className="card"><p className="text-text-muted">Audit Trail — Phase 5</p></div>} />
+          <Route path="/audit" element={<AuditTrail />} />
           <Route path="/audit/ledger" element={<div className="card"><p className="text-text-muted">Ledger Explorer — Phase 5</p></div>} />
           <Route path="/admin" element={<div className="card"><p className="text-text-muted">Admin Panel — Phase 5</p></div>} />
           <Route path="/admin/users" element={<div className="card"><p className="text-text-muted">User Management — Phase 5</p></div>} />

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Loader2, ShieldCheck, FileCheck, BarChart3 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ShieldCheck, FileCheck, BarChart3, Zap } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { ParticlesBackground } from '../components/ParticlesBackground'
+import { DEMO_USER } from '../lib/mockData'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -18,10 +19,24 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const handleDemo = () => {
+    setAuth('demo-access-token', 'demo-refresh-token', DEMO_USER)
+    toast.success('Welcome to the demo, Sarah!')
+    navigate('/dashboard')
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
+
+    // Demo shortcut — works without backend
+    if (email === 'demo@pangochain.com' && password === 'demo123') {
+      setAuth('demo-access-token', 'demo-refresh-token', DEMO_USER)
+      toast.success('Welcome to the demo!')
+      navigate('/dashboard')
+      return
+    }
 
     try {
       const { data } = await api.post('/auth/login', {
@@ -174,7 +189,18 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-text-muted">
+          <div className="mt-6 pt-5 border-t border-border">
+            <button
+              type="button"
+              onClick={handleDemo}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-[#1d6464]/40 text-[#1d6464] text-sm font-semibold hover:bg-[#1d6464]/5 transition-colors"
+            >
+              <Zap className="w-4 h-4" />
+              Demo Login
+            </button>
+          </div>
+
+          <p className="mt-4 text-center text-sm text-text-muted">
             Don't have an account?{' '}
             <Link to="/register" className="text-[#1d6464] font-medium hover:underline">
               Register
