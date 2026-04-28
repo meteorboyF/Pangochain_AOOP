@@ -10,6 +10,7 @@ import java.util.UUID;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     Page<AuditLog> findByActorIdOrderByTimestampDesc(UUID actorId, Pageable pageable);
-    Page<AuditLog> findByResourceIdOrderByTimestampDesc(String resourceId, Pageable pageable);
+    Page<AuditLog> findByResourceId(String resourceId, Pageable pageable);
+    Page<AuditLog> findByEventType(String eventType, Pageable pageable);
     Page<AuditLog> findAllByOrderByTimestampDesc(Pageable pageable);
 }
