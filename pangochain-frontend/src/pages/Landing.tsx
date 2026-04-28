@@ -1,10 +1,9 @@
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useInView } from 'react-intersection-observer'
 import { ChevronRight, Shield, Lock, FileCheck, Users, BarChart3, MessageSquare, ArrowRight } from 'lucide-react'
-import { ParticleCanvas } from '../components/ParticleCanvas'
+import { ParticlesBackground } from '../components/ParticlesBackground'
 
-// ── Animated section hook ──────────────────────────────────────────────────
 function useFadeIn(threshold = 0.15) {
   const { ref, inView } = useInView({ triggerOnce: true, threshold })
   return { ref, inView }
@@ -25,23 +24,18 @@ function LandingNav() {
     }`}>
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
-          <span className={`font-heading font-bold text-lg transition-colors ${scrolled ? 'text-primary' : 'text-primary'}`}>
-            PangoChain
-          </span>
+          <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
         </div>
         <div className="hidden md:flex items-center gap-8">
           {['Technology', 'How It Works', 'For Law Firms'].map(l => (
             <a key={l} href={`#${l.toLowerCase().replace(/ /g, '-')}`}
-              className="text-sm font-medium text-text-secondary hover:text-primary transition-colors">
+              className="text-sm font-medium text-text-secondary hover:text-[#1d6464] transition-colors">
               {l}
             </a>
           ))}
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/login" className="text-sm font-medium text-text-secondary hover:text-primary transition-colors">
+          <Link to="/login" className="text-sm font-medium text-text-secondary hover:text-[#1d6464] transition-colors">
             Sign In
           </Link>
           <Link to="/register" className="btn-primary text-sm px-4 py-2">
@@ -56,16 +50,17 @@ function LandingNav() {
 // ── Hero ───────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center justify-center text-center px-6 pt-16">
+    <section className="relative min-h-screen flex items-center justify-center text-center px-6 pt-16 overflow-hidden">
+      <ParticlesBackground variant="vivid" />
       <div className="relative z-10 max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary-50 border border-primary-100 text-primary text-sm font-medium mb-8">
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1d6464]/10 border border-[#1d6464]/20 text-[#1d6464] text-sm font-medium mb-8">
+          <span className="w-2 h-2 rounded-full bg-[#1d6464] animate-pulse" />
           Trusted by leading law firms worldwide
         </div>
 
         <h1 className="font-heading text-5xl md:text-6xl font-extrabold text-text-primary leading-tight mb-6">
           Your Blockchain-Powered{' '}
-          <span className="text-primary">Shield</span> for Legal Data Integrity
+          <span className="text-[#1d6464]">Shield</span> for Legal Data Integrity
         </h1>
 
         <p className="text-xl text-text-secondary leading-relaxed mb-10 max-w-2xl mx-auto">
@@ -91,8 +86,7 @@ function Hero() {
         </div>
       </div>
 
-      {/* Subtle bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent pointer-events-none z-10" />
     </section>
   )
 }
@@ -128,22 +122,22 @@ function LogoCloud() {
 // ── Features ───────────────────────────────────────────────────────────────
 const features = [
   {
-    icon: <FileCheck className="w-6 h-6 text-primary" />,
+    icon: <FileCheck className="w-6 h-6 text-[#1d6464]" />,
     title: 'Immutable Document Vault',
     desc: 'Every document is cryptographically registered on the blockchain, creating a permanent, verifiable record that cannot be altered or disputed.',
   },
   {
-    icon: <Lock className="w-6 h-6 text-primary" />,
+    icon: <Lock className="w-6 h-6 text-[#1d6464]" />,
     title: 'Dynamic Access Control',
     desc: 'Manage precisely who can view, edit, or share documents. Role-based permissions and time-limited access rules are enforced automatically.',
   },
   {
-    icon: <BarChart3 className="w-6 h-6 text-primary" />,
+    icon: <BarChart3 className="w-6 h-6 text-[#1d6464]" />,
     title: 'Unbreakable Audit Trail',
     desc: 'A live, unchangeable log records every action — who, what, and when. Complete transparency for compliance and litigation support.',
   },
   {
-    icon: <MessageSquare className="w-6 h-6 text-primary" />,
+    icon: <MessageSquare className="w-6 h-6 text-[#1d6464]" />,
     title: 'Secure Collaboration',
     desc: 'Share files and communicate through encrypted channels. Collect legally binding e-signatures directly within the platform.',
   },
@@ -152,8 +146,9 @@ const features = [
 function Features() {
   const { ref, inView } = useFadeIn()
   return (
-    <section id="technology" className="py-24 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
+    <section id="technology" className="relative py-24 px-6 bg-white overflow-hidden">
+      <ParticlesBackground variant="app" />
+      <div className="relative z-10 max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="font-heading text-4xl font-bold text-text-primary mb-4">
             A New Standard for Legal Security
@@ -174,7 +169,7 @@ function Features() {
                 transition: `opacity 0.5s ease ${i * 0.1 + 0.05}s, transform 0.5s ease ${i * 0.1 + 0.05}s, box-shadow 0.2s ease`,
               }}
             >
-              <div className="w-11 h-11 rounded-xl bg-primary-50 flex items-center justify-center mb-4">
+              <div className="w-11 h-11 rounded-xl bg-[#1d6464]/10 flex items-center justify-center mb-4">
                 {f.icon}
               </div>
               <h3 className="font-heading font-semibold text-text-primary text-lg mb-2">{f.title}</h3>
@@ -191,19 +186,19 @@ function Features() {
 const steps = [
   {
     num: '01',
-    icon: <Shield className="w-8 h-8 text-primary" />,
+    icon: <Shield className="w-8 h-8 text-[#1d6464]" />,
     title: 'Register & Verify',
     desc: 'Securely register your legal documents. A unique, permanent fingerprint is generated on the PangoChain ledger for irrefutable proof of existence.',
   },
   {
     num: '02',
-    icon: <Lock className="w-8 h-8 text-primary" />,
+    icon: <Lock className="w-8 h-8 text-[#1d6464]" />,
     title: 'Control & Govern',
     desc: 'Your documents are securely stored. Govern exactly who has access with dynamic, role-based permission controls — automatically enforced at every request.',
   },
   {
     num: '03',
-    icon: <FileCheck className="w-8 h-8 text-primary" />,
+    icon: <FileCheck className="w-8 h-8 text-[#1d6464]" />,
     title: 'Transact & Enforce',
     desc: 'Share documents, collaborate with clients, and collect legally binding e-signatures. Verify any document\'s authenticity in seconds.',
   },
@@ -237,7 +232,7 @@ function HowItWorks() {
               <span className="absolute top-4 right-5 font-heading font-bold text-5xl text-gray-100 select-none">
                 {s.num}
               </span>
-              <div className="w-14 h-14 rounded-xl bg-primary-50 flex items-center justify-center mb-5">
+              <div className="w-14 h-14 rounded-xl bg-[#1d6464]/10 flex items-center justify-center mb-5">
                 {s.icon}
               </div>
               <h3 className="font-heading font-semibold text-text-primary text-lg mb-2">{s.title}</h3>
@@ -250,7 +245,7 @@ function HowItWorks() {
   )
 }
 
-// ── For Law Firms stats strip ──────────────────────────────────────────────
+// ── Stats ──────────────────────────────────────────────────────────────────
 function Stats() {
   const { ref, inView } = useFadeIn()
   const stats = [
@@ -260,8 +255,9 @@ function Stats() {
     { value: '<2s', label: 'Avg. verification time' },
   ]
   return (
-    <section id="for-law-firms" className="py-20 px-6 bg-primary">
-      <div ref={ref} className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+    <section id="for-law-firms" className="relative py-20 px-6 bg-[#1d6464] overflow-hidden">
+      <ParticlesBackground variant="auth" />
+      <div ref={ref} className="relative z-10 max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
         {stats.map((s, i) => (
           <div
             key={s.label}
@@ -272,7 +268,7 @@ function Stats() {
             }}
           >
             <p className="font-heading text-4xl font-extrabold text-white mb-1">{s.value}</p>
-            <p className="text-primary-200 text-sm">{s.label}</p>
+            <p className="text-white/70 text-sm">{s.label}</p>
           </div>
         ))}
       </div>
@@ -319,18 +315,15 @@ function Footer() {
     <footer className="border-t border-border bg-surface-muted py-10 px-6">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <Shield className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="font-heading font-bold text-primary">PangoChain</span>
+          <img src="/logo.png" alt="PangoChain" className="h-8 w-auto" />
         </div>
         <p className="text-sm text-text-muted">
           © {new Date().getFullYear()} PangoChain. All rights reserved.
         </p>
         <div className="flex items-center gap-6 text-sm text-text-muted">
-          <a href="#" className="hover:text-primary transition-colors">Privacy</a>
-          <a href="#" className="hover:text-primary transition-colors">Terms</a>
-          <a href="#" className="hover:text-primary transition-colors">Security</a>
+          <a href="#" className="hover:text-[#1d6464] transition-colors">Privacy</a>
+          <a href="#" className="hover:text-[#1d6464] transition-colors">Terms</a>
+          <a href="#" className="hover:text-[#1d6464] transition-colors">Security</a>
         </div>
       </div>
     </footer>
@@ -341,17 +334,14 @@ function Footer() {
 export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
-      <ParticleCanvas />
-      <div className="relative" style={{ zIndex: 1 }}>
-        <LandingNav />
-        <Hero />
-        <LogoCloud />
-        <Features />
-        <HowItWorks />
-        <Stats />
-        <CTA />
-        <Footer />
-      </div>
+      <LandingNav />
+      <Hero />
+      <LogoCloud />
+      <Features />
+      <HowItWorks />
+      <Stats />
+      <CTA />
+      <Footer />
     </div>
   )
 }

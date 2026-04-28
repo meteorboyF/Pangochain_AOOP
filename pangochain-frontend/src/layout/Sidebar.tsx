@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
-  Shield, ClipboardList, Settings, LogOut, Users,
+  ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
@@ -55,15 +55,10 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-60 flex-shrink-0 bg-white border-r border-border flex flex-col h-screen sticky top-0">
+    <aside className="w-60 flex-shrink-0 bg-white/95 backdrop-blur-sm border-r border-border flex flex-col h-screen sticky top-0 z-20">
       {/* Logo */}
-      <div className="h-16 flex items-center gap-2.5 px-5 border-b border-border">
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-          <Shield className="w-4 h-4 text-white" />
-        </div>
-        <div>
-          <span className="font-heading font-bold text-primary text-base leading-none">PangoChain</span>
-        </div>
+      <div className="h-16 flex items-center px-5 border-b border-border">
+        <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
       </div>
 
       {/* User info */}
@@ -125,10 +120,14 @@ export function Sidebar() {
           <Settings className="w-4 h-4" />
           Profile & Keys
         </NavLink>
-        <button onClick={handleLogout} className="sidebar-link w-full text-left text-error hover:text-error hover:bg-red-50">
+        <button onClick={handleLogout} className="sidebar-link w-full text-left !text-error hover:!text-error hover:!bg-red-50">
           <LogOut className="w-4 h-4" />
           Sign Out
         </button>
+      </div>
+      {/* Footer branding */}
+      <div className="px-5 py-3 border-t border-border">
+        <img src="/logo.png" alt="PangoChain" className="h-6 w-auto opacity-40" />
       </div>
     </aside>
   )

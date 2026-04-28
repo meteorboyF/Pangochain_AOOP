@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, ShieldCheck, FileCheck, BarChart3 } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
+import { ParticlesBackground } from '../components/ParticlesBackground'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -54,34 +55,49 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex w-1/2 bg-primary flex-col items-center justify-center p-12 text-white">
-        <Shield className="w-16 h-16 mb-6 opacity-90" />
-        <h2 className="font-heading text-3xl font-bold mb-4 text-center">
-          Secure Legal Document Management
-        </h2>
-        <p className="text-primary-200 text-center leading-relaxed max-w-sm">
-          Client-side encryption ensures your documents are protected before they ever leave your browser.
-        </p>
-        <div className="mt-10 space-y-3 w-full max-w-sm">
-          {['AES-256-GCM client-side encryption', 'Hyperledger Fabric audit trail', 'ECIES P-256 key wrapping'].map((f) => (
-            <div key={f} className="flex items-center gap-2 text-sm text-primary-100">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary-300 flex-shrink-0" />
-              {f}
-            </div>
-          ))}
+    <div className="min-h-screen flex">
+      {/* ── Left panel ─────────────────────────────────────────────────── */}
+      <div className="hidden lg:flex w-[52%] bg-[#0f3d3d] relative flex-col items-center justify-center p-14 overflow-hidden">
+        <ParticlesBackground variant="auth" />
+
+        <div className="relative z-10 flex flex-col items-center text-center max-w-md">
+          <img src="/logo.png" alt="PangoChain" className="h-24 w-auto mb-8 brightness-0 invert" />
+
+          <h2 className="font-heading text-3xl font-bold text-white mb-4 leading-snug">
+            Secure Legal Document Management
+          </h2>
+          <p className="text-white/60 leading-relaxed mb-10">
+            Your documents are protected before they ever leave your device.
+            Blockchain-verified, always.
+          </p>
+
+          <div className="w-full space-y-3">
+            {[
+              { icon: <ShieldCheck className="w-4 h-4" />, text: 'End-to-end document security' },
+              { icon: <FileCheck className="w-4 h-4" />, text: 'Immutable blockchain audit trail' },
+              { icon: <BarChart3 className="w-4 h-4" />, text: 'Role-based access control' },
+            ].map((f) => (
+              <div key={f.text} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 text-sm text-white/80">
+                <div className="text-[#4ab8b8]">{f.icon}</div>
+                {f.text}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Decorative teal ring */}
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-white/5" />
+        <div className="absolute -bottom-20 -right-20 w-72 h-72 rounded-full border border-white/5" />
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-sm">
+      {/* ── Right panel ─────────────────────────────────────────────────── */}
+      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface overflow-hidden">
+        <ParticlesBackground variant="app" />
+
+        <div className="relative z-10 w-full max-w-sm">
+          {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-heading font-bold text-primary text-lg">PangoChain</span>
+            <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
           </div>
 
           <h1 className="font-heading text-2xl font-bold text-text-primary mb-1">
@@ -160,7 +176,7 @@ export default function Login() {
 
           <p className="mt-6 text-center text-sm text-text-muted">
             Don't have an account?{' '}
-            <Link to="/register" className="text-accent font-medium hover:underline">
+            <Link to="/register" className="text-[#1d6464] font-medium hover:underline">
               Register
             </Link>
           </p>

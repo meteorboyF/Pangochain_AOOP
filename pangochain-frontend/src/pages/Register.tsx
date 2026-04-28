@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Shield, Key, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react'
+import { Key, CheckCircle, Loader2, Eye, EyeOff } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore, roleLabel, type UserRole, LEGAL_ROLES, CLIENT_ROLES } from '../store/authStore'
 import {
   generateEciesKeypair, storeWrappedPrivateKey,
 } from '../lib/crypto'
 import toast from 'react-hot-toast'
+import { ParticlesBackground } from '../components/ParticlesBackground'
 
 type Step = 'account' | 'keypair' | 'role' | 'review'
 
@@ -100,14 +101,12 @@ export default function Register() {
   const stepIdx = steps.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center p-6">
-      <div className="w-full max-w-lg">
+    <div className="min-h-screen bg-surface relative flex items-center justify-center p-6 overflow-hidden">
+      <ParticlesBackground variant="auth" />
+      <div className="relative z-10 w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center gap-2 mb-8 justify-center">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <Shield className="w-4 h-4 text-white" />
-          </div>
-          <span className="font-heading font-bold text-primary text-xl">PangoChain</span>
+          <img src="/logo.png" alt="PangoChain" className="h-12 w-auto" />
         </div>
 
         {/* Step indicator */}
@@ -295,7 +294,7 @@ export default function Register() {
 
         <p className="mt-4 text-center text-sm text-text-muted">
           Already have an account?{' '}
-          <Link to="/login" className="text-accent font-medium hover:underline">Sign in</Link>
+          <Link to="/login" className="text-[#1d6464] font-medium hover:underline">Sign in</Link>
         </p>
       </div>
     </div>
