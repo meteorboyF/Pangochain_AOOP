@@ -191,7 +191,7 @@ CREATE INDEX idx_audit_timestamp ON audit_log(timestamp DESC);
 
 --rollback DROP TABLE audit_log;
 
---changeset pangochain:001-audit-append-only-trigger
+--changeset pangochain:001-audit-append-only-trigger splitStatements:false
 -- INSERT-only trigger: blocks UPDATE and DELETE on audit_log (P4-A append-only guarantee)
 CREATE OR REPLACE FUNCTION audit_log_prevent_modification()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
