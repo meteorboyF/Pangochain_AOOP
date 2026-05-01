@@ -48,18 +48,30 @@ const EVENT_COLORS: Record<string, string> = {
   GENERAL: 'bg-gray-100 text-gray-600 border-gray-200',
 }
 
+interface CaseInfo {
+  id: string
+  title: string
+  description: string
+  caseType: string
+  status: string
+  createdAt: string
+}
+
 export default function ClientCase() {
   const [hearings, setHearings] = useState<Hearing[]>([])
   const [events, setEvents] = useState<CaseEvent[]>([])
+  const [cases, setCases] = useState<CaseInfo[]>([])
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
       try {
-        const [hRes, auditRes] = await Promise.allSettled([
+        const [hRes, auditRes, casesRes] = await Promise.allSettled([
           api.get('/hearings/upcoming'),
           api.get('/audit', { params: { size: 20 } }),
+          api.get('/cases/my-cases'),
         ])
         if (hRes.status === 'fulfilled') setHearings(hRes.value.data ?? [])
         if (auditRes.status === 'fulfilled') {
@@ -73,6 +85,11 @@ export default function ClientCase() {
             actorName: a.actorEmail ?? 'System',
             createdAt: a.timestamp ?? a.createdAt,
           })))
+        }
+        if (casesRes.status === 'fulfilled') {
+          const cList = casesRes.value.data ?? []
+          setCases(cList)
+          if (cList.length > 0) setSelectedCaseId(cList[0].id)
         }
       } catch (e: any) {
         setError('Failed to load case information')
@@ -93,6 +110,40 @@ export default function ClientCase() {
         <h1 className="font-heading text-2xl font-bold text-text-primary">My Case</h1>
         <p className="text-text-muted text-sm mt-0.5">Hearings, timeline, and blockchain audit trail</p>
       </div>
+
+      {/* Case selector if client has multiple cases */}
+      {cases.length > 0 && (
+        <div className="card bg-[#1d6464]/5 border-[#1d6464]/20">
+          <div className="flex items-center gap-3 flex-wrap">
+            <Scale className="w-5 h-5 text-[#1d6464] shrink-0" />
+            <div className="flex-1 min-w-0">
+              {cases.length === 1 ? (
+                <div>
+                  <p className="font-semibold text-text-primary text-sm">{cases[0].title}</p>
+                  {cases[0].caseType && <p className="text-xs text-text-muted">{cases[0].caseType}</p>}
+                </div>
+              ) : (
+                <select
+                  className="input py-1.5 text-sm"
+                  value={selectedCaseId ?? ''}
+                  onChange={(e) => setSelectedCaseId(e.target.value)}
+                >
+                  {cases.map((c) => (
+                    <option key={c.id} value={c.id}>{c.title}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+              cases.find(c => c.id === selectedCaseId)?.status === 'ACTIVE'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-gray-100 text-gray-600'
+            }`}>
+              {cases.find(c => c.id === selectedCaseId)?.status ?? 'ACTIVE'}
+            </span>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
