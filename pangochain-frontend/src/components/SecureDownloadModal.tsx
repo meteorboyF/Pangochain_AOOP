@@ -8,12 +8,13 @@ import toast from 'react-hot-toast'
 interface Props {
   docId: string
   fileName: string
+  expectedHash?: string
   onClose: () => void
 }
 
 type Stage = 'idle' | 'fetching' | 'unwrapping' | 'decrypting' | 'verifying' | 'done' | 'error'
 
-export function SecureDownloadModal({ docId, fileName, onClose }: Props) {
+export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: Props) {
   const { user } = useAuthStore()
   const [stage, setStage] = useState<Stage>('idle')
   const [errorMsg, setErrorMsg] = useState('')

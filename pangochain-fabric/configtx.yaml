@@ -84,7 +84,7 @@ Capabilities:
   Orderer: &OrdererCapabilities
     V2_0: true
   Application: &ApplicationCapabilities
-    V2_5: true
+    V2_0: true
 
 Application: &ApplicationDefaults
   Organizations:
@@ -154,7 +154,8 @@ Channel: &ChannelDefaults
     <<: *ChannelCapabilities
 
 Profiles:
-  PangoChainGenesis:
+  # Genesis block profile — used to bootstrap the orderer system channel
+  LegalOrdererGenesis:
     <<: *ChannelDefaults
     Orderer:
       <<: *OrdererDefaults
@@ -167,6 +168,7 @@ Profiles:
           - *FirmB
           - *RegulatorOrg
 
+  # Application channel profile
   LegalChannel:
     Consortium: LegalConsortium
     <<: *ChannelDefaults

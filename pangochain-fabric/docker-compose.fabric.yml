@@ -56,6 +56,10 @@ services:
       ORDERER_GENERAL_LISTENPORT: 7050
       ORDERER_GENERAL_LOCALMSPID: OrdererMSP
       ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/orderer/msp
+      # Genesis block bootstrap (Fabric 2.4 legacy approach)
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: file
+      ORDERER_GENERAL_BOOTSTRAPFILE: /var/hyperledger/orderer/orderer.genesis.block
+      # TLS
       ORDERER_GENERAL_TLS_ENABLED: "true"
       ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
       ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
@@ -63,23 +67,15 @@ services:
       ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /var/hyperledger/orderer/tls/server.crt
       ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /var/hyperledger/orderer/tls/server.key
       ORDERER_GENERAL_CLUSTER_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
-      ORDERER_GENERAL_BOOTSTRAPMETHOD: none
-      ORDERER_CHANNELPARTICIPATION_ENABLED: "true"
-      ORDERER_ADMIN_TLS_ENABLED: "true"
-      ORDERER_ADMIN_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
-      ORDERER_ADMIN_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
-      ORDERER_ADMIN_TLS_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
-      ORDERER_ADMIN_TLS_CLIENTROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
-      ORDERER_ADMIN_LISTENADDRESS: 0.0.0.0:7053
       ORDERER_METRICS_PROVIDER: prometheus
       ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:17050
     volumes:
       - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/msp:/var/hyperledger/orderer/msp
       - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
       - orderer.pangochain.com:/var/hyperledger/production/orderer
     ports:
       - "7050:7050"
-      - "7053:7053"
       - "17050:17050"
     networks:
       - fabric_test
@@ -122,6 +118,7 @@ services:
       - "17051:17051"
     depends_on:
       - couchdb.firma
+      - orderer.pangochain.com
     networks:
       - fabric_test
 
@@ -163,6 +160,7 @@ services:
       - "17052:17052"
     depends_on:
       - couchdb.firmb
+      - orderer.pangochain.com
     networks:
       - fabric_test
 
@@ -204,6 +202,7 @@ services:
       - "17053:17053"
     depends_on:
       - couchdb.regulator
+      - orderer.pangochain.com
     networks:
       - fabric_test
 
@@ -281,5 +280,10 @@ services:
       - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto
       - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
       - ../pangochain-chaincode:/opt/gopath/src/github.com/chaincode
+    depends_on:
+      - orderer.pangochain.com
+      - peer0.firma.pangochain.com
+      - peer0.firmb.pangochain.com
+      - peer0.regulator.pangochain.com
     networks:
       - fabric_test

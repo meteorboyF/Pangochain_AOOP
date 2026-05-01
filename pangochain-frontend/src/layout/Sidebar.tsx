@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
-  Activity, Key, Home, ChevronRight,
+  Activity, Key, Home, ChevronRight, Scale,
+  Gavel, Bell, Shield, Calendar,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -12,6 +13,7 @@ interface NavItem {
   to: string
   icon: React.ReactNode
   label: string
+  end?: boolean
 }
 
 export function Sidebar() {
@@ -21,24 +23,26 @@ export function Sidebar() {
   if (!user) return null
 
   const legalItems: NavItem[] = [
-    { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard' },
+    { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', end: true },
     { to: '/cases', icon: <FolderOpen className="w-4 h-4" />, label: 'Cases' },
     { to: '/documents', icon: <FileText className="w-4 h-4" />, label: 'Documents' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages' },
+    { to: '/hearings', icon: <Gavel className="w-4 h-4" />, label: 'Hearings' },
     { to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail' },
   ]
 
   const clientItems: NavItem[] = [
-    { to: '/client/portal', icon: <Home className="w-4 h-4" />, label: 'My Portal' },
+    { to: '/client/portal', icon: <Home className="w-4 h-4" />, label: 'My Portal', end: true },
+    { to: '/client/documents', icon: <Shield className="w-4 h-4" />, label: 'Document Vault' },
+    { to: '/client/case', icon: <Scale className="w-4 h-4" />, label: 'My Case' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages' },
-    { to: '/documents', icon: <FileText className="w-4 h-4" />, label: 'My Documents' },
   ]
 
   const adminItems: NavItem[] = [
     { to: '/admin', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
     { to: '/admin/users', icon: <Users className="w-4 h-4" />, label: 'Users' },
     { to: '/admin/keys', icon: <Key className="w-4 h-4" />, label: 'Key Rotation' },
-    { to: '/audit/ledger', icon: <Activity className="w-4 h-4" />, label: 'Ledger Explorer' },
+    { to: '/ledger', icon: <Activity className="w-4 h-4" />, label: 'Ledger Explorer' },
   ]
 
   const showAdmin =
@@ -58,13 +62,16 @@ export function Sidebar() {
     <aside className="w-60 flex-shrink-0 bg-white/95 backdrop-blur-sm border-r border-border flex flex-col h-screen sticky top-0 z-20">
       {/* Logo */}
       <div className="h-16 flex items-center px-5 border-b border-border">
-        <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
+        <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" onError={(e) => {
+          (e.target as HTMLImageElement).style.display = 'none'
+        }} />
+        <span className="font-heading font-bold text-[#1d6464] text-lg ml-1">PangoChain</span>
       </div>
 
       {/* User info */}
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary font-semibold text-sm">
+          <div className="w-8 h-8 rounded-full bg-[#1d6464]/10 flex items-center justify-center text-[#1d6464] font-semibold text-sm">
             {user.fullName.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -77,10 +84,17 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3 px-3 space-y-0.5">
+        {isClient(user.role) && (
+          <div className="pb-2 mb-1">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider px-3 mb-1">Client Portal</p>
+          </div>
+        )}
+
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
+            end={item.end}
             className={({ isActive }) =>
               clsx('sidebar-link', isActive && 'active')
             }
@@ -93,7 +107,7 @@ export function Sidebar() {
         {showAdmin && (
           <>
             <div className="pt-3 pb-1 px-3">
-              <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Admin</p>
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Administration</p>
             </div>
             {adminItems.map((item) => (
               <NavLink
@@ -125,9 +139,10 @@ export function Sidebar() {
           Sign Out
         </button>
       </div>
+
       {/* Footer branding */}
-      <div className="px-5 py-3 border-t border-border">
-        <img src="/logo.png" alt="PangoChain" className="h-6 w-auto opacity-40" />
+      <div className="px-5 py-2 border-t border-border">
+        <p className="text-[9px] text-text-muted font-mono">Hyperledger Fabric 2.4 · AES-256-GCM</p>
       </div>
     </aside>
   )

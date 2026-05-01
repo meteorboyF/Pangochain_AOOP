@@ -2,140 +2,213 @@
 
 **Target Repo:** https://github.com/meteorboyF/Pangochain_AOOP.git  
 **Stack:** React 18 + Spring Boot 3 (Java 21) + PostgreSQL 16 + Hyperledger Fabric 2.4 + IPFS Kubo  
-**Purpose:** IEEE Access resubmission prototype (manuscript Access-2026-02049)  
-**Theme note:** "antigravity" is the user's creative idea concept for the project.
+**Purpose:** IEEE Access resubmission prototype (manuscript Access-2026-02049)
 
 ---
 
 ## Phase Status
 
 ### ✅ Phase 1 — Foundation (COMPLETE)
-
-**Spring Boot Backend (`pangochain-backend/`)**
-- `pom.xml` — Spring Boot 3.2.5, Java 21, jjwt 0.12.5, Liquibase, PostgreSQL
-- Main class: `PangochainApplication.java`
-- `application.yml` — full config with env var placeholders
-- **Auth:** `AuthController`, `AuthService`, `JwtTokenProvider`, `JwtAuthenticationFilter`
-- **PBKDF2:** `Pbkdf2Service` — 600,000 iterations SHA-256 (spec compliant)
-- **User model:** `User`, `UserRole` (12 roles), `AccountStatus`, `Firm`
-- **Audit:** `AuditLog`, `AuditService` (async, separate transaction)
-- **Security:** `SecurityConfig` (CORS localhost:3000/5173, stateless JWT)
-- **Error handling:** `GlobalExceptionHandler` (RFC 9457 ProblemDetail)
-- **Liquibase migration `001-initial-schema.sql`:**
-  - Tables: `firms`, `users`, `cases`, `case_members`, `documents`, `document_access`,
-    `messages`, `esignatures`, `notifications`, `audit_log`, `billing_matters`
-  - **Append-only trigger** on `audit_log` (P4-A — blocks UPDATE/DELETE at DB level)
-  - 4 default firms pre-seeded: FirmA, FirmB, FirmC, RegulatorMSP
-
-**React Frontend (`pangochain-frontend/`)**
-- Vite 5 + React 18 + TypeScript + Tailwind CSS 3
-- Custom design system: white/gray professional theme, steel-blue primary (#1E3A5F)
-- Font: Plus Jakarta Sans (headings) + Inter (body)
-- **Routing:** React Router v6, protected routes, public-only routes
-- **State:** Zustand with localStorage persistence (`authStore.ts`)
-- **API client:** Axios with JWT interceptor + auto-refresh on 401
-- **Pages:** Landing, Login (MFA-aware), Register (4-step wizard), Dashboard, Cases
-- **Layout:** Sidebar (role-aware navigation), MainLayout
-- **WebCrypto (`lib/crypto.ts`):**
-  - `generateEciesKeypair(password)` — ECDH P-256 + PBKDF2 600k wrapping of private key
-  - `encryptDocument(file)` — AES-256-GCM with fresh key/IV per document
-  - `decryptDocument(...)` — AES-256-GCM with GCM tag verification
-  - `eciesWrapKey(recipientPubKey, keyB64)` — ECDH + AES-GCM key wrapping
-  - `eciesUnwrapKey(privateKey, wrappedToken)` — ECDH + AES-GCM unwrap
-  - `verifyIntegrity(plaintext, expectedHash)` — SHA-256 re-hash check
-  - `storeWrappedPrivateKey` / `loadWrappedPrivateKey` — localStorage persistence
-- **Components:** EncryptionBadge, BlockchainBadge, Sidebar, MainLayout
-- **Register flow:** 4 steps: Account → Keypair Generation (WebCrypto) → Role → Review
-
-**Infrastructure**
-- `docker-compose.yml` — postgres, backend, frontend (nginx), ipfs
-- `pangochain-backend/Dockerfile` — multi-stage Maven → JRE build
-- `pangochain-frontend/Dockerfile` — multi-stage npm → nginx
-- `pangochain-frontend/nginx.conf` — SPA routing + API proxy
-- `.gitignore` — excludes keys, node_modules, target/, swarm.key
-
----
+Spring Boot skeleton, JWT auth, PBKDF2 600k, PostgreSQL schema (11 tables + append-only audit trigger), React 18 + Vite + Tailwind, WebCrypto lib (AES-256-GCM, ECIES P-256, PBKDF2), Zustand auth store, 4-step register wizard.
 
 ### ✅ Phase 2 — Fabric Integration (COMPLETE)
+Fabric network (3 orgs: FirmA, FirmB, Regulator), Raft orderer, Golang chaincode `legalcc` (10 functions: RegisterDocument, GrantAccess, RevokeAccess, CheckAccess, GetDocumentHistory, UpdateDocument, RegisterCase, LogAuditEvent, RevokeUserCertificate, logAuditInternal), FabricGatewayService in Spring Boot, chaincode event listener.
 
-**Fabric Network (`pangochain-fabric/`)**
-- `configtx.yaml` — 4 orgs (OrdererOrg, FirmAMSP, FirmBMSP, RegulatorMSP), Raft orderer
-- `crypto-config.yaml` — 1 orderer + 3 peer orgs with NodeOUs, 1 peer each
-- `docker-compose.fabric.yml` — orderer (7050), peer0.firma (7051), peer0.firmb (8051),
-  peer0.regulator (9051), 3×CouchDB, 3×Fabric CA, CLI
-- `scripts/start-network.sh` — cryptogen → configtxgen → docker-compose up → channel create/join → anchor peers
-- `scripts/deploy-chaincode.sh` — ccaas package → install all peers → approve all orgs → commit → start container → smoke test
+### ✅ Phase 3 — Document Core (COMPLETE)
+Browser AES-256-GCM encrypt → IPFS upload (IV prepended to ciphertext), RegisterDocument chaincode, two-layer download (JWT + CheckAccess chaincode + IPFS → browser decrypt + SHA-256 verify), DocumentUploadDropzone, SecureDownloadModal.
 
-**Golang Chaincode (`pangochain-chaincode/legalcc/`)**
-- `types.go` — `DocumentAsset` (ACL map), `Grant` (capability/expiry/wrappedKeyRef/status), `AuditEvent` (SHA-256 chained), `CaseAsset`
-- `chaincode.go` — `LegalContract` with 10 functions:
-  - `RegisterDocument`, `GrantAccess`, `RevokeAccess`, `CheckAccess` (two-layer ACL)
-  - `GetDocumentHistory`, `UpdateDocument`, `RegisterCase`, `LogAuditEvent`
-  - `RevokeUserCertificate`, `logAuditInternal`
-- `Dockerfile` — multi-stage Go build → alpine runtime, exposes port 7777 (ccaas)
+### ✅ Phase 4 — Access Control & Key Wrapping (COMPLETE)
+ECIES P-256 key wrapping, GrantAccess/RevokeAccess chaincode integration, AccessControlController, AccessControlPanel component.
 
-**Spring Boot Fabric Integration (`pangochain-backend/src/.../blockchain/`)**
-- `FabricConfig.java` — `@Configuration` loads TLS credentials, X509 identity, builds Gateway + Network beans
-- `FabricGatewayService.java` — `submitTransaction`, `evaluateTransaction`, per-chaincode helper methods,
-  async chaincode event listener (reconnecting on disconnect), publishes `FabricChaincodEvent`
-- `FabricEventHandler.java` — `@EventListener` on `FabricChaincodEvent`: handles `KEY_ROTATION_REQUIRED`,
-  `ACCESS_REVOKED`, `DOC_REGISTERED`, logs to audit
-- `FabricException.java` — checked exception for Fabric errors
-- `FabricChaincodEvent.java` — Spring `ApplicationEvent` carrier
+### ✅ Phase 5 — Audit, Messaging, Admin (COMPLETE)
+AuditTrail (real API, paginated), Messages (E2E encrypted AES-256-GCM + ECIES), AdminPanel (user management, activate/suspend), Dashboard (real stats), Profile (key status).
 
-**Updated files:**
-- `pom.xml` — added `fabric-gateway:1.4.0`, `grpc-netty-shaded:1.62.2`
-- `application.yml` — Fabric config keys: `fabric.peer-endpoint`, `msp-id`, `cert-path`, `key-path`, `tls-cert-path`, `channel-name`, `chaincode-name`
-- `AuditService.java` — added string-actor overload for system-generated events
+### ✅ Phase 6A — Fabric Network Fix (COMPLETE)
 
-### 🔲 Phase 3 — Document Core (NEXT)
+**Critical bugs fixed:**
+- `configtx.yaml`: profile name mismatch (`PangoChainGenesis` vs `LegalOrdererGenesis`) — fixed
+- `configtx.yaml`: `ApplicationCapabilities: V2_5: true` breaks Fabric 2.4 — downgraded to `V2_0: true`
+- `docker-compose.fabric.yml`: orderer used `BOOTSTRAPMETHOD: none` (channel participation API) but scripts used genesis block approach — fixed to `BOOTSTRAPMETHOD: file` + genesis block mount
+- `deploy-chaincode.sh`: broken `&&` chain in package install — fixed
+- Added `scripts/generate-artifacts.sh` — runs cryptogen + configtxgen inside `hyperledger/fabric-tools:2.4` container (no local binaries needed on Windows)
+- Updated `scripts/start-network.sh` — containerized artifact generation, clean tear-down, correct channel join sequence
+- Added `Makefile` — `make up`, `make chaincode`, `make smoke`, `make down`, `make clean`
 
-- Client-side AES-256-GCM encrypt in browser → POST ciphertext → IPFS upload
-- `POST /api/documents/upload-ciphertext` endpoint
-- `POST /api/documents/register` → RegisterDocument chaincode
-- Two-layer download: JWT check + CheckAccess chaincode + IPFS fetch → browser decrypt
-- `SecureDownloadModal` component with decryption progress + integrity check
-- `DocumentUploadDropzone` with encryption progress indicators
+**To run the Fabric network (WSL2 or Git Bash on Windows with Docker Desktop):**
+```bash
+cd pangochain-fabric
+make up          # generates crypto + channel artifacts, starts all containers, joins channel
+make chaincode   # builds legalcc image, packages, installs, approves, commits, starts ccaas server
+make smoke       # verify chaincode is live
+```
 
-### 🔲 Phase 4 — Access Control & Key Wrapping
+### ✅ Phase 6B — Client Portal & Feature Expansion (COMPLETE)
 
-- ECIES key wrapping in browser → GrantAccess flow
-- Time-bounded access (expiry in chaincode)
-- RevokeAccess + key rotation workflow (P3-C)
-- Access request workflow (associate → partner approval queue)
-- `AccessControlPanel` component
+**New DB migration (`002-client-features.sql`):**
+- `hearings` table (id, case_id, title, hearing_date, location, court_name, hearing_type, notes, created_by)
+- `reminders` table (id, case_id, sender_id, recipient_id, title, body, due_at, is_read, priority)
+- `case_events` table (id, case_id, event_type, title, description, fabric_tx_id, actor_id)
+- `case_clients` table (case_id, client_id, added_by) — client portal association
+- `documents.category` column (GENERAL, EVIDENCE, CONTRACT, CORRESPONDENCE, CONFESSION, MEDICAL, FINANCIAL)
+- `documents.confidential` column (boolean)
 
-### 🔲 Phase 5 — Audit, Messaging, Admin
+**New backend files:**
+- `hearing/Hearing.java` + `HearingRepository.java` + `HearingDto.java` + `HearingCreateRequest.java` + `HearingController.java`
+  - `GET /api/hearings/by-case/{caseId}` — hearings for a case
+  - `GET /api/hearings/upcoming` — upcoming hearings for current user's firm
+  - `POST /api/hearings` — schedule hearing (triggers audit log)
+  - `DELETE /api/hearings/{id}`
+- `reminder/Reminder.java` + `ReminderRepository.java` + `ReminderDto.java` + `ReminderCreateRequest.java` + `ReminderController.java`
+  - `GET /api/reminders` — all reminders for current user
+  - `GET /api/reminders/unread-count`
+  - `POST /api/reminders` — lawyer sends reminder to client
+  - `PATCH /api/reminders/{id}/read` — mark as read
+- `caseevent/CaseEvent.java` + `CaseEventRepository.java` + `CaseEventController.java`
+  - `GET /api/case-events/by-case/{caseId}` — timeline events
+  - `POST /api/case-events` — add event
+- `dashboard/DashboardController.java` — updated: client-specific stats (totalDocuments by owner, unreadReminders), nextHearing included in response for legal professionals
+- `document/DocumentRepository.java` — added `countByOwnerId(UUID)`
 
-- Audit Trail UI (Fabric GetHistoryForKey + PostgreSQL shadow log)
-- Ledger Explorer (raw Fabric block viewer)
-- Client Portal (simplified matter view)
-- E2E encrypted messaging (AES-GCM + ECIES per message)
-- Admin panel + network status dashboards
-- E-signature workflow (hash → client confirm → Fabric anchor)
+**New frontend files:**
+- `pages/client/ClientPortal.tsx` — full client dashboard:
+  - Welcome hero with encryption status badge
+  - Next hearing countdown card (days/hours remaining, prominent)
+  - Stats row: documents, messages, reminders, audit events
+  - Reminders from lawyer (click to mark read, HIGH priority badge)
+  - Quick action cards: Upload, Message, Document Vault, Case Timeline
+  - Privacy notice with AES-256-GCM / ECIES / PBKDF2 details
+- `pages/client/ClientDocuments.tsx` — secure document vault:
+  - Category filter tabs: ALL, EVIDENCE, CONTRACT, CORRESPONDENCE, CONFESSION, MEDICAL, FINANCIAL, GENERAL
+  - Inline upload modal with category + confidential checkbox
+  - Full encrypt → wrap → upload pipeline (same as DocumentUploadDropzone)
+  - CONFIDENTIAL badge + red styling for sensitive docs
+  - SecureDownloadModal integration
+- `pages/client/ClientCase.tsx` — case view:
+  - Upcoming hearings list with past/today/future highlighting
+  - Privacy rights panel (5-point checklist)
+  - Encryption status panel (AES-256-GCM, ECIES P-256, PBKDF2, Fabric 2.4)
+  - Blockchain audit trail timeline with event type icons and Fabric tx IDs
+- `pages/HearingManager.tsx` — lawyer hearing scheduler:
+  - Create hearing form (case selector, type dropdown, datetime, court, location, notes)
+  - Upcoming / past hearing list with calendar-style date badges
+  - Send reminder modal: lookup client by email → POST /api/reminders with HIGH priority
+  - Delete hearing button
+- `pages/LedgerExplorer.tsx` — blockchain ledger browser:
+  - Filter by event type + resource ID
+  - Expandable rows showing full context JSON, Fabric tx ID, actor
+  - Pagination
+- `components/TeamAccessPanel.tsx` — per-document access management:
+  - Shows current ACL with capability badges (owner/write/read)
+  - Grant form: email lookup → ECIES key wrap → POST /api/access/grant
+  - Revoke button → DELETE /api/access/{docId}/user/{userId}
+  - Expiry date support, revoked history
 
-### 🔲 Phase 6 — Experiments (Paper)
+**Updated frontend files:**
+- `layout/Sidebar.tsx`:
+  - Client nav: My Portal, Document Vault, My Case, Messages
+  - Legal nav: Dashboard, Cases, Documents, Messages, Hearings (new), Audit Trail
+  - Admin nav: Admin Panel, Users, Key Rotation, Ledger Explorer (new)
+  - Branding footer with crypto spec line
+- `App.tsx` — new routes: `/hearings`, `/ledger`, `/client/portal`, `/client/documents`, `/client/case`
+- `pages/CaseDetail.tsx` — tabbed interface:
+  - Documents tab (with per-row team access panel toggle)
+  - Hearings tab (inline schedule form + hearing list)
+  - Team Access tab (TeamAccessPanel for all docs)
+  - Timeline tab (CaseEvent blockchain timeline)
+- `components/SecureDownloadModal.tsx` — added optional `expectedHash` prop
 
-- Caliper load test scripts
-- WAN latency simulation (tc netem)
-- Experiment result collection automation
+**Commit:** Phase 6A+6B pushed to GitHub
 
 ---
 
-## Critical Rules (from spec)
+### 🔲 Phase 7 — Experiments (Paper)
+
+- **Hyperledger Caliper load test scripts** — throughput + latency benchmarks against live Fabric network
+- **WAN latency simulation** — `tc netem` on Docker bridge network (0ms / 50ms / 100ms / 200ms RTT scenarios)
+- **Experiment result collection** — CSV export + Python chart generation for paper figures
+- **E-signature workflow** — client browser sign → document hash → Fabric anchor (`esignatures` table exists)
+- **MFA enrollment UI** — TOTP setup flow (`mfaSecret` field in User entity exists, no `/mfa/setup` endpoint yet)
+- **Client Portal — case association** — `case_clients` table exists; need endpoint to link client user to a case
+
+---
+
+## Critical Rules (NEVER violate)
 
 1. **Plaintext NEVER leaves the browser** — AES-256-GCM in browser, server receives ciphertext only
-2. **Every document access** must invoke `CheckAccess` chaincode (two-layer ACL)
+2. **Every document download** must invoke `CheckAccess` chaincode (two-layer ACL); falls back to DB only if Fabric unreachable
 3. **ECIES P-256** (not RSA-OAEP) for key wrapping
 4. **PBKDF2 600,000 iterations** SHA-256 for password-based key derivation
-5. **PostgreSQL audit_log is append-only** — INSERT-only trigger blocks UPDATE/DELETE
+5. **PostgreSQL audit_log is append-only** — INSERT-only trigger blocks UPDATE/DELETE at DB level
+6. **IV packaging** — IV (12 bytes) always prepended to ciphertext before IPFS; download always splits `bytes[0:12]` as IV
+7. **No mock data in production flow** — demo mode only if `user.id === 'demo-user-001'`
 
-## API Base
+---
 
-- Frontend dev server: http://localhost:3000 (proxies /api → http://localhost:8080)
-- Backend: http://localhost:8080
-- IPFS API: http://localhost:5001
-- PostgreSQL: localhost:5432 / db: pangochain / user: pangochain
+## API Endpoints Summary
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | /api/auth/login | JWT login |
+| POST | /api/auth/register | Register + keypair |
+| GET | /api/dashboard/stats | Stats (role-aware: includes nextHearing, unreadReminders) |
+| GET | /api/cases | Paginated case list |
+| POST | /api/cases | Create case → RegisterCase chaincode |
+| GET | /api/cases/{id} | Case detail |
+| POST | /api/cases/{id}/close | Close case |
+| POST | /api/documents/upload | Ciphertext + IV + hash → IPFS → RegisterDocument |
+| GET | /api/documents/{id}/ciphertext | Raw bytes (IV prepended) |
+| GET | /api/documents/{id}/wrapped-key | ECIES-wrapped doc key for caller |
+| GET | /api/documents/by-case/{caseId} | Documents in case |
+| GET | /api/documents | All accessible by current user |
+| POST | /api/access/grant | Grant ECIES-wrapped access |
+| DELETE | /api/access/{docId}/user/{userId} | Revoke access |
+| GET | /api/access/{docId} | List ACL entries |
+| GET | /api/hearings/by-case/{caseId} | Hearings for a case |
+| GET | /api/hearings/upcoming | Upcoming hearings for firm |
+| POST | /api/hearings | Schedule hearing |
+| DELETE | /api/hearings/{id} | Delete hearing |
+| GET | /api/reminders | Reminders for current user |
+| GET | /api/reminders/unread-count | Unread reminder count |
+| POST | /api/reminders | Send reminder to user |
+| PATCH | /api/reminders/{id}/read | Mark reminder read |
+| GET | /api/case-events/by-case/{caseId} | Case timeline events |
+| POST | /api/case-events | Add timeline event |
+| GET | /api/audit | Audit log (eventType?, resourceId?, paginated) |
+| POST | /api/messages | Send encrypted message |
+| GET | /api/messages | Inbox |
+| POST | /api/messages/mark-read | Bulk mark read |
+| GET | /api/messages/unread-count | Unread count |
+| GET | /api/users/{id}/public-key | ECIES public key JWK |
+| GET | /api/users/by-email | User lookup |
+| GET | /api/admin/users | All users (MANAGING_PARTNER/IT_ADMIN only) |
+| POST | /api/admin/users/{id}/activate | Activate user |
+| POST | /api/admin/users/{id}/suspend | Suspend user |
+
+## Client-Side Routes
+
+| Path | Component | Role |
+|------|-----------|------|
+| /client/portal | ClientPortal | CLIENT_* |
+| /client/documents | ClientDocuments | CLIENT_* |
+| /client/case | ClientCase | CLIENT_* |
+| /hearings | HearingManager | Legal professionals |
+| /ledger | LedgerExplorer | Admin roles |
+| /cases/:id | CaseDetail (4 tabs: Documents, Hearings, Team Access, Timeline) | Legal professionals |
+
+## To Run
+
+```bash
+# App stack
+docker-compose up postgres ipfs          # Terminal 1
+cd pangochain-backend && ./mvnw spring-boot:run   # Terminal 2
+cd pangochain-frontend && npm run dev    # Terminal 3
+
+# Fabric network (WSL2 or Git Bash)
+cd pangochain-fabric
+make up          # ~3 minutes
+make chaincode   # ~2 minutes
+make smoke       # quick verify
+```
 
 ## Environment Variables
 

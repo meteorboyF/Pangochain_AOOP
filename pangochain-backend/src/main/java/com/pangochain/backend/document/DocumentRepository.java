@@ -25,4 +25,6 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     List<Document> findAccessibleByUser(@Param("userId") UUID userId);
 
     long countByLegalCaseIdAndStatus(UUID caseId, DocStatus status);
+
+    long countByOwnerId(UUID ownerId);
 }

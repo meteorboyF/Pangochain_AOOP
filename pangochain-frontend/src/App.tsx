@@ -15,6 +15,11 @@ import Messages from './pages/Messages'
 import Profile from './pages/Profile'
 import AdminPanel from './pages/AdminPanel'
 import NotFound from './pages/NotFound'
+import HearingManager from './pages/HearingManager'
+import LedgerExplorer from './pages/LedgerExplorer'
+import ClientPortal from './pages/client/ClientPortal'
+import ClientDocuments from './pages/client/ClientDocuments'
+import ClientCase from './pages/client/ClientCase'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -44,37 +49,45 @@ export default function App() {
         <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
         <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
 
-        {/* Protected */}
+        {/* Protected — all inside MainLayout */}
         <Route element={<PrivateRoute><MainLayout /></PrivateRoute>}>
+
+          {/* ── Legal Professional ──────────────────────────────────────────── */}
           <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* Cases */}
           <Route path="/cases" element={<Cases />} />
           <Route path="/cases/new" element={<NewCase />} />
           <Route path="/cases/:id" element={<CaseDetail />} />
 
-          {/* Documents */}
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<Documents />} />
 
-          {/* Audit */}
           <Route path="/audit" element={<AuditTrail />} />
           <Route path="/audit/ledger" element={<AuditTrail />} />
 
-          {/* Messages */}
           <Route path="/messages" element={<Messages />} />
 
-          {/* Admin */}
+          <Route path="/hearings" element={<HearingManager />} />
+
+          <Route path="/ledger" element={<LedgerExplorer />} />
+
+          {/* ── Admin ──────────────────────────────────────────────────────── */}
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/admin/users" element={<AdminPanel />} />
           <Route path="/admin/keys" element={<AdminPanel />} />
 
-          {/* Profile */}
+          {/* ── Profile ────────────────────────────────────────────────────── */}
           <Route path="/profile" element={<Profile />} />
 
-          {/* Client portal placeholder */}
-          <Route path="/client/portal" element={<Dashboard />} />
-          <Route path="/client/portal/sign/:docId" element={<div className="card"><p className="text-text-muted text-sm">E-Signature — Phase 5</p></div>} />
+          {/* ── Client Portal ──────────────────────────────────────────────── */}
+          <Route path="/client/portal" element={<ClientPortal />} />
+          <Route path="/client/documents" element={<ClientDocuments />} />
+          <Route path="/client/case" element={<ClientCase />} />
+          <Route path="/client/portal/sign/:docId" element={
+            <div className="card">
+              <p className="text-text-muted text-sm">E-Signature — Phase 7</p>
+            </div>
+          } />
         </Route>
 
         <Route path="*" element={<NotFound />} />
