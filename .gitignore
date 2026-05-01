@@ -9,8 +9,8 @@ target/
 *.jar
 *.war
 *.ear
-.mvn/wrapper/maven-wrapper.jar
 !.mvn/wrapper/maven-wrapper.properties
+!.mvn/wrapper/maven-wrapper.jar
 
 # Node / React
 node_modules/
