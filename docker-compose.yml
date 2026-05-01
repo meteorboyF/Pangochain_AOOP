@@ -21,7 +21,11 @@ services:
     networks:
       - pangochain-net
 
-  # ─── IPFS (Kubo — private swarm) ─────────────────────────────────────────────
+  # ─── IPFS (Kubo) ─────────────────────────────────────────────────────────────
+  # Private swarm key: run `bash scripts/generate-swarm-key.sh` once, then share
+  # pangochain-ipfs/swarm.key with your team via a secrets manager (never git).
+  # Without the key the node joins the public IPFS network (files still encrypted
+  # but visible by CID — acceptable for dev, not for production).
   ipfs:
     image: ipfs/kubo:v0.27.0
     container_name: pangochain-ipfs
@@ -33,6 +37,8 @@ services:
       - "4001:4001"   # Swarm
     volumes:
       - ipfs_data:/data/ipfs
+      # Uncomment after running scripts/generate-swarm-key.sh:
+      # - ./pangochain-ipfs/swarm.key:/data/ipfs/swarm.key:ro
     networks:
       - pangochain-net
 
