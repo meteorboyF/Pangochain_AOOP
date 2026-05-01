@@ -35,6 +35,7 @@ public class Hearing {
     private String courtName;
 
     @Column(name = "hearing_type", length = 100)
+    @Builder.Default
     private String hearingType = "COURT_HEARING";
 
     @Column(columnDefinition = "TEXT")

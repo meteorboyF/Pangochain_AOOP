@@ -16,7 +16,7 @@ public record HearingDto(
         String createdByName,
         Instant createdAt
 ) {
-    static HearingDto from(Hearing h) {
+    public static HearingDto from(Hearing h) {
         return new HearingDto(
                 h.getId(),
                 h.getLegalCase().getId(),

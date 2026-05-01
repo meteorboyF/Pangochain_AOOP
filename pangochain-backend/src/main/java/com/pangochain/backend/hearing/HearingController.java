@@ -66,7 +66,7 @@ public class HearingController {
                 .build();
 
         h = hearingRepository.save(h);
-        auditService.log("HEARING_SCHEDULED", creator, h.getId().toString(),
+        auditService.log("HEARING_SCHEDULED", creator.getId(), "HEARING", h.getId().toString(), null,
                 String.format("{\"caseId\":\"%s\",\"date\":\"%s\"}", legalCase.getId(), req.hearingDate()));
         return ResponseEntity.ok(HearingDto.from(h));
     }
@@ -77,7 +77,7 @@ public class HearingController {
             @AuthenticationPrincipal UserDetails principal) {
         User user = resolveUser(principal);
         hearingRepository.deleteById(id);
-        auditService.log("HEARING_DELETED", user, id.toString(), "{}");
+        auditService.log("HEARING_DELETED", user.getId(), "HEARING", id.toString(), null, "{}");
         return ResponseEntity.noContent().build();
     }
 

@@ -40,9 +40,11 @@ public class Reminder {
     private Instant dueAt;
 
     @Column(name = "is_read", nullable = false)
+    @Builder.Default
     private boolean read = false;
 
     @Column(length = 20, nullable = false)
+    @Builder.Default
     private String priority = "NORMAL";
 
     @CreationTimestamp
