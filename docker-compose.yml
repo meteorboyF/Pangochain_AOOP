@@ -21,45 +21,6 @@ services:
     networks:
       - pangochain-net
 
-  # ─── Spring Boot Backend ─────────────────────────────────────────────────────
-  pangochain-backend:
-    build:
-      context: ./pangochain-backend
-      dockerfile: Dockerfile
-    container_name: pangochain-backend
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: pangochain
-      DB_USER: pangochain
-      DB_PASSWORD: ${DB_PASSWORD:-pangochain_secret}
-      JWT_SECRET: ${JWT_SECRET:-pangochain-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
-      FABRIC_PEER_HOST: fabric-peer-firma
-      FABRIC_PEER_PORT: 7051
-      IPFS_API_HOST: http://ipfs
-      IPFS_API_PORT: 5001
-    ports:
-      - "8080:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - pangochain-net
-      - fabric-net
-
-  # ─── React Frontend (served by Nginx) ────────────────────────────────────────
-  pangochain-frontend:
-    build:
-      context: ./pangochain-frontend
-      dockerfile: Dockerfile
-    container_name: pangochain-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - pangochain-backend
-    networks:
-      - pangochain-net
-
   # ─── IPFS (Kubo — private swarm) ─────────────────────────────────────────────
   ipfs:
     image: ipfs/kubo:v0.27.0
@@ -72,9 +33,44 @@ services:
       - "4001:4001"   # Swarm
     volumes:
       - ipfs_data:/data/ipfs
-      - ./pangochain-ipfs/swarm.key:/data/ipfs/swarm.key:ro
     networks:
       - pangochain-net
+
+  # ─── Spring Boot Backend (optional — can run with ./mvnw instead) ─────────────
+  pangochain-backend:
+    image: eclipse-temurin:21-jre
+    container_name: pangochain-backend
+    working_dir: /app
+    entrypoint: ["java", "-jar", "app.jar"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: pangochain
+      DB_USER: pangochain
+      DB_PASSWORD: ${DB_PASSWORD:-pangochain_secret}
+      JWT_SECRET: ${JWT_SECRET:-pangochain-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+      IPFS_API_HOST: http://ipfs
+      IPFS_API_PORT: 5001
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pangochain-net
+    profiles:
+      - full
+
+  # ─── React Frontend (optional — can run with npm run dev instead) ─────────────
+  pangochain-frontend:
+    image: nginx:alpine
+    container_name: pangochain-frontend
+    ports:
+      - "3000:80"
+    networks:
+      - pangochain-net
+    profiles:
+      - full
 
 volumes:
   postgres_data:
@@ -83,6 +79,3 @@ volumes:
 networks:
   pangochain-net:
     driver: bridge
-  fabric-net:
-    external: true
-    name: fabric_test
