@@ -11,7 +11,7 @@ Install these tools before starting. Tick each one off as you go.
 | Tool | Version | Download |
 |------|---------|----------|
 | **Git** | Any recent | https://git-scm.com |
-| **Java JDK** | 20 or 21 | https://adoptium.net (choose **Temurin 21 LTS**) |
+| **Java JDK** | 20 or 21 | https://adoptium.net (choose **Temurin 21 LTS** or **20**) |
 | **Node.js** | 18 or 20 (LTS) | https://nodejs.org |
 | **Docker Desktop** | Latest | https://www.docker.com/products/docker-desktop |
 
