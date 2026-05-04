@@ -35,8 +35,11 @@ public class CaseService {
 
     @Transactional
     public CaseDto create(CaseCreateRequest req, User creator) {
+        if (creator.getFirm() == null) {
+            throw new IllegalStateException("Creator is not assigned to any firm");
+        }
+
         Case legalCase = Case.builder()
-                .id(UUID.randomUUID())
                 .title(req.getTitle())
                 .description(req.getDescription())
                 .caseType(req.getCaseType())
@@ -47,14 +50,15 @@ public class CaseService {
 
         String fabricTxId = null;
         try {
-            fabricTxId = fabricGatewayService.registerCase(
-                    legalCase.getId().toString(),
-                    creator.getFirm() != null ? creator.getFirm().getId().toString() : "firm-a",
-                    req.getTitle(),
-                    creator.getId().toString(),
-                    Instant.now().toString()
-            );
-            legalCase.setFabricTxId(fabricTxId);
+            if (fabricGatewayService != null) {
+                fabricTxId = fabricGatewayService.registerCase(
+                        legalCase.getId().toString(),
+                        creator.getFirm().getId().toString(),
+                        req.getTitle(),
+                        creator.getId().toString(),
+                        Instant.now().toString());
+                legalCase.setFabricTxId(fabricTxId);
+            }
         } catch (FabricException e) {
             log.warn("Fabric case registration skipped: {}", e.getMessage());
         }
@@ -63,24 +67,35 @@ public class CaseService {
 
         auditService.log("CASE_REGISTERED", creator.getId(), "CASE",
                 legalCase.getId().toString(), fabricTxId,
-                toJson(Map.of("title", req.getTitle(), "caseType", req.getCaseType() != null ? req.getCaseType() : "")));
+                toJson(Map.of("title", req.getTitle(), "caseType",
+                        req.getCaseType() != null ? req.getCaseType() : "")));
 
         return toDto(legalCase, 0L);
     }
 
     public Page<CaseDto> listByFirm(UUID firmId, CaseStatus status, String q, int page, int size) {
+        if (firmId == null) {
+            throw new IllegalArgumentException("firmId cannot be null");
+        }
+
         PageRequest pageable = PageRequest.of(page, size);
         Page<Case> cases = (q != null && !q.isBlank())
                 ? caseRepository.searchByFirm(firmId, status, q, pageable)
-                : (status != null ? caseRepository.findByFirmIdAndStatus(firmId, status, pageable)
+                : (status != null
+                        ? caseRepository.findByFirmIdAndStatus(firmId, status, pageable)
                         : caseRepository.findByFirmId(firmId, pageable));
-        return cases.map(c -> toDto(c, documentRepository.countByLegalCaseIdAndStatus(c.getId(), com.pangochain.backend.document.DocStatus.ACTIVE)));
+
+        return cases.map(c -> toDto(c,
+                documentRepository.countByLegalCaseIdAndStatus(
+                        c.getId(),
+                        com.pangochain.backend.document.DocStatus.ACTIVE)));
     }
 
     public CaseDto getById(UUID caseId) {
         Case c = caseRepository.findById(caseId)
                 .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));
-        long docCount = documentRepository.countByLegalCaseIdAndStatus(caseId, com.pangochain.backend.document.DocStatus.ACTIVE);
+        long docCount = documentRepository.countByLegalCaseIdAndStatus(caseId,
+                com.pangochain.backend.document.DocStatus.ACTIVE);
         return toDto(c, docCount);
     }
 
@@ -92,7 +107,8 @@ public class CaseService {
         c.setClosedAt(Instant.now());
         c = caseRepository.save(c);
         auditService.log("CASE_CLOSED", closer.getId(), "CASE", caseId.toString(), null, null);
-        return toDto(c, documentRepository.countByLegalCaseIdAndStatus(caseId, com.pangochain.backend.document.DocStatus.ACTIVE));
+        return toDto(c, documentRepository.countByLegalCaseIdAndStatus(caseId,
+                com.pangochain.backend.document.DocStatus.ACTIVE));
     }
 
     private CaseDto toDto(Case c, long docCount) {
@@ -113,6 +129,10 @@ public class CaseService {
     }
 
     private String toJson(Object obj) {
-        try { return objectMapper.writeValueAsString(obj); } catch (Exception e) { return "{}"; }
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 }

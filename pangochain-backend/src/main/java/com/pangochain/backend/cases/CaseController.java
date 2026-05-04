@@ -45,10 +45,19 @@ public class CaseController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserDetails principal) {
+
         User user = resolveUser(principal);
-        UUID firmId = user.getFirm() != null ? user.getFirm().getId() : null;
-        CaseStatus caseStatus = (status != null && !status.isBlank()) ? CaseStatus.valueOf(status) : null;
-        return ResponseEntity.ok(caseService.listByFirm(firmId, caseStatus, q, page, size));
+
+        if (user.getFirm() == null) {
+            throw new IllegalStateException("User is not assigned to any firm");
+        }
+
+        CaseStatus caseStatus = (status != null && !status.isBlank())
+                ? CaseStatus.valueOf(status)
+                : null;
+
+        return ResponseEntity.ok(
+                caseService.listByFirm(user.getFirm().getId(), caseStatus, q, page, size));
     }
 
     @GetMapping("/{id}")
@@ -74,8 +83,8 @@ public class CaseController {
         UUID clientId = UUID.fromString(body.get("clientId"));
         User caller = resolveUser(principal);
         em.createNativeQuery(
-                "INSERT INTO case_clients (case_id, client_id, added_by) VALUES (:c, :u, :a) ON CONFLICT DO NOTHING"
-        ).setParameter("c", id).setParameter("u", clientId).setParameter("a", caller.getId()).executeUpdate();
+                "INSERT INTO case_clients (case_id, client_id, added_by) VALUES (:c, :u, :a) ON CONFLICT DO NOTHING")
+                .setParameter("c", id).setParameter("u", clientId).setParameter("a", caller.getId()).executeUpdate();
         return ResponseEntity.ok(Map.of("status", "linked"));
     }
 
@@ -85,8 +94,8 @@ public class CaseController {
     public ResponseEntity<List<CaseDto>> myCases(@AuthenticationPrincipal UserDetails principal) {
         User user = resolveUser(principal);
         List<UUID> caseIds = em.createNativeQuery(
-                "SELECT case_id FROM case_clients WHERE client_id = :uid"
-        ).setParameter("uid", user.getId()).getResultList();
+                "SELECT case_id FROM case_clients WHERE client_id = :uid").setParameter("uid", user.getId())
+                .getResultList();
         List<CaseDto> result = caseIds.stream()
                 .map(cid -> caseService.getById(cid))
                 .toList();
