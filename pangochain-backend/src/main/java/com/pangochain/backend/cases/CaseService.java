@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.pangochain.backend.cases.dto.CaseCreateRequest;
 import com.pangochain.backend.cases.dto.CaseDto;
 import com.pangochain.backend.document.DocumentRepository;
@@ -27,7 +28,8 @@ public class CaseService {
 
     private final CaseRepository caseRepository;
     private final DocumentRepository documentRepository;
-    private final FabricGatewayService fabricGatewayService;
+    @Autowired(required = false)
+    private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -45,14 +47,15 @@ public class CaseService {
 
         String fabricTxId = null;
         try {
-            fabricTxId = fabricGatewayService.registerCase(
-                    legalCase.getId().toString(),
-                    creator.getFirm() != null ? creator.getFirm().getId().toString() : "firm-a",
-                    req.getTitle(),
-                    creator.getId().toString(),
-                    Instant.now().toString()
-            );
-            legalCase.setFabricTxId(fabricTxId);
+            if (fabricGatewayService != null) {
+                fabricTxId = fabricGatewayService.registerCase(
+                        legalCase.getId().toString(),
+                        creator.getFirm().getId().toString(),
+                        req.getTitle(),
+                        creator.getId().toString(),
+                        Instant.now().toString());
+                legalCase.setFabricTxId(fabricTxId);
+            }
         } catch (FabricException e) {
             log.warn("Fabric case registration skipped: {}", e.getMessage());
         }
@@ -66,6 +69,7 @@ public class CaseService {
         return toDto(legalCase, 0L);
     }
 
+    @Transactional(readOnly = true)
     public Page<CaseDto> listByFirm(UUID firmId, CaseStatus status, String q, int page, int size) {
         PageRequest pageable = PageRequest.of(page, size);
         Page<Case> cases = (q != null && !q.isBlank())
@@ -75,6 +79,7 @@ public class CaseService {
         return cases.map(c -> toDto(c, documentRepository.countByLegalCaseIdAndStatus(c.getId(), com.pangochain.backend.document.DocStatus.ACTIVE)));
     }
 
+    @Transactional(readOnly = true)
     public CaseDto getById(UUID caseId) {
         Case c = caseRepository.findById(caseId)
                 .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));

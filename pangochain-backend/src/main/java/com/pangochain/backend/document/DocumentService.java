@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.pangochain.backend.cases.Case;
 import com.pangochain.backend.cases.CaseRepository;
 import com.pangochain.backend.document.dto.DocumentDto;
@@ -30,7 +31,8 @@ public class DocumentService {
     private final DocumentAccessRepository accessRepository;
     private final CaseRepository caseRepository;
     private final IpfsService ipfsService;
-    private final FabricGatewayService fabricGatewayService;
+    @Autowired(required = false)
+    private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -62,15 +64,16 @@ public class DocumentService {
         String docId = UUID.randomUUID().toString();
         String fabricTxId = null;
         try {
-            fabricTxId = fabricGatewayService.registerDocument(
-                    docId,
-                    legalCase.getId().toString(),
-                    req.getDocumentHashSha256(),
-                    cid,
-                    uploader.getId().toString(),
-                    uploader.getFirm() != null ? uploader.getFirm().getMspId() : "FirmAMSP",
-                    Instant.now().toString()
-            );
+            if (fabricGatewayService != null) {
+                fabricTxId = fabricGatewayService.registerDocument(
+                        docId,
+                        legalCase.getId().toString(),
+                        req.getDocumentHashSha256(),
+                        cid,
+                        uploader.getId().toString(),
+                        uploader.getFirm() != null ? uploader.getFirm().getMspId() : "FirmAMSP",
+                        Instant.now().toString());
+            }
         } catch (FabricException e) {
             log.warn("Fabric registration failed (continuing): {}", e.getMessage());
         }
@@ -122,14 +125,17 @@ public class DocumentService {
         // Chaincode ACL check (two-layer: JWT already validated layer 1)
         boolean allowed;
         try {
-            allowed = fabricGatewayService.checkAccess(
-                    docId.toString(),
-                    requester.getId().toString(),
-                    requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP"
-            );
+            if (fabricGatewayService != null) {
+                allowed = fabricGatewayService.checkAccess(
+                        docId.toString(),
+                        requester.getId().toString(),
+                        requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP");
+            } else {
+                // Fabric disabled — fall back to DB access check
+                allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
+            }
         } catch (FabricException e) {
             log.warn("Fabric ACL check failed for doc={}: {}", docId, e.getMessage());
-            // Fall back to DB check if Fabric unreachable
             allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
         }
 
@@ -147,13 +153,15 @@ public class DocumentService {
                 .orElseThrow(() -> new AccessDeniedException("No active access entry for document " + docId));
     }
 
+    @Transactional(readOnly = true)
     public List<DocumentDto> listAccessibleByUser(User user) {
-        return documentRepository.findAccessibleByUser(user.getId())
+        return documentRepository.findAccessibleByUser(user.getId(), DocStatus.ACTIVE)
                 .stream()
                 .map(d -> toDto(d, d.getOwner().getEmail()))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<DocumentDto> listByCase(UUID caseId) {
         return documentRepository.findByLegalCaseIdAndStatus(caseId, DocStatus.ACTIVE)
                 .stream()

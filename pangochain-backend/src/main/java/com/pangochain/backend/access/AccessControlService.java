@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.pangochain.backend.document.DocumentAccess;
 import com.pangochain.backend.document.DocumentAccessRepository;
 import com.pangochain.backend.document.DocumentRepository;
@@ -30,7 +31,8 @@ public class AccessControlService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
-    private final FabricGatewayService fabricGatewayService;
+    @Autowired(required = false)
+    private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -63,6 +65,7 @@ public class AccessControlService {
         // Fabric GrantAccess
         String fabricTxId = null;
         try {
+            if (fabricGatewayService == null) throw new FabricException("Fabric not enabled");
             String expiryStr = expiresAt != null ? expiresAt.toString() : "";
             fabricTxId = fabricGatewayService.grantAccess(
                     docId.toString(),
@@ -120,6 +123,7 @@ public class AccessControlService {
 
         String fabricTxId = null;
         try {
+            if (fabricGatewayService == null) throw new FabricException("Fabric not enabled");
             fabricTxId = fabricGatewayService.revokeAccess(docIdStr, targetUserIdStr, revoker.getId().toString());
         } catch (FabricException e) {
             log.warn("Fabric RevokeAccess failed: {}", e.getMessage());

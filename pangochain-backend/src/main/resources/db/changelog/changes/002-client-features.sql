@@ -1,6 +1,6 @@
--- liquibase formatted sql
+--liquibase formatted sql
 
--- changeset pangochain:002-hearings
+--changeset pangochain:002-hearings
 CREATE TABLE hearings (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id       UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -16,7 +16,7 @@ CREATE TABLE hearings (
 CREATE INDEX idx_hearings_case ON hearings(case_id);
 CREATE INDEX idx_hearings_date ON hearings(hearing_date);
 
--- changeset pangochain:002-reminders
+--changeset pangochain:002-reminders
 CREATE TABLE reminders (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id       UUID REFERENCES cases(id) ON DELETE CASCADE,
@@ -32,7 +32,7 @@ CREATE TABLE reminders (
 CREATE INDEX idx_reminders_recipient ON reminders(recipient_id);
 CREATE INDEX idx_reminders_case ON reminders(case_id);
 
--- changeset pangochain:002-case-events
+--changeset pangochain:002-case-events
 CREATE TABLE case_events (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     case_id       UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -45,12 +45,12 @@ CREATE TABLE case_events (
 );
 CREATE INDEX idx_case_events_case ON case_events(case_id);
 
--- changeset pangochain:002-document-category
+--changeset pangochain:002-document-category
 ALTER TABLE documents
     ADD COLUMN IF NOT EXISTS category VARCHAR(100) NOT NULL DEFAULT 'GENERAL',
     ADD COLUMN IF NOT EXISTS confidential BOOLEAN NOT NULL DEFAULT false;
 
--- changeset pangochain:002-case-client-link
+--changeset pangochain:002-case-client-link
 -- Stores which client user is associated with which case (for client portal)
 CREATE TABLE IF NOT EXISTS case_clients (
     case_id     UUID NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
@@ -59,3 +59,13 @@ CREATE TABLE IF NOT EXISTS case_clients (
     added_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (case_id, client_id)
 );
+
+--changeset pangochain:002-varchar-enum-casts
+-- Allow Hibernate (EnumType.STRING) to bind varchar parameters to PostgreSQL custom enum columns
+CREATE CAST (VARCHAR AS user_role) WITH INOUT AS IMPLICIT;
+CREATE CAST (VARCHAR AS account_status) WITH INOUT AS IMPLICIT;
+CREATE CAST (VARCHAR AS case_status) WITH INOUT AS IMPLICIT;
+CREATE CAST (VARCHAR AS doc_status) WITH INOUT AS IMPLICIT;
+CREATE CAST (VARCHAR AS capability) WITH INOUT AS IMPLICIT;
+
+--rollback DROP CAST (VARCHAR AS user_role); DROP CAST (VARCHAR AS account_status); DROP CAST (VARCHAR AS case_status); DROP CAST (VARCHAR AS doc_status); DROP CAST (VARCHAR AS capability);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   Gavel, Calendar, Plus, Trash2, Bell, Loader2, AlertCircle,
-  MapPin, Scale, Clock, Users, ChevronDown, Send,
+  Scale, ChevronDown, Send,
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -29,6 +29,7 @@ export default function HearingManager() {
   const [hearings, setHearings] = useState<Hearing[]>([])
   const [cases, setCases] = useState<CaseDto[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -55,6 +56,7 @@ export default function HearingManager() {
           api.get('/cases', { params: { size: 100 } }),
         ])
         if (hRes.status === 'fulfilled') setHearings(hRes.value.data ?? [])
+        else setError((hRes.reason as any)?.response?.data?.detail ?? 'Failed to load hearings')
         if (cRes.status === 'fulfilled') setCases(cRes.value.data?.content ?? [])
       } finally {
         setLoading(false)
@@ -193,6 +195,11 @@ export default function HearingManager() {
       )}
 
       {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
+      {error && !loading && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        </div>
+      )}
 
       {/* ── Upcoming ──────────────────────────────────────────────────────────── */}
       {!loading && (

@@ -19,10 +19,11 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
         SELECT d FROM Document d
         JOIN DocumentAccess da ON da.docId = d.id
         WHERE da.userId = :userId AND da.revokedAt IS NULL
-        AND d.status = 'ACTIVE'
+        AND d.status = :status
         ORDER BY d.createdAt DESC
         """)
-    List<Document> findAccessibleByUser(@Param("userId") UUID userId);
+    List<Document> findAccessibleByUser(@Param("userId") UUID userId,
+                                        @Param("status") DocStatus status);
 
     long countByLegalCaseIdAndStatus(UUID caseId, DocStatus status);
 
