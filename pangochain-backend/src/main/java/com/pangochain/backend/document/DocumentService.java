@@ -12,6 +12,7 @@ import com.pangochain.backend.ipfs.IpfsService;
 import com.pangochain.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,8 @@ public class DocumentService {
     private final DocumentAccessRepository accessRepository;
     private final CaseRepository caseRepository;
     private final IpfsService ipfsService;
-    private final FabricGatewayService fabricGatewayService;
+    @Autowired(required = false)
+    private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 

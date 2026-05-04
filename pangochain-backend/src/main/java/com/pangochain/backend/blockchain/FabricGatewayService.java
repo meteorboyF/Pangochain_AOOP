@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hyperledger.fabric.client.*;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ import java.util.concurrent.*;
  * {@link FabricChaincodEvent} to Spring's event bus so other beans can react.
  */
 @Service
+@ConditionalOnProperty(name = "fabric.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
 public class FabricGatewayService {

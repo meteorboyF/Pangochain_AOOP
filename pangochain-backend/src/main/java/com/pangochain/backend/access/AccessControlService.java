@@ -13,6 +13,7 @@ import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +31,8 @@ public class AccessControlService {
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
-    private final FabricGatewayService fabricGatewayService;
+    @Autowired(required = false)
+    private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
