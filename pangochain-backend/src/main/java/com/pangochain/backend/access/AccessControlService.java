@@ -132,7 +132,7 @@ public class AccessControlService {
 
         // Mark all non-owner tokens on this document as OBSOLETE — they may have been
         // exposed to the revoked user and must not be trusted after key rotation.
-        List<DocumentAccess> nonOwnerTokens = accessRepository.findActiveNonOwnerByDoc(docId);
+        List<DocumentAccess> nonOwnerTokens = accessRepository.findActiveNonOwnerByDoc(docId, DocumentAccess.Capability.owner);
         for (DocumentAccess token : nonOwnerTokens) {
             token.setTokenObsolete(true);
             accessRepository.save(token);

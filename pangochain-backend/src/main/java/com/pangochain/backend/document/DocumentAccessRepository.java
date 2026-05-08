@@ -19,6 +19,6 @@ public interface DocumentAccessRepository extends JpaRepository<DocumentAccess, 
     @Query("SELECT da FROM DocumentAccess da WHERE da.userId = :userId AND da.revokedAt IS NULL")
     List<DocumentAccess> findActiveByUser(@Param("userId") UUID userId);
 
-    @Query("SELECT da FROM DocumentAccess da WHERE da.docId = :docId AND da.revokedAt IS NULL AND da.capability <> com.pangochain.backend.document.DocumentAccess.Capability.owner")
-    List<DocumentAccess> findActiveNonOwnerByDoc(@Param("docId") UUID docId);
+    @Query("SELECT da FROM DocumentAccess da WHERE da.docId = :docId AND da.revokedAt IS NULL AND da.capability <> :ownerCap")
+    List<DocumentAccess> findActiveNonOwnerByDoc(@Param("docId") UUID docId, @Param("ownerCap") DocumentAccess.Capability ownerCap);
 }
