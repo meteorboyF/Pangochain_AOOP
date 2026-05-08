@@ -51,7 +51,7 @@ for svc in \
   "peer0.firma.pangochain.com" \
   "peer0.firmb.pangochain.com" \
   "peer0.regulator.pangochain.com"; do
-  ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$svc" 2>/dev/null || true)
+  ip=$(docker inspect -f '{{(index .NetworkSettings.Networks "fabric_test").IPAddress}}' "$svc" 2>/dev/null || true)
   if [ -n "$ip" ]; then
     docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts"
     log "  $svc -> $ip"
