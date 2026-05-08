@@ -46,19 +46,19 @@ sleep 20
 
 # ─── 3b. Inject /etc/hosts into fabric-cli (Docker Desktop DNS unreliable for FQDNs) ──
 log "Injecting host entries into fabric-cli container..."
-for svc in \
-  "orderer.pangochain.com" \
-  "peer0.firma.pangochain.com" \
-  "peer0.firmb.pangochain.com" \
-  "peer0.regulator.pangochain.com"; do
-  ip=$(docker inspect -f '{{(index .NetworkSettings.Networks "fabric_test").IPAddress}}' "$svc" 2>/dev/null || true)
-  if [ -n "$ip" ]; then
-    docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts"
-    log "  $svc -> $ip"
-  else
-    warn "  Could not resolve IP for $svc"
-  fi
-done
+# Use docker network inspect to get all container IPs reliably
+hosts_block=$(docker network inspect fabric_test \
+  --format '{{range $id, $c := .Containers}}{{$c.IPv4Address}} {{$c.Name}}
+{{end}}' 2>/dev/null | sed 's|/[0-9]*||g' | grep '\.')
+if [ -n "$hosts_block" ]; then
+  docker exec fabric-cli sh -c "cat >> /etc/hosts <<'HOSTS'
+$hosts_block
+HOSTS"
+  log "Injected entries:"
+  echo "$hosts_block" | while read -r line; do log "  $line"; done
+else
+  warn "Could not get container IPs from fabric_test network — DNS may fail"
+fi
 
 # ─── 4. Create and join channel ───────────────────────────────────────────────
 ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
