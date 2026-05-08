@@ -46,19 +46,22 @@ sleep 20
 
 # ─── 3b. Inject /etc/hosts into fabric-cli (Docker Desktop DNS unreliable for FQDNs) ──
 log "Injecting host entries into fabric-cli container..."
+set +e  # don't exit if IP lookup fails for a container
 for svc in \
   "orderer.pangochain.com" \
   "peer0.firma.pangochain.com" \
   "peer0.firmb.pangochain.com" \
   "peer0.regulator.pangochain.com"; do
   ip=$(docker exec "$svc" hostname -i 2>/dev/null | awk '{print $1}')
-  if [ -n "$ip" ]; then
-    docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts"
+  # Only use it if it looks like a valid IPv4
+  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts" 2>/dev/null
     log "  $svc -> $ip"
   else
-    warn "  Could not get IP for $svc"
+    warn "  Could not get IP for $svc (got: '$ip') — will rely on DNS"
   fi
 done
+set -e
 
 # ─── 4. Create and join channel ───────────────────────────────────────────────
 ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
