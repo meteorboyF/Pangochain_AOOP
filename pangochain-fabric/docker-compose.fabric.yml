@@ -78,7 +78,9 @@ services:
       - "7050:7050"
       - "17050:17050"
     networks:
-      - fabric_test
+      fabric_test:
+        aliases:
+          - orderer.pangochain.com
 
   # ─── FirmA Peer ─────────────────────────────────────────────────────────────
   peer0.firma.pangochain.com:
@@ -120,7 +122,9 @@ services:
       - couchdb.firma
       - orderer.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        aliases:
+          - peer0.firma.pangochain.com
 
   # ─── FirmB Peer ─────────────────────────────────────────────────────────────
   peer0.firmb.pangochain.com:
@@ -162,7 +166,9 @@ services:
       - couchdb.firmb
       - orderer.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        aliases:
+          - peer0.firmb.pangochain.com
 
   # ─── Regulator Peer ─────────────────────────────────────────────────────────
   peer0.regulator.pangochain.com:
@@ -204,7 +210,9 @@ services:
       - couchdb.regulator
       - orderer.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        aliases:
+          - peer0.regulator.pangochain.com
 
   # ─── Fabric CAs ─────────────────────────────────────────────────────────────
   ca.firma.pangochain.com:
@@ -286,4 +294,6 @@ services:
       - peer0.firmb.pangochain.com
       - peer0.regulator.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        aliases:
+          - fabric-cli
