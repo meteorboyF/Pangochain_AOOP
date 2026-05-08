@@ -44,6 +44,22 @@ docker-compose -f docker-compose.fabric.yml up -d
 log "Waiting 20s for peers and orderer to be ready..."
 sleep 20
 
+# ─── 3b. Inject /etc/hosts into fabric-cli (Docker Desktop DNS unreliable for FQDNs) ──
+log "Injecting host entries into fabric-cli container..."
+for svc in \
+  "orderer.pangochain.com" \
+  "peer0.firma.pangochain.com" \
+  "peer0.firmb.pangochain.com" \
+  "peer0.regulator.pangochain.com"; do
+  ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$svc" 2>/dev/null || true)
+  if [ -n "$ip" ]; then
+    docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts"
+    log "  $svc -> $ip"
+  else
+    warn "  Could not resolve IP for $svc"
+  fi
+done
+
 # ─── 4. Create and join channel ───────────────────────────────────────────────
 ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
