@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Prevent Git Bash on Windows from mangling /container/paths into C:/Program Files/Git/...
+export MSYS_NO_PATHCONV=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
 

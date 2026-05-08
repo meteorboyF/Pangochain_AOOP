@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+export MSYS_NO_PATHCONV=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
 CHAINCODE_DIR="${NETWORK_DIR}/../pangochain-chaincode/legalcc"
