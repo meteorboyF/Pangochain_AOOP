@@ -17,6 +17,8 @@ import AdminPanel from './pages/AdminPanel'
 import NotFound from './pages/NotFound'
 import HearingManager from './pages/HearingManager'
 import LedgerExplorer from './pages/LedgerExplorer'
+import MfaSetup from './pages/MfaSetup'
+import RegulatorView from './pages/RegulatorView'
 import ClientPortal from './pages/client/ClientPortal'
 import ClientDocuments from './pages/client/ClientDocuments'
 import ClientCase from './pages/client/ClientCase'
@@ -76,8 +78,12 @@ export default function App() {
           <Route path="/admin/users" element={<AdminPanel />} />
           <Route path="/admin/keys" element={<AdminPanel />} />
 
-          {/* ── Profile ────────────────────────────────────────────────────── */}
+          {/* ── Profile / MFA ──────────────────────────────────────────────── */}
           <Route path="/profile" element={<Profile />} />
+          <Route path="/profile/mfa" element={<MfaSetup />} />
+
+          {/* ── Regulator ──────────────────────────────────────────────────── */}
+          <Route path="/regulator" element={<RegulatorView />} />
 
           {/* ── Client Portal ──────────────────────────────────────────────── */}
           <Route path="/client/portal" element={<ClientPortal />} />

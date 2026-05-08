@@ -49,6 +49,10 @@ public class Document {
     @Builder.Default
     private DocStatus status = DocStatus.ACTIVE;
 
+    @Column(name = "key_rotation_pending", nullable = false)
+    @Builder.Default
+    private boolean keyRotationPending = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

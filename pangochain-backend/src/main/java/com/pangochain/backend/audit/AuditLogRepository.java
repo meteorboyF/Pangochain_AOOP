@@ -13,4 +13,5 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     Page<AuditLog> findByResourceId(String resourceId, Pageable pageable);
     Page<AuditLog> findByEventType(String eventType, Pageable pageable);
     Page<AuditLog> findAllByOrderByTimestampDesc(Pageable pageable);
+    Page<AuditLog> findByResourceIdAndEventType(String resourceId, String eventType, Pageable pageable);
 }

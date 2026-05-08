@@ -122,22 +122,31 @@ public class DocumentService {
         Document doc = documentRepository.findById(docId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found"));
 
-        // Chaincode ACL check (two-layer: JWT already validated layer 1)
+        // Two-layer ACL: Layer 1 = JWT (Spring Security, validated before this method).
+        //                Layer 2 = Fabric CheckAccess chaincode (authoritative on-chain ACL).
         boolean allowed;
+        String aclLayer2Status;
         try {
             if (fabricGatewayService != null) {
                 allowed = fabricGatewayService.checkAccess(
                         docId.toString(),
                         requester.getId().toString(),
                         requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP");
+                aclLayer2Status = allowed ? "PASS" : "FAIL";
             } else {
                 // Fabric disabled — fall back to DB access check
                 allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
+                aclLayer2Status = "FALLBACK";
+                log.warn("ACL fallback to DB for doc={}: Fabric not enabled", docId);
             }
         } catch (FabricException e) {
             log.warn("Fabric ACL check failed for doc={}: {}", docId, e.getMessage());
             allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
+            aclLayer2Status = "FALLBACK";
+            auditService.log("ACL_FABRIC_FALLBACK", requester.getId(), "DOCUMENT", docId.toString(), null,
+                    "{\"reason\":\"" + e.getMessage().replace("\"", "'") + "\"}");
         }
+        log.info("ACL check: Layer1=PASS Layer2={} doc={} user={}", aclLayer2Status, docId, requester.getEmail());
 
         if (!allowed) throw new AccessDeniedException("Access denied for document " + docId);
 
@@ -145,6 +154,20 @@ public class DocumentService {
                 docId.toString(), null, null);
 
         return ipfsService.cat(doc.getIpfsCid());
+    }
+
+    @Transactional
+    public void completeKeyRotation(UUID docId, User requester) {
+        Document doc = documentRepository.findById(docId)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        if (!doc.getOwner().getId().equals(requester.getId())) {
+            throw new AccessDeniedException("Only the document owner can complete key rotation");
+        }
+        doc.setKeyRotationPending(false);
+        documentRepository.save(doc);
+        auditService.log("KEY_ROTATION_COMPLETED", requester.getId(), "DOCUMENT",
+                docId.toString(), null, null);
+        log.info("Key rotation completed for doc={} by user={}", docId, requester.getEmail());
     }
 
     public String getWrappedKey(UUID docId, User requester) {
@@ -180,6 +203,7 @@ public class DocumentService {
                 .ownerEmail(ownerEmail)
                 .version(d.getVersion())
                 .status(d.getStatus().name())
+                .keyRotationPending(d.isKeyRotationPending())
                 .createdAt(d.getCreatedAt())
                 .build();
     }

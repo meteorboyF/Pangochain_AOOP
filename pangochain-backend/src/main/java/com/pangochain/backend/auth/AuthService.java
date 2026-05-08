@@ -7,6 +7,7 @@ import com.pangochain.backend.auth.dto.RefreshRequest;
 import com.pangochain.backend.auth.dto.RegisterRequest;
 import com.pangochain.backend.crypto.Pbkdf2Service;
 import com.pangochain.backend.user.*;
+import com.warrenstrange.googleauth.GoogleAuthenticator;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,8 @@ public class AuthService {
     private final Pbkdf2Service pbkdf2Service;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuditService auditService;
+
+    private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
@@ -86,13 +89,24 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        // MFA check for PARTNER+ and IT_ADMIN
-        if (user.isMfaEnabled() && (req.totpCode() == null || req.totpCode().isBlank())) {
-            // Return partial response signalling MFA required
-            return new AuthResponse(null, null, user.getId(), user.getEmail(),
-                    user.getFullName(), user.getRole(),
-                    user.getFirm() != null ? user.getFirm().getId().toString() : null,
-                    true, true);
+        // MFA check for roles that require it (MANAGING_PARTNER, PARTNER_*, IT_ADMIN)
+        if (user.isMfaEnabled()) {
+            if (req.totpCode() == null || req.totpCode().isBlank()) {
+                // First pass — signal that MFA code is required; no tokens issued
+                return new AuthResponse(null, null, user.getId(), user.getEmail(),
+                        user.getFullName(), user.getRole(),
+                        user.getFirm() != null ? user.getFirm().getId().toString() : null,
+                        true, true);
+            }
+            // Second pass — verify the TOTP code before issuing tokens
+            try {
+                int code = Integer.parseInt(req.totpCode().trim());
+                if (!gAuth.authorize(user.getMfaSecret(), code)) {
+                    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid MFA code");
+                }
+            } catch (NumberFormatException e) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid MFA code format");
+            }
         }
 
         user.setLastLoginAt(Instant.now());
