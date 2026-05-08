@@ -52,7 +52,7 @@ for svc in \
   "peer0.firma.pangochain.com" \
   "peer0.firmb.pangochain.com" \
   "peer0.regulator.pangochain.com"; do
-  ip=$(docker exec "$svc" hostname -i 2>/dev/null | awk '{print $1}')
+  ip=$(docker exec "$svc" hostname -I 2>/dev/null | tr ' ' '\n' | grep -v '^127\.' | grep -v '^$' | head -1)
   # Only use it if it looks like a valid IPv4
   if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     docker exec fabric-cli sh -c "echo '$ip $svc' >> /etc/hosts" 2>/dev/null
