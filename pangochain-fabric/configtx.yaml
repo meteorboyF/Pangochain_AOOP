@@ -3,7 +3,7 @@ Organizations:
   - &OrdererOrg
     Name: OrdererOrg
     ID: OrdererMSP
-    MSPDir: crypto-config/ordererOrganizations/orderer.pangochain.com/msp
+    MSPDir: crypto-config/ordererOrganizations/pangochain.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -120,8 +120,8 @@ Orderer: &OrdererDefaults
     Consenters:
       - Host: orderer.pangochain.com
         Port: 7050
-        ClientTLSCert: crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
-        ServerTLSCert: crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
+        ClientTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
   Organizations:
   Policies:
     Readers:

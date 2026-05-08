@@ -15,7 +15,7 @@ smoke:
 	  --channelID legal-channel --name legalcc \
 	  -c '{"function":"CheckAccess","Args":["CASE-SMOKE-001","admin","FirmAMSP"]}' \
 	  --tls \
-	  --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt
+	  --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt
 
 down:
 	docker-compose -f docker-compose.fabric.yml down -v --remove-orphans

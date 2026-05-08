@@ -70,8 +70,8 @@ services:
       ORDERER_METRICS_PROVIDER: prometheus
       ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:17050
     volumes:
-      - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/msp:/var/hyperledger/orderer/msp
-      - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls:/var/hyperledger/orderer/tls
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls:/var/hyperledger/orderer/tls
       - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
       - orderer.pangochain.com:/var/hyperledger/production/orderer
     ports:

@@ -21,7 +21,7 @@ log()  { echo -e "${GREEN}[+]${NC} $1"; }
 warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 die()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 
-ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
+ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
 
 # ─── 1. Build the chaincode Docker image ──────────────────────────────────────

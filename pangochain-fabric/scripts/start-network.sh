@@ -45,7 +45,7 @@ log "Waiting 20s for peers and orderer to be ready..."
 sleep 20
 
 # ─── 4. Create and join channel ───────────────────────────────────────────────
-ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
+ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
 
 log "Creating legal-channel..."
