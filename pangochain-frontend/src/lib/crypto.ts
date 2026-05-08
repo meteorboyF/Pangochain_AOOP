@@ -12,6 +12,8 @@
 const subtle = window.crypto.subtle
 
 // ─── PBKDF2 ───────────────────────────────────────────────────────────────────
+// Parameters per NIST SP 800-132 (2023): SHA-256, 600,000 iterations, 256-bit random salt per user.
+const PBKDF2_ITERATIONS = 600_000 as const
 
 export async function derivePbkdf2Key(password: string, saltBase64: string): Promise<CryptoKey> {
   const enc = new TextEncoder()
@@ -22,7 +24,7 @@ export async function derivePbkdf2Key(password: string, saltBase64: string): Pro
   )
 
   return subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, iterations: 600_000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,

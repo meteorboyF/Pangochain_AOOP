@@ -3,7 +3,7 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, Calendar,
+  Gavel, Bell, Shield, Calendar, Search,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -49,6 +49,9 @@ export function Sidebar() {
     user.role === 'MANAGING_PARTNER' ||
     user.role === 'IT_ADMIN' ||
     user.role === 'REGULATOR'
+
+  const showRegulator = user.role === 'REGULATOR'
+  const showMfa = user.role === 'MANAGING_PARTNER' || user.role === 'IT_ADMIN' || user.role === 'PARTNER_SENIOR' || user.role === 'PARTNER_JUNIOR'
 
   const navItems = isClient(user.role) ? clientItems : legalItems
 
@@ -104,7 +107,29 @@ export function Sidebar() {
           </NavLink>
         ))}
 
-        {showAdmin && (
+        {showRegulator && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Regulatory View</p>
+            </div>
+            <NavLink
+              to="/regulator"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Search className="w-4 h-4" />
+              Cross-Firm Audit
+            </NavLink>
+            <NavLink
+              to="/ledger"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Activity className="w-4 h-4" />
+              Ledger Explorer
+            </NavLink>
+          </>
+        )}
+
+        {showAdmin && !showRegulator && (
           <>
             <div className="pt-3 pb-1 px-3">
               <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Administration</p>
@@ -121,6 +146,21 @@ export function Sidebar() {
                 {item.label}
               </NavLink>
             ))}
+          </>
+        )}
+
+        {showMfa && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Security</p>
+            </div>
+            <NavLink
+              to="/profile/mfa"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Shield className="w-4 h-4" />
+              {user.mfaEnabled ? 'MFA Enabled ✓' : 'Enable MFA'}
+            </NavLink>
           </>
         )}
       </nav>

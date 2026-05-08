@@ -5,6 +5,7 @@ import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
+import com.pangochain.backend.document.Document;
 import com.pangochain.backend.document.DocumentAccess;
 import com.pangochain.backend.document.DocumentAccessRepository;
 import com.pangochain.backend.document.DocumentRepository;
@@ -129,6 +130,21 @@ public class AccessControlService {
             log.warn("Fabric RevokeAccess failed: {}", e.getMessage());
         }
 
+        // Mark all non-owner tokens on this document as OBSOLETE — they may have been
+        // exposed to the revoked user and must not be trusted after key rotation.
+        List<DocumentAccess> nonOwnerTokens = accessRepository.findActiveNonOwnerByDoc(docId);
+        for (DocumentAccess token : nonOwnerTokens) {
+            token.setTokenObsolete(true);
+            accessRepository.save(token);
+        }
+
+        // Flag the document so the owner's browser is prompted to rotate keys.
+        Document doc = documentRepository.findById(docId).orElse(null);
+        if (doc != null) {
+            doc.setKeyRotationPending(true);
+            documentRepository.save(doc);
+        }
+
         // Notify revoked user
         notificationRepository.save(Notification.builder()
                 .userId(targetUserId)
@@ -136,9 +152,21 @@ public class AccessControlService {
                 .message("Your access to a document has been revoked by " + revoker.getFullName())
                 .build());
 
+        // Notify document owner that key rotation is required
+        if (doc != null) {
+            notificationRepository.save(Notification.builder()
+                    .userId(doc.getOwner().getId())
+                    .type("KEY_ROTATION_REQUIRED")
+                    .message("Key rotation required for document '" + doc.getFileName()
+                            + "' — a user's access was revoked. Please re-encrypt and redistribute the document key.")
+                    .build());
+        }
+
         auditService.log("ACCESS_REVOKED", revoker.getId(), "DOCUMENT",
                 docIdStr, fabricTxId,
-                toJson(Map.of("targetUser", targetUserIdStr)));
+                toJson(Map.of("targetUser", targetUserIdStr, "tokensMarkedObsolete", nonOwnerTokens.size())));
+
+        log.info("KEY_ROTATION_REQUIRED: doc={} revokedUser={} obsoleteTokens={}", docIdStr, targetUserIdStr, nonOwnerTokens.size());
     }
 
     public List<AccessDto> listForDoc(UUID docId, User requester) {

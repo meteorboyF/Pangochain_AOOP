@@ -27,7 +27,9 @@ public class DocumentController {
 
     /**
      * POST /api/documents/upload
-     * Accepts ciphertext + metadata from browser, pins to IPFS, anchors on Fabric.
+     * Server receives only ciphertext — plaintext never transmitted.
+     * AES-256-GCM encryption occurs in the browser via WebCrypto API before this endpoint is called.
+     * Accepts IV+ciphertext + metadata, pins to IPFS, anchors on Fabric.
      */
     @PostMapping("/upload")
     public ResponseEntity<DocumentDto> upload(
@@ -67,6 +69,21 @@ public class DocumentController {
         User requester = resolveUser(principal);
         String token = documentService.getWrappedKey(id, requester);
         return ResponseEntity.ok(token);
+    }
+
+    /**
+     * POST /api/documents/{id}/key-rotation-complete
+     * Called by the document owner's browser after it has re-encrypted the document
+     * and distributed new wrapped key tokens to all remaining authorised users.
+     * Clears the key_rotation_pending flag so the UI no longer prompts for rotation.
+     */
+    @PostMapping("/{id}/key-rotation-complete")
+    public ResponseEntity<Void> completeKeyRotation(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails principal) {
+        User requester = resolveUser(principal);
+        documentService.completeKeyRotation(id, requester);
+        return ResponseEntity.noContent().build();
     }
 
     /**
