@@ -4,6 +4,10 @@ networks:
   fabric_test:
     name: fabric_test
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
 volumes:
   orderer.pangochain.com:
@@ -79,6 +83,7 @@ services:
       - "17050:17050"
     networks:
       fabric_test:
+        ipv4_address: 172.20.0.2
         aliases:
           - orderer.pangochain.com
 
@@ -123,6 +128,7 @@ services:
       - orderer.pangochain.com
     networks:
       fabric_test:
+        ipv4_address: 172.20.0.3
         aliases:
           - peer0.firma.pangochain.com
 
@@ -167,6 +173,7 @@ services:
       - orderer.pangochain.com
     networks:
       fabric_test:
+        ipv4_address: 172.20.0.4
         aliases:
           - peer0.firmb.pangochain.com
 
@@ -211,6 +218,7 @@ services:
       - orderer.pangochain.com
     networks:
       fabric_test:
+        ipv4_address: 172.20.0.5
         aliases:
           - peer0.regulator.pangochain.com
 
@@ -288,6 +296,11 @@ services:
       - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto
       - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
       - ../pangochain-chaincode:/opt/gopath/src/github.com/chaincode
+    extra_hosts:
+      - "orderer.pangochain.com:172.20.0.2"
+      - "peer0.firma.pangochain.com:172.20.0.3"
+      - "peer0.firmb.pangochain.com:172.20.0.4"
+      - "peer0.regulator.pangochain.com:172.20.0.5"
     depends_on:
       - orderer.pangochain.com
       - peer0.firma.pangochain.com
@@ -295,5 +308,6 @@ services:
       - peer0.regulator.pangochain.com
     networks:
       fabric_test:
+        ipv4_address: 172.20.0.10
         aliases:
           - fabric-cli

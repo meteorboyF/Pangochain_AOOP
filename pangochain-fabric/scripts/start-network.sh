@@ -44,30 +44,7 @@ docker-compose -f docker-compose.fabric.yml up -d
 log "Waiting 20s for peers and orderer to be ready..."
 sleep 20
 
-# ─── 3b. Inject /etc/hosts into fabric-cli (Docker Desktop DNS unreliable for FQDNs) ──
-log "Injecting host entries into fabric-cli container..."
-cli_id=$(docker ps --filter "name=fabric-cli" --format "{{.ID}}" | head -1)
-set +e
-for svc in \
-  "orderer.pangochain.com" \
-  "peer0.firma.pangochain.com" \
-  "peer0.firmb.pangochain.com" \
-  "peer0.regulator.pangochain.com"; do
-  # Get container ID to avoid docker exec issues with dotted names on Windows
-  cid=$(docker ps --filter "name=${svc}" --format "{{.ID}}" | head -1)
-  if [ -z "$cid" ]; then
-    warn "  Container $svc not found"
-    continue
-  fi
-  ip=$(docker exec "$cid" hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | head -1)
-  if [ -n "$ip" ]; then
-    docker exec "$cli_id" sh -c "echo '$ip $svc' >> /etc/hosts" 2>/dev/null
-    log "  $svc -> $ip"
-  else
-    warn "  Could not get IP for $svc"
-  fi
-done
-set -e
+log "Host entries for Fabric nodes baked into fabric-cli via extra_hosts (static IPs 172.20.0.2-5)."
 
 # ─── 4. Create and join channel ───────────────────────────────────────────────
 ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
