@@ -237,7 +237,8 @@ services:
       - "7054:7054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.20
 
   ca.firmb.pangochain.com:
     image: hyperledger/fabric-ca:1.5
@@ -253,7 +254,8 @@ services:
       - "8054:8054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.21
 
   ca.regulator.pangochain.com:
     image: hyperledger/fabric-ca:1.5
@@ -269,7 +271,8 @@ services:
       - "9054:9054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.22
 
   # ─── CLI tool container ──────────────────────────────────────────────────────
   cli:
