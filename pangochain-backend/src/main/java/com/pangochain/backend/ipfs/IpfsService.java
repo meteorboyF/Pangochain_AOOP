@@ -24,8 +24,9 @@ public class IpfsService {
     private final WebClient client;
 
     public IpfsService(@Value("${ipfs.api.host:http://localhost}") String host,
-                       @Value("${ipfs.api.port:5001}") int port) {
-        this.client = WebClient.builder()
+                       @Value("${ipfs.api.port:5001}") int port,
+                       WebClient.Builder webClientBuilder) {
+        this.client = webClientBuilder
                 .baseUrl(host + ":" + port)
                 .build();
     }

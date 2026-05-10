@@ -40,7 +40,7 @@ echo "|-----------|-----|-----------|------|"
 
 for SIZE_MB in 1 5 10 20 30 50; do
   total=0
-  declare -a times
+  times=()
   for i in $(seq 1 $REPS); do
     t=$( { time curl -sf \
       -H "$H" \
