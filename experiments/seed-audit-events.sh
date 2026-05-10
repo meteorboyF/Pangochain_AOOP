@@ -31,7 +31,7 @@ payload = {
   'wrappedKeyTokenForOwner': base64.b64encode(os.urandom(125)).decode()
 }
 print(json.dumps(payload))
-" "$n" | xargs -0 -I{} curl -sf -H "$H" -H "$CONTENT" -d '{}' "$BASE/documents/upload" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))"
+" "$n" | curl -sf -H "$H" -H "$CONTENT" -d @- "$BASE/documents/upload" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))"
 }
 
 # Round 1: DOC_REGISTERED events (~200)
