@@ -26,7 +26,8 @@ services:
     ports:
       - "5984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.30
 
   couchdb.firmb:
     image: couchdb:3.3
@@ -37,7 +38,8 @@ services:
     ports:
       - "6984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.31
 
   couchdb.regulator:
     image: couchdb:3.3
@@ -48,7 +50,8 @@ services:
     ports:
       - "7984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.32
 
   # ─── Orderer ────────────────────────────────────────────────────────────────
   orderer.pangochain.com:
