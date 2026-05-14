@@ -171,6 +171,24 @@ RegisterDocument P50 latency was **2147ms** (Fabric) vs **46ms** (DB-only). The 
 
 ---
 
+### Linux x86_64 Run — 2026-05-15
+
+**Hardware:** Intel Core Ultra 5 125H, Ubuntu 22.04, 7.1 GB RAM, NVMe SSD, native x86_64.
+**Samples:** 100 (CheckAccess), 50 (ciphertext download), 20 (RegisterDocument 1MB).
+
+| Operation | P50 (ms) | P95 (ms) | P99 (ms) | Mean (ms) |
+|-----------|----------|----------|----------|-----------|
+| CheckAccess (`/wrapped-key`, Fabric evaluate) | 10 | 11 | 14 | 9.5 |
+| Ciphertext download (`/ciphertext`, Fabric+IPFS) | 15 | 18 | 18 | 15.2 |
+| RegisterDocument 1MB (Fabric write) | 2080 | 2119 | 2119 | 2083.2 |
+
+**Cross-platform comparison (Linux vs M1 Rosetta):**
+- CheckAccess: Linux P50=10ms vs M1 P50=26ms — **2.6× faster** (native x86 vs Rosetta emulation)
+- RegisterDocument 1MB: Linux P50=2080ms vs M1 P50=2147ms — similar (~3% faster); BatchTimeout dominates
+- Fabric write latency is architecture-independent (dominated by 2s BatchTimeout, not CPU)
+
+---
+
 ## Experiment 3 — File Size Impact on Latency
 
 **Goal:** Confirm that Fabric ledger latency is constant (only hashes stored) while IPFS latency grows linearly with file size.
