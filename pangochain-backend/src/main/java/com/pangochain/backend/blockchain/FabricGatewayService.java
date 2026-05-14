@@ -63,12 +63,20 @@ public class FabricGatewayService {
 
     /**
      * Submits a state-changing transaction synchronously.
-     * Returns the chaincode response payload as a String.
+     * Returns the Fabric transaction ID (not the chaincode response payload),
+     * so callers can store it as an immutable ledger reference.
+     * Uses the two-step endorse/submit API to capture getTransactionId().
      */
     public String submitTransaction(String functionName, String... args) throws FabricException {
         try {
-            byte[] result = contract.submitTransaction(functionName, args);
-            return new String(result, StandardCharsets.UTF_8);
+            Transaction tx = contract.newProposal(functionName)
+                    .addArguments(args)
+                    .build()
+                    .endorse();
+            tx.submit();
+            String txId = tx.getTransactionId();
+            log.info("Fabric tx committed: fn={} txId={}", functionName, txId);
+            return txId;
         } catch (EndorseException | SubmitException | CommitStatusException | CommitException e) {
             log.error("Submit transaction '{}' failed: {}", functionName, e.getMessage());
             throw new FabricException("Blockchain submit failed: " + e.getMessage(), e);
