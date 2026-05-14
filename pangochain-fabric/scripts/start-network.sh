@@ -22,8 +22,10 @@ cd "$NETWORK_DIR"
 
 # ─── 1. Tear down previous state ──────────────────────────────────────────────
 log "Cleaning previous network state..."
-docker-compose -f docker-compose.fabric.yml down -v --remove-orphans 2>/dev/null || true
-rm -rf crypto-config channel-artifacts
+docker compose -f docker-compose.fabric.yml down -v --remove-orphans 2>/dev/null || true
+# crypto-config is created by a root-running Docker container — remove via Docker to avoid permission errors
+docker run --rm -v "${NETWORK_DIR}:/workspace" alpine sh -c "rm -rf /workspace/crypto-config /workspace/channel-artifacts" 2>/dev/null || true
+rm -rf crypto-config channel-artifacts 2>/dev/null || true
 
 # ─── 2. Generate crypto + channel artifacts via container ─────────────────────
 log "Generating crypto material and channel artifacts (inside fabric-tools container)..."
@@ -39,7 +41,7 @@ log "Artifacts generated."
 
 # ─── 3. Start Docker network services ─────────────────────────────────────────
 log "Starting Fabric network containers..."
-docker-compose -f docker-compose.fabric.yml up -d
+docker compose -f docker-compose.fabric.yml up -d
 
 log "Waiting 20s for peers and orderer to be ready..."
 sleep 20

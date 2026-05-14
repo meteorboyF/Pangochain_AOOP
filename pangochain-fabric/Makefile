@@ -19,13 +19,14 @@ smoke:
 	  && echo "Smoke test PASSED." || echo "Smoke test query returned (expected empty history) — chaincode is live."
 
 down:
-	docker-compose -f docker-compose.fabric.yml down -v --remove-orphans
+	docker compose -f docker-compose.fabric.yml down -v --remove-orphans
 	docker rm -f legalcc 2>/dev/null || true
 
 clean: down
-	rm -rf crypto-config channel-artifacts
+	docker run --rm -v "$$(pwd):/workspace" alpine sh -c "rm -rf /workspace/crypto-config /workspace/channel-artifacts" 2>/dev/null || true
+	rm -rf crypto-config channel-artifacts 2>/dev/null || true
 
 logs:
-	docker-compose -f docker-compose.fabric.yml logs -f --tail=50
+	docker compose -f docker-compose.fabric.yml logs -f --tail=50
 
 all: up chaincode
