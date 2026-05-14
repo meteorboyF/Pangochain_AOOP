@@ -399,6 +399,34 @@ Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-
 
 ---
 
+### Linux x86_64 Run — 2026-05-15
+
+**Tool:** `node --experimental-global-webcrypto experiments/run-benchmark.mjs`
+**Runtime:** Node.js v18.20.8 / Ubuntu 22.04 / native OpenSSL (x86_64).
+
+| Operation | Mean (ms) | Min (ms) | Max (ms) |
+|-----------|-----------|----------|----------|
+| PBKDF2 SHA-256 (600,000 iter) | **104.72** | 103.01 | 107.70 |
+| ECDH P-256 keygen | **0.28** | 0.09 | 1.16 |
+| ECIES P-256 key wrap (32-byte) | **0.70** | 0.55 | 1.42 |
+| RSA-OAEP 2048 key wrap (32-byte) | **0.09** | 0.04 | 0.47 |
+| AES-256-GCM encrypt 1 MB | **1.07** | 0.98 | 1.12 |
+| AES-256-GCM encrypt 10 MB | **10.65** | 9.74 | 11.71 |
+| AES-256-GCM encrypt 50 MB | **43.84** | 42.64 | 44.55 |
+
+**Token sizes (hardware-independent, reproduced):**
+- ECIES P-256: **125 bytes** (65 ephPubRaw + 12 IV + 48 ciphertext+tag)
+- RSA-OAEP 2048: **256 bytes**
+- Reduction: **51.2%**
+
+**Cross-platform comparison (Linux Node18 vs Windows Node24):**
+- PBKDF2: 104.72ms vs 83.34ms — Node 24 is 20% faster (V8/OpenSSL improvements); both well within 1000ms UX budget
+- AES-256-GCM 50MB: 43.84ms vs 56.48ms — Linux/Node18 faster (AES-NI implementation differences)
+- Token sizes: identical 51.2% reduction (mathematical, not hardware-dependent)
+- ECIES vs RSA: RSA-OAEP faster in native OpenSSL on both platforms (same finding — speedup claim applies to browser context)
+
+---
+
 ## Key Findings for Paper
 
 - **Safety margin for legal workloads (Exp 1):** PENDING — Caliper scalability run not yet completed on M1 (Exp 1 still to run). Fabric saturates at TPS ceiling driven by Raft BatchTimeout. Realistic 1,000-lawyer firm peak demand ≈ 16.7 TPS.
