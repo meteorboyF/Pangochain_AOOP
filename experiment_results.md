@@ -221,6 +221,29 @@ Fabric commit latency was **2121±157ms** across all file sizes (1MB–50MB), co
 
 ---
 
+### Linux x86_64 Run — 2026-05-15
+
+**Hardware:** Intel Core Ultra 5 125H, Ubuntu 22.04, 7.1 GB RAM, NVMe SSD, native x86_64.
+**Samples:** 10 per file size. Fabric baseline (1MB P50) = 2081ms.
+*IPFS estimate = Total P50 − 2081ms*
+
+| File Size | Total P50 (ms) | Total P95 (ms) | Total Mean (ms) | IPFS est. P50 (ms) |
+|-----------|---------------|---------------|----------------|-------------------|
+| 1 MB  | 2081 | 2100 | 2082.4 | ~0   |
+| 5 MB  | 2108 | 2128 | 2109.5 | ~27  |
+| 10 MB | 2149 | 2164 | 2145.7 | ~68  |
+| 20 MB | 2216 | 2240 | 2215.4 | ~135 |
+| 30 MB | 2272 | 2299 | 2271.8 | ~191 |
+| 50 MB | 2447 | 2473 | 2435.9 | ~366 |
+
+*Total range: 2081ms (1MB) → 2447ms (50MB) = 366ms increase over 50× size range*
+*Fabric commit contribution: ~2081ms constant; IPFS grows from ~0ms to ~366ms*
+
+**Cross-platform comparison (Linux vs M1 Rosetta):**
+Linux IPFS estimates are lower (e.g., ~366ms vs ~854ms at 50MB), consistent with faster NVMe I/O on native Linux vs Docker Desktop virtualized filesystem on macOS. Fabric contribution is nearly identical (~2080ms vs ~2121ms), confirming BatchTimeout dominates regardless of platform.
+
+---
+
 ## Experiment 4 — Audit Verification Efficiency
 
 **Goal:** Compare verification time: Fabric GetHistoryForKey vs PostgreSQL append-only log vs simulated manual process.
