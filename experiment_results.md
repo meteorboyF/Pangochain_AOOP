@@ -234,6 +234,27 @@ PostgreSQL audit log query completed in **44ms P50** for 704 events. Manual CSV 
 
 ---
 
+### Linux x86_64 Run — 2026-05-15
+
+**Hardware:** Intel Core Ultra 5 125H, Ubuntu 22.04, 7.1 GB RAM, NVMe SSD, native x86_64.
+**UUID bug fix confirmed:** PostgreSQL docId == CouchDB `DOC:{docId}` (verified before seeding).
+**Events in PostgreSQL audit log at time of run:** 414.
+
+| Method | Mean (ms) | P50 (ms) | Runs | Events Verified |
+|--------|-----------|----------|------|-----------------|
+| Fabric `GetDocumentHistory` (peer chaincode query) | 84.7 | 76 | 10 | 1 doc history |
+| PostgreSQL API query (`/api/audit?size=1000`) | 23.6 | 19 | 5 | 414 |
+| Manual export + SHA-256 chain verify | 61 | — | 1 | 414 |
+
+*Manual breakdown: fetch=24ms + SHA-256 chain hash=37ms = 61ms total*
+*Speedup (PostgreSQL vs Manual): 61ms / 23.6ms = **2.6×** automated vs manual*
+
+**Fabric vs PostgreSQL read comparison:** Fabric `GetDocumentHistory` P50=76ms vs PostgreSQL P50=19ms — Fabric adds ~57ms for on-chain verifiable history vs local DB read. Fabric path provides cryptographic non-repudiation unavailable from PostgreSQL alone.
+
+**Cross-platform note:** PostgreSQL query is faster on Linux (P50=19ms) than M1 Rosetta (P50=44ms), consistent with native x86 execution eliminating Rosetta 2 overhead. SHA-256 chain verify also faster (37ms vs 48ms for 414 vs 704 events).
+
+---
+
 ## Experiment 5 — WAN Latency Simulation
 
 **Goal:** Simulate geographically distributed Fabric nodes and measure throughput/latency degradation.

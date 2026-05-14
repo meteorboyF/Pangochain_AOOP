@@ -60,11 +60,28 @@ public class DocumentService {
         // Upload to IPFS
         String cid = ipfsService.add(ciphertextBytes, req.getFileName());
 
-        // Register on Fabric
-        String docId = UUID.randomUUID().toString();
+        // Persist document FIRST — establishes the authoritative UUID in PostgreSQL.
+        // Fabric is called immediately after using doc.getId() so both systems share
+        // the same UUID regardless of any Hibernate @GeneratedValue behaviour.
+        Document doc = Document.builder()
+                .id(UUID.randomUUID())
+                .legalCase(legalCase)
+                .fileName(req.getFileName())
+                .ipfsCid(cid)
+                .documentHashSha256(req.getDocumentHashSha256())
+                .fabricTxId(null)
+                .owner(uploader)
+                .version(1)
+                .status(DocStatus.ACTIVE)
+                .build();
+        doc = documentRepository.save(doc);
+
+        // Register on Fabric using the PostgreSQL-committed UUID
+        String docId = doc.getId().toString();
         String fabricTxId = null;
         try {
             if (fabricGatewayService != null) {
+                log.info("Registering on Fabric: docId={}", docId);
                 fabricTxId = fabricGatewayService.registerDocument(
                         docId,
                         legalCase.getId().toString(),
@@ -73,24 +90,11 @@ public class DocumentService {
                         uploader.getId().toString(),
                         uploader.getFirm() != null ? uploader.getFirm().getMspId() : "FirmAMSP",
                         Instant.now().toString());
+                doc.setFabricTxId(fabricTxId);
             }
         } catch (FabricException e) {
             log.warn("Fabric registration failed (continuing): {}", e.getMessage());
         }
-
-        // Persist document
-        Document doc = Document.builder()
-                .id(UUID.fromString(docId))
-                .legalCase(legalCase)
-                .fileName(req.getFileName())
-                .ipfsCid(cid)
-                .documentHashSha256(req.getDocumentHashSha256())
-                .fabricTxId(fabricTxId)
-                .owner(uploader)
-                .version(1)
-                .status(DocStatus.ACTIVE)
-                .build();
-        doc = documentRepository.save(doc);
 
         // Owner access entry with wrapped key
         DocumentAccess ownerAccess = DocumentAccess.builder()
