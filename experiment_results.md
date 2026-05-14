@@ -15,6 +15,29 @@
 | **Node.js** | 24.13.1 (used for crypto benchmark) |
 | **Hyperledger Fabric** | 2.4.x (3-org Raft, CouchDB state DB) |
 
+### Linux x86_64 Session (All 6 Experiments — 2026-05-15)
+
+| Item | Value |
+|------|-------|
+| **Date** | 2026-05-15 |
+| **OS** | Ubuntu 22.04.5 LTS |
+| **CPU** | Intel Core Ultra 5 125H |
+| **RAM** | 7.1 GB |
+| **Storage** | nvme0n1 ROTA=0 (NVMe SSD) |
+| **Architecture** | x86_64 (native — no emulation) |
+| **Java** | OpenJDK 21.0.10 (Ubuntu 22.04 package) |
+| **Node.js** | v18.20.8 |
+| **Docker** | 29.4.3 |
+| **Docker Compose** | v5.1.3 |
+| **Hyperledger Fabric** | 2.4.x (3-org Raft, CouchDB state DB) |
+| **Fabric peer** | peer0.firma.pangochain.com:7051 |
+| **IPFS** | Kubo (Dockerised) |
+| **Spring Boot** | 3.2.5 |
+
+> **Note:** Native x86_64 execution — no Rosetta 2 or emulation layer. All Fabric Docker images run natively. Results for Experiments 1 and 5 are first-time runs; Experiments 2, 3, 4, 6 are cross-platform comparison runs against M1/Windows results.
+
+---
+
 ### Apple M1 Session (Experiments 1–4 — 2026-05-10)
 
 | Item | Value |
