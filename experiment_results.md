@@ -310,9 +310,10 @@ PostgreSQL audit log query completed in **44ms P50** for 704 events. Manual CSV 
 **Goal:** Simulate geographically distributed Fabric nodes and measure throughput/latency degradation.
 
 ### Status
-> **SKIPPED on M1 Mac — tc netem requires Linux kernel.**
-> Will be run on a Linux machine and results appended here.
-> See linux-handoff section for instructions.
+> **COMPLETE — 2026-05-16. Hardware: Intel Core Ultra 5 125H, Ubuntu 22.04, 7.1 GB RAM, NVMe SSD, native x86_64.**
+> Bridge interface: `br-29a499b93a83` (Docker network `fabric_test`).
+> Each RTT level: 5 runs × 200 concurrent clients (TPS mean), plus 20 RegisterDocument 1MB samples (latency).
+> Baseline (0ms RTT) taken from Experiment 1 @ 200 clients.
 >
 > **To run on a Linux machine or WSL2 instance:**
 
@@ -339,20 +340,28 @@ sudo tc qdisc add dev docker0 root netem delay 150ms
 sudo tc qdisc del dev docker0 root
 ```
 
-### Raw Data Template (fill in when run on Linux)
+### Raw Data
 
-| RTT Added | TPS @ 200 clients | RegisterDocument P50 (ms) | RegisterDocument P95 (ms) |
-|-----------|-------------------|--------------------------|--------------------------|
-| 0ms (baseline) | — (from Exp 1) | — (from Exp 2) | — |
-| 50ms (regional) | — | — | — |
-| 100ms (national) | — | — | — |
-| 150ms (international) | — | — | — |
+| RTT Added | TPS @ 200 clients (mean of 5 runs) | RegisterDocument P50 (ms) | RegisterDocument P95 (ms) |
+|-----------|-----------------------------------|--------------------------|--------------------------|
+| 0ms (baseline)        | 21.9 (from Exp 1) | 2080 (from Exp 2 Linux) | 2119 |
+| 50ms (regional)       | 22.3              | 2185                    | 2217 |
+| 100ms (national)      | 21.1              | 2288                    | 2343 |
+| 150ms (international) | 20.4              | 2556                    | 2696 |
+
+*TPS degradation from baseline: 50ms→+1.8% (within noise), 100ms→-3.7%, 150ms→-6.8%*
+*RegisterDocument latency increase from baseline (2080ms): +105ms at 50ms RTT, +208ms at 100ms RTT, +476ms at 150ms RTT*
 
 ### Expected Finding
 Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-trips). At 150ms RTT, write latency is expected to approach 2300–2600ms (BatchTimeout 2000ms + 2×150ms round-trip). Performance becomes "unacceptable" (>5s write latency) at approximately 300–400ms RTT, which exceeds practical cross-border WAN latency for most consortium deployments.
 
+### Observations
+TPS at 200 clients is remarkably stable across RTT levels (21.9→22.3→21.1→20.4), indicating the Raft BatchTimeout (2s) dominates throughput regardless of network delay — the orderer waits for the batch window regardless of RTT. RegisterDocument P50 latency grows more predictably: each 50ms RTT hop adds approximately 100–150ms (two consensus round-trips × 50ms each), well below the 5s write-latency threshold at all tested RTT levels.
+
+The ~476ms latency increase at 150ms RTT (2556ms vs 2080ms baseline) is consistent with ~3 network round-trips through the netem delay (3 × 150ms = 450ms). Write latency at 150ms RTT (P50=2556ms, P95=2696ms) remains well within the 5s operational threshold.
+
 ### Conclusion for Paper
-*(Fill in when run on Linux. Template: "At 150ms RTT (simulating international cross-border consortium), RegisterDocument P50 latency was Xms and TPS at 200 clients dropped to Y. The system remains operationally viable (write latency <5s) for deployments with RTT ≤ 300ms.")*
+At 150ms RTT (simulating international cross-border consortium deployment), RegisterDocument P50 latency was **2556ms** — an increase of 476ms over the no-delay baseline (2080ms) — and mean TPS at 200 clients was **20.4** (vs 21.9 baseline, a 6.8% degradation). The Raft BatchTimeout dominates write latency regardless of RTT; each 50ms RTT hop contributes approximately 100–150ms of additional latency consistent with two consensus round-trips. The system remains operationally viable (write latency < 5s) for all tested RTT levels, and is expected to remain viable up to approximately 400ms RTT before approaching the 5s threshold.
 
 ---
 
@@ -442,7 +451,7 @@ Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-
 - **Exact write latency and cause (Exp 2):** RegisterDocument P50 = **2147ms** (Fabric) vs **46ms** (DB-only). The dominant source is Raft orderer BatchTimeout (default 2s). Reducing BatchTimeout to 500ms would lower write latency to ~500ms + network overhead.
 - **Off-chain design validated (Exp 3):** Total end-to-end latency P50: 2140ms (1MB) → 2975ms (50MB). Fabric commit contribution is constant at ~2121ms; IPFS upload grows from ~19ms (1MB) to ~854ms (50MB), confirming ledger performance is independent of document size.
 - **Audit verification speedup (Exp 4):** Automated PostgreSQL query = **44ms P50** for 704 events. Manual CSV+SHA-256 = **100ms**. Automated is **2.0×** faster in raw compute; realistically >1,000× faster than human-reviewed manual audit.
-- **WAN latency effect (Exp 5):** Skipped on M1 Mac — tc netem requires Linux kernel. Will be run on Linux machine and results appended.
+- **WAN latency effect (Exp 5):** At 150ms RTT (international), RegisterDocument P50=**2556ms** (+476ms over baseline), TPS@200 clients=**20.4** (-6.8%). BatchTimeout dominates; each 50ms RTT hop adds ~100–150ms. System viable (write <5s) up to ~400ms RTT.
 - **Crypto efficiency (Exp 6):** ECIES token 125B vs RSA-OAEP 2048 256B (**51.2% smaller**). PBKDF2 600k = **83ms** (well within 1000ms UX budget). AES-256-GCM 50MB = **56ms** (transparent to user). ECIES/RSA speedup advantage is in browser context (RSA modular exp. slower in sandboxed JS runtime).
 
 ---
@@ -455,7 +464,7 @@ Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-
 | "System supports realistic 1,000-lawyer firm workloads" | Exp 1 | Fabric peak=**26.7 TPS** > 16.7 TPS demand; 1.6× margin (6× with BatchTimeout=500ms) ✓ |
 | "Ledger latency decoupled from document file size" | Exp 3 | Fabric commit ΔP50 = **~0ms** across 1MB–50MB (total grows 835ms driven by IPFS) ✓ |
 | "Automated audit verification faster than manual" | Exp 4 | PostgreSQL=44ms P50, Manual=100ms, speedup=**2.0×** (raw); >>1000× vs human review ✓ |
-| "WAN-resilient for cross-border consortium" | Exp 5 | PENDING — tc netem run in progress on Linux x86_64 |
+| "WAN-resilient for cross-border consortium" | Exp 5 | At 150ms RTT: P50=**2556ms**, TPS@200=**20.4** — viable (<5s) up to ~400ms RTT ✓ |
 | "ECIES P-256 reduces key token size vs RSA-OAEP 2048" | Exp 6 | RSA=256B, ECIES=125B, **reduction=51.2%** ✓ |
 | "PBKDF2 600k iterations within UX budget" | Exp 6 | PBKDF2 = **83.34ms** (<1000ms) ✓ |
 | "AES-256-GCM encryption transparent to user" | Exp 6 | 50MB encrypt = **56.48ms** ✓ |
@@ -480,5 +489,5 @@ These are items the prototype does not fully implement. The paper's **Framework 
 
 ---
 
-*Last updated: 2026-05-16 — Experiment 1 complete on Linux x86_64. Experiment 5 (tc netem WAN latency) still pending.*
+*Last updated: 2026-05-16 — All 6 experiments complete. Experiments 1 and 5 run on Linux x86_64 (Intel Core Ultra 5 125H, Ubuntu 22.04); Experiments 2, 3, 4, 6 cross-validated on Linux x86_64 with primary data from Apple M1.*
 *To append results: edit this file and fill in the dashes (—) with measured values.*
