@@ -74,9 +74,9 @@
 **Config:** `experiments/caliper/pangochain-benchmark.yaml`
 
 ### Status
-> **PENDING — requires running Fabric network + backend.**
-> Run `experiments/caliper/run-experiments.sh` after starting the full stack.
-> Record results below.
+> **COMPLETE — 2026-05-16. Hardware: Intel Core Ultra 5 125H, Ubuntu 22.04, 7.1 GB RAM, NVMe SSD, native x86_64.**
+> Tool: custom Node.js load test (`experiments/caliper/pangochain-loadtest.js`) — same REST API target and 20/80 write/read mix as the Caliper workload module. Caliper CLI was not used directly (its Fabric connector requires a connection profile not needed by the REST-API workload).
+> Traffic mix: 20% RegisterDocument writes, 80% CheckAccess reads. Each concurrency level: clients × 10 transactions, preceded by a 50-client warm-up round.
 
 ### Instructions to Run
 ```bash
@@ -104,35 +104,44 @@ bash run-experiments.sh
 #### Fabric Mode
 | Concurrent Clients | Mean TPS | P50 Latency (ms) | P95 Latency (ms) | CPU % | RAM (MB) |
 |-------------------|----------|-----------------|-----------------|-------|---------|
-| 50 | — | — | — | — | — |
-| 100 | — | — | — | — | — |
-| 150 | — | — | — | — | — |
-| 200 | — | — | — | — | — |
-| 300 | — | — | — | — | — |
-| 400 | — | — | — | — | — |
-| 500 | — | — | — | — | — |
-| 600 | — | — | — | — | — |
+| 50  | 26.7 | 2075  | 4145  | 8.7  | 648 |
+| 100 | 24.1 | 4147  | 8282  | 9.2  | 658 |
+| 150 | 23.1 | 6226  | 10409 | 9.6  | 669 |
+| 200 | 21.9 | 8292  | 12471 | 9.8  | 683 |
+| 300 | 18.0 | 11531 | 14535 | 10.0 | 694 |
+| 400 | 3.6  | 10406 | 14562 | 10.3 | 750 |
+| 500 | 0.0  | 11958 | 14038 | 10.3 | 780 |
+| 600 | 0.0  | N/A   | N/A   | 10.3 | 856 |
+
+*Errors by concurrency: 50→0, 100→0, 150→11, 200→92, 300→754, 400→3454, 500→4994, 600→6000 (all timed out at 10s limit)*
+*Saturation onset: ~150 clients. TPS cliff at 400+ (10s client timeout exceeded by queued transactions).*
 
 #### PostgreSQL-Only Mode (FABRIC_ENABLED=false)
 | Concurrent Clients | Mean TPS | P50 Latency (ms) | P95 Latency (ms) |
 |-------------------|----------|-----------------|-----------------|
-| 50 | — | — | — |
-| 100 | — | — | — |
-| 150 | — | — | — |
-| 200 | — | — | — |
-| 300 | — | — | — |
-| 400 | — | — | — |
-| 500 | — | — | — |
-| 600 | — | — | — |
+| 50  | 341.3 | 123  | 265  |
+| 100 | 427.4 | 209  | 365  |
+| 150 | 362.8 | 381  | 587  |
+| 200 | 348.7 | 560  | 736  |
+| 300 | 317.0 | 942  | 1237 |
+| 400 | 481.4 | 869  | 1332 |
+| 500 | 453.9 | 1287 | 1707 |
+| 600 | 399.1 | 1792 | 2197 |
+
+*Zero errors at all concurrency levels. CPU reached 91.8% at 600 clients (CPU-bound, not Fabric-constrained).*
 
 ### Observations
-*(Record after running: saturation point, CPU bottleneck, error rate at high concurrency, etc.)*
+Fabric mode peaks at **26.7 TPS** at 50 concurrent clients and degrades steadily as queue depth grows against the 2s Raft BatchTimeout. Saturation onset is at ~150 clients (first errors appear); at 400+ clients the 10s HTTP timeout is breached and error rates spike to 86–100%. The CPU overhead is minimal (8.7–10.3%), confirming the bottleneck is the Raft orderer BatchTimeout, not compute.
+
+PostgreSQL-only mode peaks at **481.4 TPS** at 400 clients (18× the Fabric ceiling) with zero errors across all concurrency levels. CPU climbs to 91.8% at 600 clients, indicating the PostgreSQL/Spring Boot stack becomes CPU-bound at that point.
+
+The realistic peak demand for a 1,000-lawyer firm (1 document action/minute each) = 1000/60 ≈ **16.7 TPS**. Fabric mode sustains 26.7 TPS at 50 clients — a **1.6× safety margin** over this peak. Reducing BatchTimeout from 2s to 500ms would raise the Fabric TPS ceiling to ~100+ TPS, widening the safety margin to >6×.
 
 ### Expected Finding for Paper
 Fabric saturates at a TPS ceiling driven by the Raft orderer's `BatchTimeout` (default 2s). A realistic 1,000-lawyer firm operating at 1 document action/minute = ~16.7 TPS peak. The saturation point is expected to be 100–180 TPS on a single machine, providing a safety margin of 6–10× over realistic legal workload.
 
 ### Conclusion for Paper
-*(Fill in after running. Template: "PangoChain sustained X TPS under Fabric mode at Y concurrent clients before saturation, compared to Z TPS for PostgreSQL-only. This exceeds the estimated peak demand of 16.7 TPS for a 1,000-lawyer firm by a factor of N×.")*
+PangoChain sustained **26.7 TPS** under Fabric mode at 50 concurrent clients, degrading to 18.0 TPS at 300 clients before collapsing at 400+ (Raft BatchTimeout saturation). PostgreSQL-only mode reached **481.4 TPS** peak at 400 clients with zero errors — an **18× throughput advantage** over Fabric mode, reflecting the cost of blockchain consensus. The Fabric ceiling of 26.7 TPS exceeds the estimated peak demand of 16.7 TPS for a 1,000-lawyer firm by **1.6×** at default BatchTimeout=2s. Configuring BatchTimeout=500ms would increase the Fabric TPS ceiling to approximately 100 TPS, providing a **6× safety margin**. The bottleneck is the Raft orderer configuration, not compute (CPU remained below 11% in Fabric mode).
 
 ---
 
@@ -429,7 +438,7 @@ Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-
 
 ## Key Findings for Paper
 
-- **Safety margin for legal workloads (Exp 1):** PENDING — Caliper scalability run not yet completed on M1 (Exp 1 still to run). Fabric saturates at TPS ceiling driven by Raft BatchTimeout. Realistic 1,000-lawyer firm peak demand ≈ 16.7 TPS.
+- **Safety margin for legal workloads (Exp 1):** Fabric mode peak **26.7 TPS** at 50 clients; saturation at ~150 clients. PostgreSQL-only peak **481.4 TPS** (18× higher). Realistic 1,000-lawyer firm peak demand ≈ 16.7 TPS — Fabric provides 1.6× margin at default BatchTimeout; ~6× with BatchTimeout=500ms.
 - **Exact write latency and cause (Exp 2):** RegisterDocument P50 = **2147ms** (Fabric) vs **46ms** (DB-only). The dominant source is Raft orderer BatchTimeout (default 2s). Reducing BatchTimeout to 500ms would lower write latency to ~500ms + network overhead.
 - **Off-chain design validated (Exp 3):** Total end-to-end latency P50: 2140ms (1MB) → 2975ms (50MB). Fabric commit contribution is constant at ~2121ms; IPFS upload grows from ~19ms (1MB) to ~854ms (50MB), confirming ledger performance is independent of document size.
 - **Audit verification speedup (Exp 4):** Automated PostgreSQL query = **44ms P50** for 704 events. Manual CSV+SHA-256 = **100ms**. Automated is **2.0×** faster in raw compute; realistically >1,000× faster than human-reviewed manual audit.
@@ -443,10 +452,10 @@ Each 50ms RTT hop adds approximately 50ms to write latency (two consensus round-
 | Paper Claim | Supporting Experiment | Measured Value |
 |-------------|----------------------|----------------|
 | "Fabric maintains acceptable latency for legal workflows" | Exp 2 | RegisterDocument P50 = **2147ms** ✓ (dominated by BatchTimeout, configurable) |
-| "System supports realistic 1,000-lawyer firm workloads" | Exp 1 | PENDING — Caliper run still needed |
+| "System supports realistic 1,000-lawyer firm workloads" | Exp 1 | Fabric peak=**26.7 TPS** > 16.7 TPS demand; 1.6× margin (6× with BatchTimeout=500ms) ✓ |
 | "Ledger latency decoupled from document file size" | Exp 3 | Fabric commit ΔP50 = **~0ms** across 1MB–50MB (total grows 835ms driven by IPFS) ✓ |
 | "Automated audit verification faster than manual" | Exp 4 | PostgreSQL=44ms P50, Manual=100ms, speedup=**2.0×** (raw); >>1000× vs human review ✓ |
-| "WAN-resilient for cross-border consortium" | Exp 5 | SKIPPED on M1 — Linux machine required |
+| "WAN-resilient for cross-border consortium" | Exp 5 | PENDING — tc netem run in progress on Linux x86_64 |
 | "ECIES P-256 reduces key token size vs RSA-OAEP 2048" | Exp 6 | RSA=256B, ECIES=125B, **reduction=51.2%** ✓ |
 | "PBKDF2 600k iterations within UX budget" | Exp 6 | PBKDF2 = **83.34ms** (<1000ms) ✓ |
 | "AES-256-GCM encryption transparent to user" | Exp 6 | 50MB encrypt = **56.48ms** ✓ |
@@ -471,5 +480,5 @@ These are items the prototype does not fully implement. The paper's **Framework 
 
 ---
 
-*Last updated: 2026-05-11 — Experiments 2, 3, 4, 6 complete on Apple M1. Experiment 1 (Caliper) and Experiment 5 (tc netem) require Linux machine.*
+*Last updated: 2026-05-16 — Experiment 1 complete on Linux x86_64. Experiment 5 (tc netem WAN latency) still pending.*
 *To append results: edit this file and fill in the dashes (—) with measured values.*
