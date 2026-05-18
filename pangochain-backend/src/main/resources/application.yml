@@ -50,6 +50,8 @@ ipfs:
   api:
     host: ${IPFS_API_HOST:http://localhost}
     port: ${IPFS_API_PORT:5001}
+    host2: ${IPFS_API_HOST2:http://localhost}   # secondary — pin for redundancy
+    port2: ${IPFS_API_PORT2:5002}
   gateway:
     host: ${IPFS_GW_HOST:http://localhost}
     port: ${IPFS_GW_PORT:8080}
