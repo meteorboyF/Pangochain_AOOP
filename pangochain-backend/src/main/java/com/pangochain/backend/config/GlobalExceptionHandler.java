@@ -1,5 +1,8 @@
 package com.pangochain.backend.config;
 
+import com.pangochain.backend.auth.InvalidMfaCodeException;
+import com.pangochain.backend.auth.MfaChallengeRequiredException;
+import com.pangochain.backend.auth.MfaSetupRequiredException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -16,6 +19,32 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(MfaSetupRequiredException.class)
+    public org.springframework.http.ResponseEntity<Map<String, Object>> handleMfaSetupRequired(MfaSetupRequiredException ex) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                        "requiresMfaSetup", true,
+                        "setupToken", ex.getSetupToken(),
+                        "message", ex.getMessage()
+                ));
+    }
+
+    @ExceptionHandler(MfaChallengeRequiredException.class)
+    public org.springframework.http.ResponseEntity<Map<String, Object>> handleMfaChallenge(MfaChallengeRequiredException ex) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(Map.of(
+                        "requiresMfaCode", true,
+                        "challengeToken", ex.getChallengeToken(),
+                        "message", ex.getMessage()
+                ));
+    }
+
+    @ExceptionHandler(InvalidMfaCodeException.class)
+    public org.springframework.http.ResponseEntity<Map<String, String>> handleInvalidMfa(InvalidMfaCodeException ex) {
+        return org.springframework.http.ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("error", ex.getMessage()));
+    }
 
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail handleResponseStatus(ResponseStatusException ex) {

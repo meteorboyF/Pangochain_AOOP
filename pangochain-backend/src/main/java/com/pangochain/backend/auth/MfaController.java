@@ -1,6 +1,7 @@
 package com.pangochain.backend.auth;
 
 import com.pangochain.backend.audit.AuditService;
+import com.pangochain.backend.auth.dto.AuthResponse;
 import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import com.warrenstrange.googleauth.GoogleAuthenticator;
@@ -36,6 +37,7 @@ public class MfaController {
 
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final AuthService authService;
 
     private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
 
@@ -109,7 +111,24 @@ public class MfaController {
         return ResponseEntity.ok(Map.of("mfaEnabled", true, "message", "MFA verified successfully"));
     }
 
+    /**
+     * POST /api/auth/mfa/challenge
+     * Accepts a short-lived challenge token + 6-digit TOTP code.
+     * Returns full access + refresh tokens on success.
+     * This is NOT a protected route — the challenge token itself proves partial authentication.
+     */
+    @PostMapping("/challenge")
+    public ResponseEntity<AuthResponse> challenge(@Valid @RequestBody MfaChallengeRequest req) {
+        AuthResponse response = authService.completeMfaChallenge(req.challengeToken(), req.totpCode());
+        return ResponseEntity.ok(response);
+    }
+
     public record MfaVerifyRequest(
             @NotBlank @Size(min = 6, max = 6) @Pattern(regexp = "\\d{6}") String code
+    ) {}
+
+    public record MfaChallengeRequest(
+            @NotBlank String challengeToken,
+            @NotBlank @Size(min = 6, max = 6) @Pattern(regexp = "\\d{6}") String totpCode
     ) {}
 }

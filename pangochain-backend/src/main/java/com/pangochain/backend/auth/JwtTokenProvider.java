@@ -43,6 +43,20 @@ public class JwtTokenProvider {
         return buildToken(userId, email, role, refreshTokenExpirySeconds, "refresh");
     }
 
+    /** Short-lived token for MFA enrollment flow (10 min). Cannot be used on protected routes. */
+    public String generateMfaSetupToken(UUID userId, String email) {
+        return buildToken(userId, email, null, 600, "mfa_setup");
+    }
+
+    /** Short-lived token for MFA code submission (5 min). Cannot be used on protected routes. */
+    public String generateMfaChallengeToken(UUID userId, String email, String role) {
+        return buildToken(userId, email, role, 300, "mfa_challenge");
+    }
+
+    public boolean isMfaChallengeToken(String token) {
+        return "mfa_challenge".equals(validateAndParseClaims(token).get("type", String.class));
+    }
+
     private String buildToken(UUID userId, String email, String role, long expirySeconds, String tokenType) {
         Instant now = Instant.now();
         return Jwts.builder()
