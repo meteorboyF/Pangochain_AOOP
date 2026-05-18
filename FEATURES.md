@@ -22,7 +22,8 @@
 
 | Feature | Details |
 |---------|---------|
-| **3-org Fabric network** | FirmA, FirmB, Regulator — Raft orderer, CouchDB state DB |
+| **3-org Fabric network** | FirmA, FirmB, Regulator — 3-node Raft orderer cluster (CFT), CouchDB state DB |
+| **3-node Raft orderer cluster** | orderer1/2/3.pangochain.com — crash-fault-tolerant (1 node can fail, quorum maintained). Verified by stopping a node and confirming transaction commit continues. |
 | **`legalcc` chaincode (Go)** | 10 functions: RegisterDocument, GrantAccess, RevokeAccess, CheckAccess, GetDocumentHistory, UpdateDocument, RegisterCase, LogAuditEvent, RevokeUserCertificate, logAuditInternal |
 | **Chaincode event listener** | Spring Boot `FabricEventHandler` subscribes to chaincode events |
 | **FabricGatewayService** | Spring Boot gateway service — submits/evaluates transactions via Fabric Gateway SDK |
@@ -45,7 +46,7 @@
 | **Document versioning** | `previous_version_id` chain in DB, `UpdateDocument` chaincode |
 | **Per-document ACL** | `document_access` table tracks capability (owner/write/read), expiry, revocation |
 | **TeamAccessPanel** | Per-document access management UI — grant (ECIES key wrap), revoke, expiry date |
-| **IPFS storage** | Encrypted ciphertext stored on IPFS Kubo node |
+| **IPFS storage** | Encrypted ciphertext stored on 2-node private IPFS swarm with cross-pinning (each node pins all CIDs from the other — single-node failure loses no data) |
 
 ---
 
@@ -101,6 +102,7 @@
 | **Admin panel** | User management table with role/status display |
 | **Activate / Suspend users** | `POST /api/admin/users/{id}/activate` and `/suspend` |
 | **Role-based access** | MANAGING_PARTNER, IT_ADMIN, REGULATOR roles see admin nav |
+| **MFA enforcement** | MANAGING_PARTNER and IT_ADMIN must enroll in TOTP MFA before first login. Login issues HTTP 403 with `requiresMfaSetup=true` if unenrolled; HTTP 202 with challenge token for enrolled users. Opt-in for all other roles. |
 | **Key rotation UI** | Profile page shows key status (public key fingerprint) |
 
 ---
@@ -110,21 +112,22 @@
 | Feature | Details |
 |---------|---------|
 | **DataSeeder** | On startup seeds 4 users, 3 cases, 5 hearings, 4 reminders, timeline events |
-| **Liquibase migrations** | `001-initial-schema.sql` + `002-client-features.sql` — reproducible DB setup |
+| **Liquibase migrations** | `001–004-*.sql` — reproducible DB setup including ECDSA signing key columns |
 | **Docker Compose** | `postgres`, `ipfs` services — single command startup |
 | **Fabric Makefile** | `make up/chaincode/smoke/down/clean` |
 | **TypeScript strict** | Zero TS errors (`npx tsc --noEmit` clean) |
 
 ---
 
-## 🔲 Planned — Phase 7 (Experiments for Paper)
+## ✅ Done — Digital Signatures (ECDSA P-256)
 
 | Feature | Details |
 |---------|---------|
-| **Hyperledger Caliper benchmarks** | Throughput + latency load tests against live Fabric network (RegisterDocument, CheckAccess, GrantAccess workloads) |
-| **WAN latency simulation** | `tc netem` on Docker bridge — 0 / 50 / 100 / 200ms RTT scenarios |
-| **Experiment result collection** | CSV export of Caliper results + Python chart generator for paper figures |
-| **E2E latency comparison** | With / without blockchain overhead measurement |
+| **ECDSA P-256 keypair generation** | Separate signing keypair generated at registration (alongside ECIES keypair). Private key AES-256-GCM wrapped under PBKDF2, stored in localStorage. Public key persisted on server. |
+| **Browser-side ECDSA signing** | `SignDocumentModal` uses WebCrypto `sign({name:'ECDSA', hash:{name:'SHA-256'}})` to produce an IEEE P1363 signature over the document SHA-256 hash. Password unlocks the signing key (not the encryption key). |
+| **Server-side ECDSA verification** | `EcdsaVerifier` uses Java's `SHA256withECDSAinP1363Format` (SunEC, Java 17+) with the signer's registered JWK public key. POST `/api/signatures/{docId}/sign` returns HTTP 400 if signature invalid. |
+| **Signature Fabric anchoring** | Verified signatures anchored via `LogAuditEvent` on `legal-channel` before DB persist. |
+| **Verification status** | `esignatures.verification_status` = `VERIFIED` for all ECDSA-verified records. |
 
 ---
 
@@ -132,8 +135,6 @@
 
 | Feature | Priority | Notes |
 |---------|----------|-------|
-| **E-signature workflow** | High | `esignatures` table exists. Need: client browser sign → document hash → Fabric `esignatures` anchor → PDF stamp |
-| **MFA enrollment (TOTP)** | High | `mfa_secret` in User entity exists. Need `/mfa/setup` endpoint + QR code UI (Google Authenticator compatible) |
 | **Message reply threading** | Medium | Quick-reply box in conversation — pre-fills composeTo. Full thread reply needs `parent_id` on messages table |
 | **Real-time notifications** | Medium | WebSocket / SSE push for new messages and reminders (currently poll on page load) |
 | **Document versioning UI** | Medium | Show version history chain in CaseDetail Documents tab |
