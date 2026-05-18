@@ -49,12 +49,12 @@ sleep 20
 log "Host entries for Fabric nodes baked into fabric-cli via extra_hosts (static IPs 172.20.0.2-5)."
 
 # ─── 4. Create and join channel ───────────────────────────────────────────────
-ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
+ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
 
 log "Creating legal-channel..."
 docker exec fabric-cli peer channel create \
-  -o orderer.pangochain.com:7050 \
+  -o orderer1.pangochain.com:7050 \
   -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/legal-channel.tx \
   --tls --cafile "$ORDERER_TLS" \
@@ -88,7 +88,7 @@ log "All peers joined legal-channel."
 log "Updating anchor peers..."
 
 docker exec fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/FirmAMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 
@@ -98,7 +98,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/peers/peer0.firmb.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/users/Admin@firmb.pangochain.com/msp" \
   fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/FirmBMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 
@@ -108,7 +108,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/peers/peer0.regulator.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/users/Admin@regulator.pangochain.com/msp" \
   fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/RegulatorMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 

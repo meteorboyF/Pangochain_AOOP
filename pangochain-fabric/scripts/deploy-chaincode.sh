@@ -21,7 +21,7 @@ log()  { echo -e "${GREEN}[+]${NC} $1"; }
 warn() { echo -e "${YELLOW}[!]${NC} $1"; }
 die()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
 
-ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
+ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
 
 # ─── 1. Build the chaincode Docker image ──────────────────────────────────────
@@ -93,7 +93,7 @@ log "Package ID: ${PACKAGE_ID}"
 # ─── 5. Approve for each org ──────────────────────────────────────────────────
 log "Approving chaincode for FirmA..."
 docker exec fabric-cli peer lifecycle chaincode approveformyorg \
-  -o orderer.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
+  -o orderer1.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
   --version "$CC_VERSION" --package-id "$PACKAGE_ID" --sequence "$CC_SEQUENCE" \
   --tls --cafile "$ORDERER_TLS"
 
@@ -104,7 +104,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/peers/peer0.firmb.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/users/Admin@firmb.pangochain.com/msp" \
   fabric-cli peer lifecycle chaincode approveformyorg \
-  -o orderer.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
+  -o orderer1.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
   --version "$CC_VERSION" --package-id "$PACKAGE_ID" --sequence "$CC_SEQUENCE" \
   --tls --cafile "$ORDERER_TLS"
 
@@ -115,7 +115,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/peers/peer0.regulator.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/users/Admin@regulator.pangochain.com/msp" \
   fabric-cli peer lifecycle chaincode approveformyorg \
-  -o orderer.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
+  -o orderer1.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
   --version "$CC_VERSION" --package-id "$PACKAGE_ID" --sequence "$CC_SEQUENCE" \
   --tls --cafile "$ORDERER_TLS"
 
@@ -128,7 +128,7 @@ docker exec fabric-cli peer lifecycle chaincode checkcommitreadiness \
 # ─── 7. Commit chaincode definition ───────────────────────────────────────────
 log "Committing chaincode definition..."
 docker exec fabric-cli peer lifecycle chaincode commit \
-  -o orderer.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
+  -o orderer1.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
   --version "$CC_VERSION" --sequence "$CC_SEQUENCE" \
   --tls --cafile "$ORDERER_TLS" \
   --peerAddresses peer0.firma.pangochain.com:7051 \
@@ -160,7 +160,7 @@ sleep 5
 
 log "Smoke test: RegisterCase..."
 docker exec fabric-cli peer chaincode invoke \
-  -o orderer.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
+  -o orderer1.pangochain.com:7050 --channelID "$CHANNEL" --name "$CC_NAME" \
   --tls --cafile "$ORDERER_TLS" \
   --peerAddresses peer0.firma.pangochain.com:7051 \
   --tlsRootCertFiles "${CRYPTO_BASE}/peerOrganizations/firma.pangochain.com/peers/peer0.firma.pangochain.com/tls/ca.crt" \
