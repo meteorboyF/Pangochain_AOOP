@@ -200,6 +200,86 @@ export async function eciesUnwrapKey(
   return bytesToBase64(new Uint8Array(rawKey))
 }
 
+// ─── ECDSA P-256 Keypair (signing) ───────────────────────────────────────────
+
+export interface EcdsaKeyPair {
+  publicKeyJwk: JsonWebKey
+  privateKeyEncryptedB64: string
+  saltB64: string
+  ivB64: string
+}
+
+export async function generateEcdsaKeypair(password: string): Promise<EcdsaKeyPair> {
+  const keyPair = await subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'],
+  )
+
+  const publicKeyJwk = await subtle.exportKey('jwk', keyPair.publicKey)
+  const privateKeyRaw = await subtle.exportKey('pkcs8', keyPair.privateKey)
+
+  const saltBytes = crypto.getRandomValues(new Uint8Array(32))
+  const saltB64 = bytesToBase64(saltBytes)
+  const wrappingKey = await derivePbkdf2Key(password, saltB64)
+
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, privateKeyRaw)
+
+  return {
+    publicKeyJwk,
+    privateKeyEncryptedB64: bytesToBase64(new Uint8Array(ciphertext)),
+    saltB64,
+    ivB64: bytesToBase64(iv),
+  }
+}
+
+export async function unwrapEcdsaPrivateKey(
+  password: string,
+  saltB64: string,
+  ivB64: string,
+  encryptedB64: string,
+): Promise<CryptoKey> {
+  const wrappingKey = await derivePbkdf2Key(password, saltB64)
+  const iv = base64ToBytes(ivB64)
+  const ciphertext = base64ToBytes(encryptedB64)
+  const rawPrivateKey = await subtle.decrypt(
+    { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+    wrappingKey,
+    ciphertext.buffer as ArrayBuffer,
+  )
+  return subtle.importKey('pkcs8', rawPrivateKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'])
+}
+
+export async function signDocumentHash(hashB64: string, privateKey: CryptoKey): Promise<string> {
+  const hashBytes = base64ToBytes(hashB64)
+  const signature = await subtle.sign(
+    { name: 'ECDSA', hash: { name: 'SHA-256' } },
+    privateKey,
+    hashBytes.buffer as ArrayBuffer,
+  )
+  return bytesToBase64(new Uint8Array(signature))
+}
+
+const ECDSA_KEY_PREFIX = 'pangochain_signing_key_'
+
+export function storeWrappedEcdsaKey(userId: string, data: {
+  encryptedB64: string
+  saltB64: string
+  ivB64: string
+}) {
+  localStorage.setItem(ECDSA_KEY_PREFIX + userId, JSON.stringify(data))
+}
+
+export function loadWrappedEcdsaKey(userId: string): {
+  encryptedB64: string
+  saltB64: string
+  ivB64: string
+} | null {
+  const raw = localStorage.getItem(ECDSA_KEY_PREFIX + userId)
+  return raw ? JSON.parse(raw) : null
+}
+
 // ─── Integrity Verification ──────────────────────────────────────────────────
 
 export async function verifyIntegrity(plaintext: ArrayBuffer, expectedHashB64: string): Promise<boolean> {

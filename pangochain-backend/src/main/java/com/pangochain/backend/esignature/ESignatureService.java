@@ -34,23 +34,37 @@ public class ESignatureService {
     /**
      * Record a document signature:
      * 1. Verify signer has active access to the document.
-     * 2. Anchor signature on Fabric via LogAuditEvent.
-     * 3. Persist in esignatures table.
+     * 2. Verify ECDSA P-256 signature server-side using the signer's registered public key.
+     * 3. Anchor signature on Fabric via LogAuditEvent.
+     * 4. Persist in esignatures table with verification_status = VERIFIED.
      */
     @Transactional
     public ESignatureDto sign(UUID docId, SignDocumentRequest req, User signer) {
-        // Verify the signer has access
+        // 1. Verify access
         accessRepository.findActiveEntry(docId, signer.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN,
                         "You do not have access to this document"));
 
-        // Anchor on Fabric — use LogAuditEvent since RecordSignature is not yet in chaincode
+        // 2. ECDSA server-side verification
+        String signerPublicKeyJwk = signer.getSigningPublicKey();
+        if (signerPublicKeyJwk == null || signerPublicKeyJwk.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "No signing public key registered — re-register to enable ECDSA signatures");
+        }
+        boolean ecdsaValid = EcdsaVerifier.verify(req.documentHashB64(), req.signatureB64(), signerPublicKeyJwk);
+        if (!ecdsaValid) {
+            log.warn("ECDSA verification failed: docId={} signer={}", docId, signer.getEmail());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "ECDSA signature verification failed — document hash or signature is invalid");
+        }
+
+        // 3. Anchor on Fabric
         String fabricTxId = null;
         try {
             if (fabricGatewayService != null) {
                 String payload = String.format(
-                        "{\"docId\":\"%s\",\"signerId\":\"%s\",\"documentHash\":\"%s\",\"signatureHash\":\"%s\",\"timestamp\":\"%s\"}",
-                        docId, signer.getId(), req.documentHash(), req.signatureHash(), Instant.now());
+                        "{\"docId\":\"%s\",\"signerId\":\"%s\",\"documentHashB64\":\"%s\",\"timestamp\":\"%s\"}",
+                        docId, signer.getId(), req.documentHashB64(), Instant.now());
                 fabricTxId = fabricGatewayService.submitTransaction(
                         "LogAuditEvent",
                         "DOCUMENT_SIGNED",
@@ -63,19 +77,23 @@ public class ESignatureService {
             log.warn("Fabric anchor for signature failed (continuing): {}", e.getMessage());
         }
 
+        // 4. Persist
         ESignature sig = ESignature.builder()
                 .documentId(docId)
                 .signerId(signer.getId())
-                .documentHash(req.documentHash())
-                .signatureHash(req.signatureHash())
+                .documentHashB64(req.documentHashB64())
+                .signatureB64(req.signatureB64())
+                .signingPublicKey(signerPublicKeyJwk)
+                .verificationStatus("VERIFIED")
                 .fabricTxId(fabricTxId)
                 .build();
         sig = signatureRepository.save(sig);
 
         auditService.log("DOCUMENT_SIGNED", signer.getId(), "DOCUMENT", docId.toString(),
-                fabricTxId, String.format("{\"signatureHash\":\"%s\"}", req.signatureHash()));
+                fabricTxId, String.format("{\"documentHashB64\":\"%s\",\"ecdsaVerified\":true}", req.documentHashB64()));
 
-        log.info("Document signed: docId={} signer={} fabricTxId={}", docId, signer.getEmail(), fabricTxId);
+        log.info("ECDSA signature verified and anchored: docId={} signer={} fabricTxId={}",
+                docId, signer.getEmail(), fabricTxId);
         return toDto(sig, signer.getEmail());
     }
 
@@ -96,6 +114,10 @@ public class ESignatureService {
                 .signerEmail(signerEmail)
                 .documentHash(sig.getDocumentHash())
                 .signatureHash(sig.getSignatureHash())
+                .signatureB64(sig.getSignatureB64())
+                .documentHashB64(sig.getDocumentHashB64())
+                .signingPublicKey(sig.getSigningPublicKey())
+                .verificationStatus(sig.getVerificationStatus())
                 .fabricTxId(sig.getFabricTxId())
                 .signedAt(sig.getSignedAt())
                 .build();

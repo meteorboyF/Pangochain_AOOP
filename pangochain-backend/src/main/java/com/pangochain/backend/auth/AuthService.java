@@ -64,6 +64,7 @@ public class AuthService {
                 .role(req.role())
                 .firm(firm)
                 .publicKeyEcies(req.publicKeyJwk())
+                .signingPublicKey(req.signingPublicKeyJwk())
                 .status(initialStatus)
                 .build();
 

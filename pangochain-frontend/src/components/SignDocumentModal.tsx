@@ -3,6 +3,7 @@ import { X, PenTool, Shield, Loader2, CheckCircle, AlertCircle, Key, FileCheck }
 import {
   decryptDocument, eciesUnwrapKey, base64ToBytes, bufferToHex,
   loadWrappedPrivateKey, unwrapPrivateKey, bytesToBase64,
+  loadWrappedEcdsaKey, unwrapEcdsaPrivateKey, signDocumentHash,
 } from '../lib/crypto'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
@@ -70,35 +71,25 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
   const handleSign = async () => {
     setStage('signing')
     try {
-      const storedKey = loadWrappedPrivateKey(user!.id)
-      if (!storedKey) throw new Error('Private key not found')
+      // Load and unwrap ECDSA signing key (separate from ECIES encryption key)
+      const storedSigningKey = loadWrappedEcdsaKey(user!.id)
+      if (!storedSigningKey) {
+        throw new Error('Signing key not found — your account may have been registered before ECDSA was enabled. Please re-register.')
+      }
 
-      // Derive private key again for signing (PBKDF2 unlock)
-      const privateKey = await unwrapPrivateKey(password, storedKey.saltB64, storedKey.ivB64, storedKey.encryptedB64)
-
-      // Sign the document hash: ECDH derive → AES-GCM encrypt(docHash) → signatureHash
-      // (Using ECDH-based signature: ephemeral key-wrap of the docHash itself as proof of key possession)
-      const wrappedKeyRes = await api.get(`/documents/${docId}/wrapped-key`)
-      const docKeyB64 = await eciesUnwrapKey(privateKey, wrappedKeyRes.data as string)
-      const docKeyBytes = base64ToBytes(docKeyB64)
-      const hashBytes = base64ToBytes(docHash)
-
-      // Signature = HMAC-like: AES-GCM encrypt(docHash) with the document key as "signature proof"
-      const sigKey = await window.crypto.subtle.importKey(
-        'raw', docKeyBytes.buffer as ArrayBuffer, { name: 'AES-GCM', length: 256 }, false, ['encrypt'],
+      const ecdsaPrivateKey = await unwrapEcdsaPrivateKey(
+        password,
+        storedSigningKey.saltB64,
+        storedSigningKey.ivB64,
+        storedSigningKey.encryptedB64,
       )
-      const iv = window.crypto.getRandomValues(new Uint8Array(12))
-      const sigCiphertext = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv }, sigKey, hashBytes.buffer as ArrayBuffer,
-      )
-      const sigTokenBytes = new Uint8Array(iv.length + sigCiphertext.byteLength)
-      sigTokenBytes.set(iv, 0)
-      sigTokenBytes.set(new Uint8Array(sigCiphertext), iv.length)
-      const signatureHash = bytesToBase64(sigTokenBytes)
+
+      // Sign the document hash with ECDSA P-256 — SHA-256 is applied to docHash bytes internally
+      const signatureB64 = await signDocumentHash(docHash, ecdsaPrivateKey)
 
       await api.post(`/signatures/${docId}/sign`, {
-        documentHash: docHash,
-        signatureHash,
+        documentHashB64: docHash,
+        signatureB64,
       })
 
       setStage('done')
@@ -137,8 +128,9 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
           {stage === 'idle' && (
             <div className="space-y-3">
               <p className="text-sm text-text-secondary leading-relaxed">
-                Signing decrypts the document in your browser, computes its SHA-256 hash, and anchors
-                your signature on the blockchain. Enter your password to unlock your private key.
+                Signing decrypts the document in your browser, computes its SHA-256 hash, and signs it
+                with your ECDSA P-256 private key. The server verifies the signature before anchoring
+                it on Hyperledger Fabric. Enter your password to unlock your signing key.
               </p>
               <div>
                 <label className="label flex items-center gap-1.5">
@@ -147,7 +139,7 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
                 <input
                   type="password"
                   className="input"
-                  placeholder="To unlock your ECIES private key"
+                  placeholder="To unlock your ECDSA signing key"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -168,8 +160,8 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
               <Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" />
               {stage === 'fetching' && 'Fetching encrypted document…'}
               {stage === 'unwrapping' && 'Unwrapping document key (ECIES)…'}
+              {stage === 'signing' && 'Signing with ECDSA P-256 and anchoring on Fabric…'}
               {stage === 'decrypting' && 'Decrypting (AES-256-GCM)…'}
-              {stage === 'signing' && 'Signing and anchoring on Fabric…'}
             </div>
           )}
 

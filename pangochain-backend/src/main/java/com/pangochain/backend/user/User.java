@@ -43,9 +43,13 @@ public class User implements UserDetails {
     @Column(name = "fabric_identity_id")
     private String fabricIdentityId;
 
-    // ECIES P-256 public key in PEM format — sent from browser on registration
+    // ECIES P-256 public key in JWK format — for document key wrapping
     @Column(name = "public_key_ecies", columnDefinition = "TEXT")
     private String publicKeyEcies;
+
+    // ECDSA P-256 public key in JWK format — for document signature verification
+    @Column(name = "signing_public_key", columnDefinition = "TEXT")
+    private String signingPublicKey;
 
     @Column(name = "mfa_secret")
     private String mfaSecret;

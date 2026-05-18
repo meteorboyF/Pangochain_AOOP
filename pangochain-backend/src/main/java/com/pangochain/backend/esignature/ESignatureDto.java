@@ -15,6 +15,10 @@ public class ESignatureDto {
     private String signerEmail;
     private String documentHash;
     private String signatureHash;
+    private String signatureB64;
+    private String documentHashB64;
+    private String signingPublicKey;
+    private String verificationStatus;
     private String fabricTxId;
     private Instant signedAt;
 }
