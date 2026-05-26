@@ -7,6 +7,7 @@ import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ public class HearingController {
     private final UserRepository userRepository;
     private final AuditService auditService;
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/by-case/{caseId}")
     public ResponseEntity<List<HearingDto>> byCase(@PathVariable UUID caseId) {
         List<HearingDto> list = hearingRepository
@@ -33,6 +35,7 @@ public class HearingController {
         return ResponseEntity.ok(list);
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/upcoming")
     public ResponseEntity<List<HearingDto>> upcoming(
             @AuthenticationPrincipal UserDetails principal) {
@@ -46,6 +49,7 @@ public class HearingController {
         return ResponseEntity.ok(hearings.stream().map(HearingDto::from).toList());
     }
 
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
     @PostMapping
     public ResponseEntity<HearingDto> create(
             @RequestBody HearingCreateRequest req,
@@ -71,6 +75,41 @@ public class HearingController {
         return ResponseEntity.ok(HearingDto.from(h));
     }
 
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
+    @PutMapping("/{id}")
+    public ResponseEntity<HearingDto> update(
+            @PathVariable UUID id,
+            @RequestBody HearingCreateRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        User updater = resolveUser(principal);
+        Hearing h = hearingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Hearing not found"));
+        if (req.title() != null) h.setTitle(req.title());
+        if (req.hearingDate() != null) h.setHearingDate(req.hearingDate());
+        if (req.location() != null) h.setLocation(req.location());
+        if (req.courtName() != null) h.setCourtName(req.courtName());
+        if (req.hearingType() != null) h.setHearingType(req.hearingType());
+        if (req.notes() != null) h.setNotes(req.notes());
+        h = hearingRepository.save(h);
+        auditService.log("HEARING_UPDATED", updater.getId(), "HEARING", id.toString(), null,
+                String.format("{\"date\":\"%s\"}", h.getHearingDate()));
+        return ResponseEntity.ok(HearingDto.from(h));
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
+    @PostMapping("/{id}/remind")
+    public ResponseEntity<Void> sendReminder(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails principal) {
+        User sender = resolveUser(principal);
+        Hearing h = hearingRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Hearing not found"));
+        auditService.log("HEARING_REMINDER_SENT", sender.getId(), "HEARING", id.toString(), null,
+                String.format("{\"hearingDate\":\"%s\",\"priority\":\"HIGH\"}", h.getHearingDate()));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,

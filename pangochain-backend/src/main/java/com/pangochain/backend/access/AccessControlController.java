@@ -5,6 +5,7 @@ import com.pangochain.backend.user.UserRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +22,7 @@ public class AccessControlController {
     private final UserRepository userRepository;
 
     /** POST /api/access/grant — browser sends ECIES-wrapped key for the grantee */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
     @PostMapping("/grant")
     public ResponseEntity<AccessDto> grant(
             @Valid @RequestBody GrantAccessRequest req,
@@ -30,6 +32,7 @@ public class AccessControlController {
     }
 
     /** DELETE /api/access/{docId}/user/{userId} */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
     @DeleteMapping("/{docId}/user/{userId}")
     public ResponseEntity<Void> revoke(
             @PathVariable String docId,
@@ -41,6 +44,7 @@ public class AccessControlController {
     }
 
     /** GET /api/access/{docId} — returns current ACL for a document */
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{docId}")
     public ResponseEntity<List<AccessDto>> list(
             @PathVariable UUID docId,

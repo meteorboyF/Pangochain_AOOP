@@ -2,6 +2,7 @@ package com.pangochain.backend.user;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class UserController {
 
     private final UserRepository userRepository;

@@ -5,6 +5,7 @@ import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/case-events")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class CaseEventController {
 
     private final CaseEventRepository caseEventRepository;

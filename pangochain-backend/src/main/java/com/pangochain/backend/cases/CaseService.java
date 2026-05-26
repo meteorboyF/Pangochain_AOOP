@@ -115,6 +115,19 @@ public class CaseService {
                 .build();
     }
 
+    public String getTimeline(UUID caseId) {
+        caseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));
+        if (fabricGatewayService == null) return "[]";
+        try {
+            String caseKey = "CASE:" + caseId;
+            return fabricGatewayService.evaluateTransaction("GetDocumentHistory", caseKey);
+        } catch (FabricException e) {
+            log.warn("Could not fetch Fabric timeline for case={}: {}", caseId, e.getMessage());
+            return "[]";
+        }
+    }
+
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); } catch (Exception e) { return "{}"; }
     }

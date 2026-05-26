@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -67,6 +68,35 @@ public class MessageService {
 
     public long unreadCount(User user) {
         return messageRepository.countByRecipientIdAndReadAtIsNull(user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageDto> conversationSummaries(User user) {
+        return messageRepository.findConversationSummaries(user.getId())
+                .stream()
+                .map(m -> {
+                    String senderEmail = userRepository.findById(m.getSenderId())
+                            .map(User::getEmail).orElse("unknown");
+                    return toDto(m, senderEmail);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageDto> thread(User caller, UUID otherUserId) {
+        return messageRepository.findThread(caller.getId(), otherUserId)
+                .stream()
+                .map(m -> {
+                    String senderEmail = userRepository.findById(m.getSenderId())
+                            .map(User::getEmail).orElse("unknown");
+                    return toDto(m, senderEmail);
+                })
+                .toList();
+    }
+
+    @Transactional
+    public int markOneRead(UUID messageId, User recipient) {
+        return messageRepository.markOneRead(messageId, Instant.now());
     }
 
     private MessageDto toDto(Message m, String senderEmail) {

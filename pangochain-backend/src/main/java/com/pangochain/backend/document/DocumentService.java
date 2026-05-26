@@ -196,6 +196,33 @@ public class DocumentService {
                 .toList();
     }
 
+    public String getDocumentHistory(UUID docId, User requester) {
+        Document doc = documentRepository.findById(docId)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        if (fabricGatewayService == null) return "[]";
+        try {
+            return fabricGatewayService.getDocumentHistory(docId.toString());
+        } catch (FabricException e) {
+            log.warn("Could not fetch Fabric history for doc={}: {}", docId, e.getMessage());
+            return "[]";
+        }
+    }
+
+    @Transactional
+    public DocumentDto updateMetadata(UUID docId, String category, Boolean confidential, User requester) {
+        Document doc = documentRepository.findById(docId)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        accessRepository.findActiveEntry(docId, requester.getId())
+                .orElseThrow(() -> new AccessDeniedException("No access to document " + docId));
+        if (category != null) doc.setCategory(category);
+        if (confidential != null) doc.setConfidential(confidential);
+        doc = documentRepository.save(doc);
+        auditService.log("DOC_METADATA_UPDATED", requester.getId(), "DOCUMENT",
+                docId.toString(), null,
+                toJson(Map.of("category", doc.getCategory(), "confidential", doc.isConfidential())));
+        return toDto(doc, doc.getOwner().getEmail());
+    }
+
     private DocumentDto toDto(Document d, String ownerEmail) {
         return DocumentDto.builder()
                 .id(d.getId())
@@ -208,6 +235,8 @@ public class DocumentService {
                 .version(d.getVersion())
                 .status(d.getStatus().name())
                 .keyRotationPending(d.isKeyRotationPending())
+                .category(d.getCategory())
+                .confidential(d.isConfidential())
                 .createdAt(d.getCreatedAt())
                 .build();
     }

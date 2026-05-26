@@ -29,6 +29,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
+                // CSRF disabled: this is a stateless REST API authenticated via JWT Bearer tokens.
+                // CSRF tokens are only needed for cookie-based session auth. JWT in Authorization
+                // header is not sent by browsers automatically, so CSRF attacks are not applicable.
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -38,6 +41,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/mfa/verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/mfa/challenge").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         .anyRequest().authenticated()
                 )

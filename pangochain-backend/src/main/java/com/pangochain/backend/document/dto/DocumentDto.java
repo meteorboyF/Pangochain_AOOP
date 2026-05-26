@@ -19,5 +19,7 @@ public class DocumentDto {
     private int version;
     private String status;
     private boolean keyRotationPending;
+    private String category;
+    private boolean confidential;
     private Instant createdAt;
 }

@@ -53,6 +53,14 @@ public class Document {
     @Builder.Default
     private boolean keyRotationPending = false;
 
+    @Column(name = "category", nullable = false, length = 100)
+    @Builder.Default
+    private String category = "GENERAL";
+
+    @Column(name = "confidential", nullable = false)
+    @Builder.Default
+    private boolean confidential = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

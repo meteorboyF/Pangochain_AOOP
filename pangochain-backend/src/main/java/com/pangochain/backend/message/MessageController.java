@@ -6,15 +6,19 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/messages")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class MessageController {
 
     private final MessageService messageService;
@@ -50,6 +54,33 @@ public class MessageController {
             @AuthenticationPrincipal UserDetails principal) {
         User user = resolveUser(principal);
         return ResponseEntity.ok(Map.of("count", messageService.unreadCount(user)));
+    }
+
+    /** GET /api/messages/conversations — one entry per conversation partner. */
+    @GetMapping("/conversations")
+    public ResponseEntity<List<MessageDto>> conversations(
+            @AuthenticationPrincipal UserDetails principal) {
+        User user = resolveUser(principal);
+        return ResponseEntity.ok(messageService.conversationSummaries(user));
+    }
+
+    /** GET /api/messages/conversation/{userId} — full thread with a specific user. */
+    @GetMapping("/conversation/{userId}")
+    public ResponseEntity<List<MessageDto>> thread(
+            @PathVariable UUID userId,
+            @AuthenticationPrincipal UserDetails principal) {
+        User caller = resolveUser(principal);
+        return ResponseEntity.ok(messageService.thread(caller, userId));
+    }
+
+    /** PUT /api/messages/{id}/read — mark one message as read. */
+    @PutMapping("/{id}/read")
+    public ResponseEntity<Map<String, Integer>> markOneRead(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails principal) {
+        User user = resolveUser(principal);
+        int marked = messageService.markOneRead(id, user);
+        return ResponseEntity.ok(Map.of("marked", marked));
     }
 
     private User resolveUser(UserDetails principal) {

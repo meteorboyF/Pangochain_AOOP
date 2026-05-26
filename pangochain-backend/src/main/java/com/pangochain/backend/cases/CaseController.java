@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class CaseController {
     @PersistenceContext
     private EntityManager em;
 
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
     @PostMapping
     public ResponseEntity<CaseDto> create(
             @Valid @RequestBody CaseCreateRequest req,
@@ -38,6 +40,7 @@ public class CaseController {
         return ResponseEntity.ok(caseService.create(req, creator));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<Page<CaseDto>> list(
             @RequestParam(required = false) String status,
@@ -51,11 +54,13 @@ public class CaseController {
         return ResponseEntity.ok(caseService.listByFirm(firmId, caseStatus, q, page, size));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public ResponseEntity<CaseDto> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(caseService.getById(id));
     }
 
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR')")
     @PostMapping("/{id}/close")
     public ResponseEntity<CaseDto> close(
             @PathVariable UUID id,
@@ -65,6 +70,7 @@ public class CaseController {
     }
 
     /** Link a client user to a case (lawyer/partner only) */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
     @PostMapping("/{id}/clients")
     @Transactional
     public ResponseEntity<Map<String, String>> addClient(
@@ -80,6 +86,7 @@ public class CaseController {
     }
 
     /** Get all cases a client is associated with */
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/my-cases")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<CaseDto>> myCases(@AuthenticationPrincipal UserDetails principal) {
@@ -91,6 +98,14 @@ public class CaseController {
                 .map(cid -> caseService.getById(cid))
                 .toList();
         return ResponseEntity.ok(result);
+    }
+
+    /** GET /api/cases/{id}/timeline — GetHistoryForKey on Fabric for case events. */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/timeline")
+    public ResponseEntity<String> timeline(@PathVariable UUID id) {
+        String history = caseService.getTimeline(id);
+        return ResponseEntity.ok(history);
     }
 
     private User resolveUser(UserDetails principal) {
