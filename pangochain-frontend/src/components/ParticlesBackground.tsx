@@ -38,15 +38,16 @@ const CONFIGS: Record<Variant, Config> = {
     colors: ['#1d6464', '#2a8f8f', '#1E3A5F'],
   },
   app: {
-    count: 40,
-    speed: 0.2,
+    // Site-wide app background: subtle (count=60 per spec, opacity 0.3-0.4 per spec)
+    count: 60,
+    speed: 0.8,
     linkDist: 130,
     repulseDist: 80,
     repulseForce: 2,
-    dotOpacity: 0.18,
-    linkOpacity: 0.07,
+    dotOpacity: 0.32,
+    linkOpacity: 0.15,
     dotSizeMax: 2.2,
-    colors: ['#1d6464', '#1E3A5F'],
+    colors: ['#1B3A6B', '#0E7490', '#1d6464', '#1E3A5F'],
   },
 }
 
@@ -219,3 +220,5 @@ export function ParticlesBackground({ variant = 'vivid', className = '' }: Parti
     />
   )
 }
+
+export default ParticlesBackground
