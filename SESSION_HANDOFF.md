@@ -13,6 +13,7 @@ Stack:
 - **Frontend**: React 18, TypeScript strict, Vite, Tailwind CSS, Zustand, WebCrypto API (SubtleCrypto)
 - **Chaincode**: Go, `contractapi`
 - **Working directory**: `/home/angkon/Pangochain_AOOP`
+- **Frontend root**: `/home/angkon/Pangochain_AOOP/pangochain-frontend`
 
 ---
 
@@ -32,286 +33,208 @@ Stack:
 
 ---
 
+## Current Test Status
+
+**Frontend (Vitest)**: 48 tests, 8 test files, 0 failures
+```
+src/test/ParticleBackground.test.tsx     — 7 tests (ParticleBackground ui wrapper)
+src/test/ParticlesBackground.test.tsx    — 5 tests (canvas engine)
+src/test/ErrorBoundary.test.tsx          — 5 tests
+src/test/Navigation.test.tsx             — 7 tests (Sidebar: roles, badge, mobile)
+src/test/CaseList.test.tsx               — 5 tests
+src/test/SecureDownloadModal.test.tsx    — 5 tests
+src/test/crypto.test.ts                  — 8 tests
+src/test/ParticleBackground.test.tsx     — 7 tests
+```
+Run: `cd pangochain-frontend && npm test`
+
+**Backend (JUnit 5 + Mockito)**: All fixed, BUILD SUCCESS
+Run: `cd pangochain-backend && ./mvnw test`
+
+**TypeScript**: Zero errors
+Run: `cd pangochain-frontend && npm run type-check`
+
+---
+
 ## What Is Already Done
 
-### Phase 0 — Orientation
-Complete.
-
 ### Phase 1 — Spring Security Hardening + Feature Solidification
-Complete. Key changes made:
-- `GlobalExceptionHandler.java` — `AccessDeniedException` → 403, `AuthenticationException` → 401, `NoSuchElementException/IllegalArgumentException` → 404
-- `AdminController.java` — fixed critical bug (`hasAnyAuthority` → `hasAnyRole`), added audit logging, added `GET /api/admin/users/{id}/key-status`
-- `SecurityConfig.java` — `GET /api/health` is public endpoint
-- `HealthController.java` — NEW, `GET /api/health` returns `{"status":"UP","service":"PangoChain Backend","timestamp":"..."}`
-- `AuditService.java` — dual-write: Fabric `LogAuditEvent` first, PostgreSQL second, graceful fallback when Fabric unreachable
-- `AuditLogRepository.java` — added `findByFabricTxId()`, `countByActorId()`
-- `AuditController.java` — `@PreAuthorize` added (MANAGING_PARTNER, IT_ADMIN, REGULATOR only)
-- `LedgerController.java` — NEW: `GET /api/ledger/events`, `GET /api/ledger/tx/{txId}`
-- `AuthController.java` — `@PreAuthorize("isAuthenticated()")` on `GET /me` and `POST /logout`
-- `Document.java` — added `category` (String, default "GENERAL") and `confidential` (boolean, default false)
-- `DocumentController.java` — `@PreAuthorize` on all endpoints + `GET /{id}/history`, `PUT /{id}/metadata`
-- `DocumentService.java` — added `getDocumentHistory()`, `updateMetadata()`
-- `DocumentDto.java` — added `category`, `confidential`
-- `CaseController.java` — `@PreAuthorize` on all endpoints + `GET /{id}/timeline`
-- `CaseService.java` — added `getTimeline()`
-- `MessageRepository.java` — added `markOneRead()`, `findConversationSummaries()`, `findThread()`
-- `MessageController.java` — class-level `@PreAuthorize("isAuthenticated()")` + `GET /conversations`, `GET /conversation/{userId}`, `PUT /{id}/read`
-- `MessageService.java` — added `conversationSummaries()`, `thread()`, `markOneRead()`
-- `HearingController.java` — `@PreAuthorize` on all endpoints + `PUT /{id}`, `POST /{id}/remind`
-- `AccessControlController.java` — `@PreAuthorize` on all 3 endpoints
-- `UserController.java`, `ESignatureController.java`, `ReminderController.java`, `CaseEventController.java` — class-level `@PreAuthorize("isAuthenticated()")`
-- `DashboardController.java` — `@PreAuthorize` on `/stats`, new `GET /lawyer`, new `GET /client`
+Complete. Key changes:
+- `GlobalExceptionHandler.java` — AccessDeniedException → 403, AuthenticationException → 401
+- `AdminController.java` — critical bug fixed (hasAnyAuthority → hasAnyRole), audit logging added
+- `SecurityConfig.java` — GET /api/health is public
+- `HealthController.java` — NEW, GET /api/health
+- `AuditService.java` — dual-write: Fabric LogAuditEvent first, PostgreSQL second, graceful fallback
+- `LedgerController.java` — NEW: GET /api/ledger/events, GET /api/ledger/tx/{txId}
+- `DashboardController.java` — @PreAuthorize on /stats, new GET /lawyer, new GET /client
+- `DocumentController.java` — @PreAuthorize on all + GET /{id}/history, PUT /{id}/metadata
+- `CaseController.java` — @PreAuthorize on all + GET /{id}/timeline
+- `MessageController.java` — GET /conversations, GET /conversation/{userId}, PUT /{id}/read
+- `HearingController.java` — @PreAuthorize on all + PUT /{id}, POST /{id}/remind
 
 ### Phase 2 — Particles Background Site-Wide
-Complete. Key changes made:
-- `ParticlesBackground.tsx` — fixed `pointer-events-none` on canvas, mouse listeners moved to parent element (so repulse works without intercepting clicks), `prefers-reduced-motion` renders null, `app` variant: count=60, speed=0.8, dotOpacity=0.32, linkOpacity=0.15, colors=`['#1B3A6B','#0E7490','#1d6464','#1E3A5F']`, added `export default`
-- `MainLayout.tsx` — lazy-loads `ParticlesBackground` via `React.lazy` + `Suspense fallback={null}`
-- `package.json` — added `"type-check": "tsc --noEmit"` and `"test": "vitest run"`
+Complete. Key changes:
+- `src/components/ui/ParticleBackground.tsx` — position fixed, z-0, pointer-events none, memo, prefers-reduced-motion guard, aria-hidden, data-testid="particle-background-root"
+- `App.tsx` — mounts `<ParticleBackground />` ONCE before Routes, all pages in `relative z-10`; wrapped in `<ErrorBoundary>`
+- `MainLayout.tsx` — bg-surface/80 semi-transparent
+- `Login.tsx` — right panel bg-surface/90; left dark teal panel keeps its own inline auth particles
+- `Register.tsx` — bg-surface/90
 
-### Phase 3 — Tests (Partial)
-Only one file written so far:
-- `AuthServiceTest.java` at `pangochain-backend/src/test/java/com/pangochain/backend/auth/AuthServiceTest.java`
-  - Uses `@ExtendWith(MockitoExtension.class)`
-  - Mocks: `UserRepository`, `FirmRepository`, `Pbkdf2Service`, `JwtTokenProvider`, `AuditService`
-  - 8 tests: `register_validInput`, `register_duplicateEmail`, `login_valid`, `login_invalidCredentials`, `login_managingPartnerWithoutMfa` (→ `MfaSetupRequiredException`), `login_managingPartnerWithMfaEnabled` (→ `MfaChallengeRequiredException`), `refresh_valid`, `refresh_nonRefreshToken`
+### Phase 3 — Frontend Hardening (Completed)
+
+**ErrorBoundary** (`src/components/ui/ErrorBoundary.tsx`):
+- Class component, `getDerivedStateFromError` + `componentDidCatch`
+- Fallback: AlertTriangle icon + "Something went wrong" + "Go to Dashboard" `<a href="/dashboard">`
+- Wraps entire app in App.tsx
+
+**AuditTrail.tsx**:
+- `ACL_FABRIC_FALLBACK` event type: amber badge (`bg-amber-100 text-amber-800 border border-amber-400`)
+- Amber row background (`bg-amber-50/50`) for these rows
+- Added to EVENT_TYPES filter list
+
+**Dashboard.tsx**:
+- Fetches `/dashboard/lawyer` via `Promise.allSettled`
+- `NextHearing` interface + `HearingCountdown` component (days/hours, amber=today/tomorrow, teal=future)
+- Next Hearing card in right column above Security Status; shows "No upcoming hearings" when null
+
+**Sidebar.tsx** (`src/layout/Sidebar.tsx`):
+- Unread message badge: fetches `/dashboard/stats` on mount, shows teal circle count on Messages link
+- Mobile hamburger: sidebar splits into `hidden lg:flex` desktop + `fixed` overlay with backdrop for mobile
+- Props: `mobileOpen?: boolean`, `onClose?: () => void`
+- Nav link `onClick={onClose}` closes mobile drawer on navigation
+
+**MainLayout.tsx** (`src/layout/MainLayout.tsx`):
+- Manages `mobileOpen` state (useState)
+- Mobile header bar (`lg:hidden`): sticky, hamburger `<Menu>` + "PangoChain" title
+
+**Pages already complete** (assessed, no changes needed):
+- Cases.tsx — search, debounced filter, status chips, loading, error, empty ✅
+- HearingManager.tsx — upcoming/past separation, create form, delete, send reminder ✅
+- AdminPanel.tsx — activate/suspend per-row, toasts, MFA column ✅
+- LedgerExplorer.tsx — event filter, search, expandable JSON, pagination ✅
+- Messages.tsx — password-unlock, per-message decrypt, compose, empty state ✅
+- CaseDetail.tsx — 4 tabs (documents/hearings/team/timeline), loading, not-found ✅
+- ClientPortal.tsx — HearingCountdown, stats, reminders, loading, error ✅
 
 ---
 
-## What To Do Now — Resume Here
+## What Remains — Resume Here
 
-### Step 1: Read these source files before writing any tests
+### Priority 1: Phase 3 remaining minor items
 
+**3-C Dashboard — Fabric Tx ID in Recent Activity**
+In `Dashboard.tsx` Recent Activity section (around line ~246), add truncated tx ID for each audit entry that has `fabricTxId`. Show `e.fabricTxId.slice(0,8) + '…'` in a `code` element next to the resourceId.
+
+**3-B MFA Setup page** (`src/pages/MfaSetup.tsx`)
+Read this file first. Check it has:
+1. Fetches QR code from `GET /mfa/setup` 
+2. Input for 6-digit TOTP code
+3. Calls `POST /mfa/verify` with code
+4. Success toast + redirect
+If anything is missing, add it.
+
+**3-F Documents page** (`src/pages/Documents.tsx`)
+Read this file. Verify it has:
+- Category filter (GENERAL, CONTRACT, EVIDENCE, PLEADING, CORRESPONDENCE)
+- `SecureDownloadModal` wired to download action
+- Loading skeleton, error banner, empty state
+Add what's missing.
+
+**3-L Client Case page** (`src/pages/client/ClientCase.tsx`)
+Read this file. Add if missing:
+- Privacy rights section (client's right to view own docs, right to encryption key)
+- Blockchain timeline of case events (fetch from `GET /cases/{id}/timeline`)
+
+### Priority 2: Phase 4 — Tests to Write
+
+**`src/test/LawyerDashboard.test.tsx`**:
 ```
-pangochain-backend/src/main/java/com/pangochain/backend/cases/CaseService.java
-pangochain-backend/src/main/java/com/pangochain/backend/document/DocumentService.java
-pangochain-backend/src/main/java/com/pangochain/backend/audit/AuditService.java
-pangochain-backend/src/main/java/com/pangochain/backend/message/MessageService.java
-pangochain-backend/src/main/java/com/pangochain/backend/hearing/HearingService.java
-pangochain-backend/src/main/java/com/pangochain/backend/cases/Case.java
-pangochain-backend/src/main/java/com/pangochain/backend/cases/CaseRepository.java
-pangochain-backend/src/main/java/com/pangochain/backend/document/DocumentAccess.java
-pangochain-backend/src/main/java/com/pangochain/backend/document/DocumentAccessRepository.java
-pangochain-backend/src/main/java/com/pangochain/backend/blockchain/FabricGatewayService.java
-pangochain-backend/src/main/java/com/pangochain/backend/ipfs/IpfsService.java
-```
-
-Also find the chaincode source:
-```bash
-find /home/angkon/Pangochain_AOOP/pangochain-chaincode -name "*.go" | head -20
-```
-
-And find the frontend crypto module:
-```bash
-find /home/angkon/Pangochain_AOOP/pangochain-frontend/src -name "*.ts" | xargs grep -l "SubtleCrypto\|encryptDocument\|AES-GCM" 2>/dev/null
-```
-
----
-
-### Step 2: Write Backend Unit Tests (JUnit 5 + Mockito)
-
-Test directory root: `pangochain-backend/src/test/java/com/pangochain/backend/`
-
-#### `cases/CaseServiceTest.java`
-
-Mocks: `CaseRepository`, `DocumentRepository`, `FabricGatewayService`, `AuditService`, `ObjectMapper`
-
+Mock api.get for /dashboard/stats, /cases, /audit, /dashboard/lawyer
 Tests:
-- `createCase_savesToDbAndCallsFabric()` — verify `caseRepository.save()` and `fabricGatewayService.registerCase()` both called
-- `createCase_writesAuditLogEntry()` — verify `auditService.log("CASE_REGISTERED", ...)` called
-- `closeCase_updatesStatusAndAudits()` — verify status set to CLOSED, `auditService.log("CASE_CLOSED", ...)` called
-- `closeCase_throwsIfNotFound()` — `caseRepository.findById()` returns empty → `IllegalArgumentException`
-- `listByFirm_returnsOnlyCasesForFirm()` — verify `caseRepository.findByFirmId(firmId, ...)` called
-- `searchCases_filtersBySearchTerm()` — non-blank q → verify `caseRepository.searchByFirm()` called
-
-Key signatures: `create(CaseCreateRequest req, User creator)`, `close(UUID caseId, User closer)`, `listByFirm(UUID firmId, CaseStatus status, String q, int page, int size)`
-
-#### `document/DocumentServiceTest.java`
-
-Mocks: `DocumentRepository`, `DocumentAccessRepository`, `CaseRepository`, `IpfsService`, `FabricGatewayService`, `AuditService`, `ObjectMapper`
-
-Tests:
-- `upload_storesOnIpfsAndFabricAndAudits()` — verify `ipfsService.add()` called, `fabricGatewayService.registerDocument()` called, `accessRepository.save()` called with owner entry, `auditService.log("DOC_REGISTERED", ...)` called
-- `upload_fabricUnavailable_continuesWithoutTxId()` — `fabricGatewayService.registerDocument()` throws `FabricException`, verify document still saved, audit written with null fabricTxId
-- `downloadCiphertext_layer2Pass_returnsBytes()` — `fabricGatewayService.checkAccess()` returns true, verify `ipfsService.cat()` called and bytes returned
-- `downloadCiphertext_layer2Fail_throwsAccessDenied()` — `fabricGatewayService.checkAccess()` returns false, verify `DocumentService.AccessDeniedException` thrown
-- `downloadCiphertext_fabricUnavailable_fallsBackToDb_andLogsAclFabricFallback()` — Fabric throws `FabricException`, verify fallback to `accessRepository.findActiveEntry()`, verify `auditService.log("ACL_FABRIC_FALLBACK", ...)` called
-
-**Important**: `DocumentService.AccessDeniedException` is a static inner class inside `DocumentService`.
-
-#### `audit/AuditServiceTest.java`
-
-Mocks: `AuditLogRepository`, `FabricGatewayService`
-
-Tests:
-- `log_writesToPostgres()` — verify `auditLogRepository.save()` called with correct eventType
-- `log_fabricAvailable_anchorsToFabricFirst()` — verify `fabricGatewayService.submitTransaction("LogAuditEvent", ...)` called, then `auditLogRepository.save()` called
-- `log_fabricUnavailable_stillWritesToPostgres()` — `fabricGatewayService.submitTransaction()` throws `FabricException`, verify `auditLogRepository.save()` still called with null fabricTxId
-
-Note: `AuditService.log()` is `@Async` — in Mockito unit tests async has no effect, call it directly.
-
-#### `message/MessageServiceTest.java`
-
-Mocks: `MessageRepository`, `NotificationRepository`, `UserRepository`
-
-Tests:
-- `send_storesCiphertextAndCreatesNotification()` — verify `messageRepository.save()` called with `encryptedPayload` set, `notificationRepository.save()` called for recipient. The message must NEVER contain plaintext — only `encryptedPayload` + `wrappedKeyToken`.
-- `send_recipientNotFound_throws()` — `userRepository.findById()` returns empty → `IllegalArgumentException`
-- `unreadCount_returnsCorrectCount()` — `messageRepository.countByRecipientIdAndReadAtIsNull()` returns 5L, verify result is 5L
-- `markOneRead_callsRepository()` — verify `messageRepository.markOneRead(messageId, any(Instant.class))` called
-
-#### `hearing/HearingServiceTest.java`
-
-Read `HearingService.java` first. Then write at minimum:
-- `createHearing_savesAndReturns()`
-- `getUpcomingHearings_returnsOnlyFuture()`
-- If a `sendReminder()` method exists, test it too
-
-#### `security/SecurityTest.java` (Spring Boot integration test)
-
-```java
-@SpringBootTest
-@AutoConfigureMockMvc
-@TestPropertySource(properties = {"jwt.secret=test-secret-at-least-32-chars-long", "spring.datasource.url=..."})
-class SecurityTest {
+- renders stat cards (Active Cases, Documents, etc.)
+- shows next hearing card with countdown when hearing data present
+- shows "No upcoming hearings" when nextHearing is null
+- shows loading skeleton initially
+- shows Recent Cases list entries
 ```
 
-Tests:
-- `unauthenticated_returns401()` — `GET /api/documents` without token → 401
-- `expiredJwt_returns401()` — expired JWT → 401
-- `invalidJwtSignature_returns401()` — tampered JWT → 401
-- `wrongRole_returns403()` — ASSOCIATE_JUNIOR hits `POST /api/cases/{id}/close` → 403
-- `validJwt_correctRole_returns2xx()` — valid token with correct role → not 401/403
+**`src/test/SecureUploadProgress.test.tsx`**:
+Read `DocumentUploadDropzone.tsx` first. Test upload state transitions (idle → uploading → complete/error).
 
-Use H2 in-memory or `@MockBean` for repositories if DB is unavailable in CI.
+### Priority 3: Phase 5 — Documentation
+
+1. Update `/home/angkon/Pangochain_AOOP/pangochain-frontend/FEATURES.md` — add Phase 2 particle background + Phase 3 hardening items
+2. Update `/home/angkon/Pangochain_AOOP/TEST-REPORT.md` — update frontend test count to 48, add ErrorBoundary (5) and Navigation (7) test descriptions
 
 ---
 
-### Step 3: Set Up Vitest and Write Frontend Tests
-
-Install dependencies:
-```bash
-cd /home/angkon/Pangochain_AOOP/pangochain-frontend
-npm install --save-dev vitest @testing-library/react @testing-library/user-event @testing-library/jest-dom jsdom
-```
-
-Add to `vite.config.ts` inside `defineConfig({...})`:
-```ts
-test: {
-  environment: 'jsdom',
-  globals: true,
-  setupFiles: ['./src/test/setup.ts'],
-}
-```
-
-Create `src/test/setup.ts`:
-```ts
-import '@testing-library/jest-dom'
-```
-
-Test files to create (find actual crypto module path first):
-
-- **`crypto.test.ts`** — test `encryptDocument`, `decryptDocument`, `eciesWrapKey`, `eciesUnwrapKey` roundtrips using real WebCrypto (jsdom supports SubtleCrypto). Verify the output blob's first 12 bytes equal the IV used for encryption.
-- **`SecureDownloadModal.test.tsx`** — mock download service, test 4-stage flow (fetching → decrypting → verifying → done), test integrity failure branch, test success branch
-- **`authStore.test.ts`** — Zustand store: login sets token + user, logout clears state, `isAuthenticated` reflects correct state
-- **`CaseList.test.tsx`** — render with loading state, render with case data, search input filters results, empty state renders correct message
-- **`ParticlesBackground.test.tsx`** — renders `<canvas>`, canvas has `pointer-events: none` style, renders null when `window.matchMedia('(prefers-reduced-motion: reduce)')` returns true
-
----
-
-### Step 4: Write Chaincode Go Tests
-
-Read the chaincode source first (`legalcc.go` or similar). Then create `legalcc_test.go`.
-
-Use `github.com/hyperledger/fabric-chaincode-go/shimtest` (mock stub).
-
-Tests:
-- `TestRegisterCase` — happy path, state key set correctly
-- `TestRegisterDocument` — happy path
-- `TestCheckAccess_Granted` — after `GrantAccess`, `CheckAccess` returns true
-- `TestCheckAccess_Denied` — without `GrantAccess`, `CheckAccess` returns false
-- `TestRecordAuditEvent` — `LogAuditEvent` stores entry, retrievable
-- `TestGetHistoryForKey` — history returns correct sequence of values
-- `TestRegisterCase_Duplicate` — second call with same case ID returns error
-
----
-
-### Step 5: Run Full Test Suite
-
-```bash
-# Backend
-cd /home/angkon/Pangochain_AOOP/pangochain-backend
-./mvnw test
-
-# Frontend
-cd /home/angkon/Pangochain_AOOP/pangochain-frontend
-npm run test
-npm run type-check
-
-# Chaincode
-cd /home/angkon/Pangochain_AOOP/pangochain-chaincode
-go test ./...
-```
-
-Fix any failures before moving to Phase 4.
-
----
-
-### Step 6: Phase 4 — Documentation
-
-Write these four files in `/home/angkon/Pangochain_AOOP/`:
-
-- **`FEATURES.md`** — full feature matrix by role (all 12 roles, all features, access level)
-- **`API.md`** — every REST endpoint: method, path, auth requirement, request body, response shape, error codes
-- **`CRYPTO.md`** — full cryptographic design: AES-256-GCM with IV-prepend contract, ECIES P-256 key wrapping (packed format: `ephPubRaw(65) || iv(12) || wrapped(48)`), PBKDF2-SHA256 @ 600k iterations, ECDSA P-256 signing, two-layer ACL design, `ACL_FABRIC_FALLBACK` logging protocol
-- **`TEST-REPORT.md`** — test inventory table (file, test name, type, pass/fail), total counts, coverage summary
-
----
-
-## Key File Paths
+## Key File Locations
 
 ```
-pangochain-backend/src/main/java/com/pangochain/backend/
-  auth/AuthService.java
-  auth/JwtTokenProvider.java
-  auth/MfaSetupRequiredException.java
-  auth/MfaChallengeRequiredException.java
-  cases/CaseService.java
-  cases/CaseRepository.java
-  cases/Case.java
-  cases/CaseStatus.java
-  document/DocumentService.java          ← AccessDeniedException is inner class here
-  document/DocumentRepository.java
-  document/DocumentAccessRepository.java
-  document/DocumentAccess.java
-  audit/AuditService.java                ← @Async dual-write
-  audit/AuditLogRepository.java
-  message/MessageService.java
-  message/MessageRepository.java
-  hearing/HearingService.java            ← read before writing tests
-  blockchain/FabricGatewayService.java   ← optional bean (@Autowired required=false)
-  ipfs/IpfsService.java
-
-pangochain-backend/src/test/java/com/pangochain/backend/
-  auth/AuthServiceTest.java              ← DONE
-
 pangochain-frontend/src/
-  layout/MainLayout.tsx
-  components/ParticlesBackground.tsx
-  (find crypto module path via grep before writing crypto tests)
+  App.tsx                              — root: ErrorBoundary + ParticleBackground + Routes
+  layout/
+    MainLayout.tsx                     — mobile hamburger (mobileOpen state)
+    Sidebar.tsx                        — unread badge, mobile overlay drawer
+  components/
+    ui/
+      ErrorBoundary.tsx                — class error boundary
+      ParticleBackground.tsx           — global fixed particle wrapper (lazy + memo)
+      EncryptionBadge.tsx              — client encryption status badge
+    ParticlesBackground.tsx            — vanilla canvas particle engine (3 variants: vivid/auth/app)
+    DocumentUploadDropzone.tsx         — drag-drop upload with ECIES key wrapping
+    SecureDownloadModal.tsx            — IPFS + AES-GCM decrypt + SHA-256 verify
+    TeamAccessPanel.tsx                — ACL management per document
+    SignDocumentModal.tsx              — ECDSA signing
+  pages/
+    Dashboard.tsx                      — next-hearing card, HearingCountdown component
+    Cases.tsx                          — search + filter + pagination
+    CaseDetail.tsx                     — 4-tab view
+    AuditTrail.tsx                     — ACL_FABRIC_FALLBACK amber highlight
+    HearingManager.tsx                 — upcoming/past separation
+    AdminPanel.tsx                     — activate/suspend users
+    Messages.tsx                       — E2E encrypted messaging
+    LedgerExplorer.tsx                 — expandable Fabric events
+    MfaSetup.tsx                       — TOTP enrollment (may need work)
+    Documents.tsx                      — document vault (may need work)
+    client/
+      ClientPortal.tsx                 — hearing countdown, reminders
+      ClientDocuments.tsx              — document vault
+      ClientCase.tsx                   — case timeline (may need work)
+  lib/
+    api.ts                             — axios instance (JWT interceptor + refresh)
+    crypto.ts                          — WebCrypto: ECIES, AES-GCM, PBKDF2, ECDSA
+    mockData.ts                        — demo-user-001 fixture data only
+  store/
+    authStore.ts                       — Zustand: user, accessToken, refreshToken
+  test/
+    ParticleBackground.test.tsx        — 7 tests (ui wrapper)
+    ParticlesBackground.test.tsx       — 5 tests (canvas engine)
+    ErrorBoundary.test.tsx             — 5 tests
+    Navigation.test.tsx                — 7 tests (Sidebar)
+    CaseList.test.tsx                  — 5 tests
+    SecureDownloadModal.test.tsx       — 5 tests
+    crypto.test.ts                     — 8 tests
 ```
 
 ---
 
-## UserRole Enum Values (exact names in codebase)
-
+## Git Log (recent)
 ```
-MANAGING_PARTNER, PARTNER_SENIOR, PARTNER_JUNIOR,
-ASSOCIATE_SENIOR, ASSOCIATE_JUNIOR, SECRETARY, IT_ADMIN,
-PARALEGAL, REGULATOR, CLIENT_PRIMARY, CLIENT_SECONDARY, CLIENT_CORP_ADMIN
+b7428c1  feat: Phase 3 — ErrorBoundary, Dashboard next-hearing card, Sidebar unread badge + mobile hamburger, AuditTrail ACL_FABRIC_FALLBACK highlight
+1eae3e5  feat: Phase 2 — particle effect rollout and config alignment
+943cbc6  feat: Phase 1 — Spring Security hardening, missing endpoints, TS fixes
 ```
-
-Roles starting with `CLIENT_` get client-scoped dashboard stats. All others get firm-wide stats. `MANAGING_PARTNER` requires MFA (TOTP via `com.warrenstrange:googleauth`).
 
 ---
 
-Start by reading the source files listed in Step 1, then proceed through Steps 2–6 in order without asking questions.
+## Quick Verification Commands
+
+```bash
+cd /home/angkon/Pangochain_AOOP/pangochain-frontend
+npm run type-check      # must output nothing (0 errors)
+npm test                # must show 48 tests, 0 failures
+
+cd /home/angkon/Pangochain_AOOP/pangochain-backend
+./mvnw test -q          # must show BUILD SUCCESS
+```
