@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react'
-import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Loader2 } from 'lucide-react'
+import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
 import api from '../lib/api'
+
+interface NextHearing {
+  id: string
+  title: string
+  hearingDate: string
+  location: string | null
+  courtName: string | null
+  hearingType: string
+  caseTitle: string
+}
 
 interface Stats {
   activeCases: number
@@ -71,24 +81,41 @@ function StatCard({ icon, label, value, to, trend }: {
   )
 }
 
+function HearingCountdown({ date }: { date: string }) {
+  const now = new Date()
+  const hearing = new Date(date)
+  const diffMs = hearing.getTime() - now.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+  if (diffMs < 0) return <span className="text-error font-bold">Past due</span>
+  if (diffDays === 0) return <span className="text-amber-600 font-bold text-lg">Today — in {diffHours}h</span>
+  if (diffDays === 1) return <span className="text-amber-500 font-bold text-lg">Tomorrow</span>
+  return <span className="text-[#1d6464] font-bold text-2xl">{diffDays} days</span>
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore()
   const [stats, setStats] = useState<Stats | null>(null)
   const [cases, setCases] = useState<RecentCase[]>([])
   const [audit, setAudit] = useState<AuditEntry[]>([])
+  const [nextHearing, setNextHearing] = useState<NextHearing | null | undefined>(undefined)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [statsRes, casesRes, auditRes] = await Promise.allSettled([
+        const [statsRes, casesRes, auditRes, lawyerRes] = await Promise.allSettled([
           api.get<Stats>('/dashboard/stats'),
           api.get('/cases', { params: { size: 5 } }),
           api.get('/audit', { params: { size: 4 } }),
+          api.get('/dashboard/lawyer'),
         ])
         if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
         if (casesRes.status === 'fulfilled') setCases(casesRes.value.data.content ?? [])
         if (auditRes.status === 'fulfilled') setAudit(auditRes.value.data.content ?? [])
+        if (lawyerRes.status === 'fulfilled') setNextHearing(lawyerRes.value.data?.nextHearing ?? null)
+        else setNextHearing(null)
       } finally {
         setLoading(false)
       }
@@ -199,6 +226,33 @@ export default function Dashboard() {
 
         {/* Right column */}
         <div className="space-y-5">
+          {/* Next Hearing */}
+          {nextHearing !== undefined && (
+            <div className="card border border-[#1d6464]/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Gavel className="w-4 h-4 text-[#1d6464]" />
+                <h2 className="font-heading font-semibold text-text-primary text-sm">Next Hearing</h2>
+              </div>
+              {nextHearing === null ? (
+                <p className="text-text-muted text-sm text-center py-2">No upcoming hearings</p>
+              ) : (
+                <div className="space-y-2">
+                  <HearingCountdown date={nextHearing.hearingDate} />
+                  <p className="font-medium text-text-primary text-sm truncate">{nextHearing.title}</p>
+                  <p className="text-text-muted text-xs truncate">{nextHearing.caseTitle}</p>
+                  <div className="flex items-center gap-1.5 text-xs text-text-muted pt-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(nextHearing.hearingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  {nextHearing.courtName && (
+                    <p className="text-xs text-text-muted truncate">{nextHearing.courtName}</p>
+                  )}
+                  <Link to="/hearings" className="text-xs text-[#1d6464] hover:underline font-medium">View all hearings →</Link>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Security Status */}
           <div className="card">
             <h2 className="font-heading font-semibold text-text-primary mb-4">Security Status</h2>

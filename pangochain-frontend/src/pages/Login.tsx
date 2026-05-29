@@ -132,8 +132,8 @@ export default function Login() {
       </div>
 
       {/* ── Right panel ─────────────────────────────────────────────────── */}
-      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface overflow-hidden">
-        <ParticlesBackground variant="app" />
+      {/* bg-surface/90 lets the global fixed particle layer show through */}
+      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface/90 overflow-hidden">
 
         <div className="relative z-10 w-full max-w-sm">
           {/* Mobile logo */}

@@ -8,7 +8,6 @@ import {
   generateEcdsaKeypair, storeWrappedEcdsaKey,
 } from '../lib/crypto'
 import toast from 'react-hot-toast'
-import { ParticlesBackground } from '../components/ParticlesBackground'
 
 type Step = 'account' | 'keypair' | 'role' | 'review'
 
@@ -112,8 +111,7 @@ export default function Register() {
   const stepIdx = steps.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-surface relative flex items-center justify-center p-6 overflow-hidden">
-      <ParticlesBackground variant="auth" />
+    <div className="min-h-screen bg-surface/90 relative flex items-center justify-center p-6 overflow-hidden">
       <div className="relative z-10 w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center gap-2 mb-8 justify-center">

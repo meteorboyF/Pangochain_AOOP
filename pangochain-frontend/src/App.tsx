@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore, isClient } from './store/authStore'
 import { MainLayout } from './layout/MainLayout'
 import { Suspense } from 'react'
+import ParticleBackground from './components/ui/ParticleBackground'
+import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -44,7 +46,13 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <Suspense fallback={<PageLoader />}>
+    <ErrorBoundary>
+      {/* Global particle canvas — fixed, z-0, pointer-events none. Mounted once outside Routes. */}
+      <ParticleBackground />
+
+      {/* All page content sits at z-10+ so it renders above the particle layer */}
+      <div className="relative z-10 min-h-screen">
+      <Suspense fallback={<PageLoader />}>
       <Routes>
         {/* Public */}
         <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
@@ -98,6 +106,8 @@ export default function App() {
 
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </Suspense>
+      </Suspense>
+      </div>
+    </ErrorBoundary>
   )
 }

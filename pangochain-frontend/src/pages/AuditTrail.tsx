@@ -16,28 +16,30 @@ interface AuditLog {
 interface Page<T> { content: T[]; totalElements: number; totalPages: number }
 
 const EVENT_COLORS: Record<string, string> = {
-  DOC_REGISTERED:  'bg-blue-50 text-blue-700 border border-blue-200',
-  ACCESS_GRANTED:  'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  ACCESS_REVOKED:  'bg-red-50 text-red-700 border border-red-200',
-  DOC_VIEWED:      'bg-purple-50 text-purple-700 border border-purple-200',
-  CASE_REGISTERED: 'bg-teal-50 text-teal-700 border border-teal-200',
-  USER_REGISTERED: 'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  USER_LOGIN:      'bg-gray-50 text-gray-500 border border-gray-200',
-  CASE_CLOSED:     'bg-amber-50 text-amber-700 border border-amber-200',
+  DOC_REGISTERED:      'bg-blue-50 text-blue-700 border border-blue-200',
+  ACCESS_GRANTED:      'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  ACCESS_REVOKED:      'bg-red-50 text-red-700 border border-red-200',
+  DOC_VIEWED:          'bg-purple-50 text-purple-700 border border-purple-200',
+  CASE_REGISTERED:     'bg-teal-50 text-teal-700 border border-teal-200',
+  USER_REGISTERED:     'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  USER_LOGIN:          'bg-gray-50 text-gray-500 border border-gray-200',
+  CASE_CLOSED:         'bg-amber-50 text-amber-700 border border-amber-200',
+  ACL_FABRIC_FALLBACK: 'bg-amber-100 text-amber-800 border border-amber-400',
 }
 
 const EVENT_LABEL: Record<string, string> = {
-  DOC_REGISTERED:  'Doc Registered',
-  ACCESS_GRANTED:  'Access Granted',
-  ACCESS_REVOKED:  'Access Revoked',
-  DOC_VIEWED:      'Doc Viewed',
-  CASE_REGISTERED: 'Case Created',
-  USER_REGISTERED: 'User Registered',
-  USER_LOGIN:      'User Login',
-  CASE_CLOSED:     'Case Closed',
+  DOC_REGISTERED:      'Doc Registered',
+  ACCESS_GRANTED:      'Access Granted',
+  ACCESS_REVOKED:      'Access Revoked',
+  DOC_VIEWED:          'Doc Viewed',
+  CASE_REGISTERED:     'Case Created',
+  USER_REGISTERED:     'User Registered',
+  USER_LOGIN:          'User Login',
+  CASE_CLOSED:         'Case Closed',
+  ACL_FABRIC_FALLBACK: 'ACL Fabric Fallback',
 }
 
-const EVENT_TYPES = ['ALL', 'DOC_REGISTERED', 'ACCESS_GRANTED', 'ACCESS_REVOKED', 'DOC_VIEWED', 'CASE_REGISTERED']
+const EVENT_TYPES = ['ALL', 'DOC_REGISTERED', 'ACCESS_GRANTED', 'ACCESS_REVOKED', 'DOC_VIEWED', 'CASE_REGISTERED', 'ACL_FABRIC_FALLBACK']
 
 export default function AuditTrail() {
   const [search, setSearch] = useState('')
@@ -146,7 +148,7 @@ export default function AuditTrail() {
               </thead>
               <tbody className="divide-y divide-border">
                 {entries.map((e) => (
-                  <tr key={e.id} className="hover:bg-surface-muted transition-colors group">
+                  <tr key={e.id} className={`hover:bg-surface-muted transition-colors group ${e.eventType === 'ACL_FABRIC_FALLBACK' ? 'bg-amber-50/50' : ''}`}>
                     <td className="px-4 py-3.5">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap ${EVENT_COLORS[e.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
                         {EVENT_LABEL[e.eventType] ?? e.eventType}
