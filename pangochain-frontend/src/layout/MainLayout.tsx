@@ -7,7 +7,9 @@ export function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="flex h-screen bg-surface/80 overflow-hidden">
+    // Transparent chrome so the global fixed particle canvas (App.tsx, z-0) shows
+    // through the page gutters. The sidebar and cards keep solid surfaces for readability.
+    <div className="flex h-screen overflow-hidden">
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <main className="flex-1 overflow-y-auto scrollbar-thin relative z-10">
         {/* Mobile header bar */}
@@ -19,7 +21,7 @@ export function MainLayout() {
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-heading font-bold text-[#1d6464] text-base">PangoChain</span>
+          <img src="/logo-mark.png" alt="PangoChain" className="h-8 w-auto" />
         </div>
         <div className="max-w-7xl mx-auto px-6 py-8">
           <Outlet />

@@ -40,19 +40,29 @@ export default function Messages() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
+  // Initial load (with spinner) + lightweight polling so new messages appear
+  // without a manual refresh. The poll is silent — it never toggles the spinner
+  // or surfaces transient errors, and it stops when the page unmounts.
   useEffect(() => {
-    async function load() {
+    let cancelled = false
+
+    async function fetchMessages(silent: boolean) {
       try {
         const { data } = await api.get('/messages')
-        setMessages(data.content ?? [])
-        await api.post('/messages/mark-read').catch(() => {})
+        if (!cancelled) setMessages(data.content ?? [])
       } catch (err: any) {
-        setError(err.response?.data?.detail ?? 'Failed to load messages')
+        if (!cancelled && !silent) setError(err.response?.data?.detail ?? err.message ?? 'Failed to load messages')
       } finally {
-        setLoading(false)
+        if (!cancelled && !silent) setLoading(false)
       }
     }
-    load()
+
+    fetchMessages(false)
+    api.post('/messages/mark-read').catch(() => {})
+
+    const POLL_MS = 10_000
+    const timer = setInterval(() => fetchMessages(true), POLL_MS)
+    return () => { cancelled = true; clearInterval(timer) }
   }, [])
 
   const handleUnlockKey = async () => {

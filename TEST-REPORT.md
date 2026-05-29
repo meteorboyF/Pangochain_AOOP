@@ -1,6 +1,6 @@
 # PangoChain — Test Report
 
-Generated: 2026-05-30 (updated)
+Generated: 2026-05-30 (updated — Opus polish pass, Wave 1)
 All suites run on the `main` branch.
 
 ---
@@ -10,9 +10,23 @@ All suites run on the `main` branch.
 | Suite | Framework | Tests | Pass | Fail | Skip |
 |---|---|---|---|---|---|
 | Backend (JUnit 5 + Mockito) | Spring Boot Test 3.2.5, JUnit 5.10, Mockito 5 | 35 | 35 | 0 | 0 |
-| Frontend (Vitest) | Vitest 2.x, React Testing Library, jsdom 26 | 55 | 55 | 0 | 0 |
+| Frontend (Vitest) | Vitest 3.x, React Testing Library, jsdom 26 | 67 | 67 | 0 | 0 |
 | Chaincode (Go test) | Go 1.21, shimtest.MockStub | 14 | 14 | 0 | 0 |
-| **Total** | | **104** | **104** | **0** | **0** |
+| **Total** | | **116** | **116** | **0** | **0** |
+
+> Wave 1 added **12 frontend tests** (`ApiClient.test.ts` ×6, `StatusBadge.test.tsx` ×6).
+> Chaincode tests are unchanged; the Go toolchain is not installed in the current
+> polish environment, so the 14 chaincode tests are carried forward as last verified
+> rather than re-run this session.
+
+### Wave 1 — new frontend tests
+
+`ApiClient.test.ts` (6): auto-attaches `Authorization`; single-flight refresh (two concurrent
+401s → exactly one `/auth/refresh`); auth store cleared when refresh fails; network-error toast;
+timeout toast on `ECONNABORTED`; no toast on 503 (page-level Fabric banner owns that).
+
+`StatusBadge.test.tsx` (6): ACTIVE→green, CONFIDENTIAL→red, VERIFIED→teal class sets;
+`ACL FALLBACK`→amber normalization; unknown status→neutral fallback; children label override.
 
 ---
 

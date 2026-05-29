@@ -109,6 +109,12 @@
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
 
+        <!-- WebSocket + STOMP for real-time team chat -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
         <!-- TOTP (RFC 6238) for MFA -->
         <dependency>
             <groupId>com.warrenstrange</groupId>

@@ -5,6 +5,8 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
+  // sockjs-client references `global`; map it to globalThis for the browser build.
+  define: { global: 'globalThis' },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -16,6 +18,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
+      },
+      // SockJS/STOMP handshake + websocket upgrade for real-time chat
+      '/ws': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
       },
     },
   },

@@ -13,7 +13,7 @@ import CaseDetail from './pages/CaseDetail'
 import NewCase from './pages/NewCase'
 import Documents from './pages/Documents'
 import AuditTrail from './pages/AuditTrail'
-import Messages from './pages/Messages'
+import Chat from './pages/Chat'
 import Profile from './pages/Profile'
 import AdminPanel from './pages/AdminPanel'
 import NotFound from './pages/NotFound'
@@ -26,12 +26,20 @@ import ClientDocuments from './pages/client/ClientDocuments'
 import ClientCase from './pages/client/ClientCase'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  // Specific selectors — re-render only when these slices change, not on any store write.
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
+  // Don't decide redirect until persisted auth has been read back, or a reload
+  // briefly flashes the login page before the session is restored.
+  if (!hasHydrated) return <PageLoader />
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
 }
 
 function PublicOnly({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuthStore()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const user = useAuthStore((s) => s.user)
+  const hasHydrated = useAuthStore((s) => s.hasHydrated)
+  if (!hasHydrated) return <PageLoader />
   if (!isAuthenticated) return <>{children}</>
   return <Navigate to={user && isClient(user.role) ? '/client/portal' : '/dashboard'} replace />
 }
@@ -75,7 +83,7 @@ export default function App() {
           <Route path="/audit" element={<AuditTrail />} />
           <Route path="/audit/ledger" element={<AuditTrail />} />
 
-          <Route path="/messages" element={<Messages />} />
+          <Route path="/messages" element={<Chat />} />
 
           <Route path="/hearings" element={<HearingManager />} />
 

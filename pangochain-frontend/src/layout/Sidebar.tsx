@@ -74,12 +74,11 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
   const sidebarContent = (
     <aside className="w-60 flex-shrink-0 bg-white/95 backdrop-blur-sm border-r border-border flex flex-col h-screen sticky top-0 z-20">
-      {/* Logo */}
+      {/* Logo — pangolin mark only (wordmark intentionally omitted) */}
       <div className="h-16 flex items-center px-5 border-b border-border">
-        <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" onError={(e) => {
+        <img src="/logo-mark.png" alt="PangoChain" className="h-11 w-auto" onError={(e) => {
           (e.target as HTMLImageElement).style.display = 'none'
         }} />
-        <span className="font-heading font-bold text-[#1d6464] text-lg ml-1">PangoChain</span>
       </div>
 
       {/* User info */}

@@ -38,16 +38,17 @@ const CONFIGS: Record<Variant, Config> = {
     colors: ['#1d6464', '#2a8f8f', '#1E3A5F'],
   },
   app: {
-    // Site-wide app background: subtle (count=60 per spec, opacity 0.3-0.4 per spec)
-    count: 60,
-    speed: 0.8,
-    linkDist: 130,
-    repulseDist: 80,
-    repulseForce: 2,
-    dotOpacity: 0.32,
-    linkOpacity: 0.15,
-    dotSizeMax: 2.2,
-    colors: ['#1B3A6B', '#0E7490', '#1d6464', '#1E3A5F'],
+    // Site-wide app background — shows through the transparent layout gutters.
+    // Visible but calm so it never competes with content sitting in opaque cards.
+    count: 70,
+    speed: 0.6,
+    linkDist: 140,
+    repulseDist: 110,
+    repulseForce: 2.5,
+    dotOpacity: 0.45,
+    linkOpacity: 0.2,
+    dotSizeMax: 2.6,
+    colors: ['#1d6464', '#2a8f8f', '#0E7490', '#1E3A5F', '#3ab5b5'],
   },
 }
 

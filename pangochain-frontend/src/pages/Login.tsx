@@ -132,8 +132,8 @@ export default function Login() {
       </div>
 
       {/* ── Right panel ─────────────────────────────────────────────────── */}
-      {/* bg-surface/90 lets the global fixed particle layer show through */}
-      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface/90 overflow-hidden">
+      {/* translucent so the global fixed particle layer shows through behind the form */}
+      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface/70 overflow-hidden">
 
         <div className="relative z-10 w-full max-w-sm">
           {/* Mobile logo */}

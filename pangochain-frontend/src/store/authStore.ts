@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type UserRole =
   | 'MANAGING_PARTNER' | 'PARTNER_SENIOR' | 'PARTNER_JUNIOR'
@@ -21,9 +21,13 @@ interface AuthState {
   refreshToken: string | null
   user: AuthUser | null
   isAuthenticated: boolean
+  /** True once persisted state has been read back from storage. The router must
+   *  not redirect to /login until this flips, or every reload flashes the login page. */
+  hasHydrated: boolean
   setAuth: (accessToken: string, refreshToken: string, user: AuthUser) => void
   clearAuth: () => void
   updateUser: (updates: Partial<AuthUser>) => void
+  setHasHydrated: (value: boolean) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -33,6 +37,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       isAuthenticated: false,
+      hasHydrated: false,
 
       setAuth: (accessToken, refreshToken, user) =>
         set({ accessToken, refreshToken, user, isAuthenticated: true }),
@@ -44,15 +49,24 @@ export const useAuthStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
+
+      setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
       name: 'pangochain-auth',
+      // sessionStorage, not localStorage: JWTs should not survive a browser restart.
+      // (PBKDF2-wrapped private keys remain in localStorage by design — they are
+      //  encrypted at rest and must persist across sessions.)
+      storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     },
   ),
 )

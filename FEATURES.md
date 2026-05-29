@@ -4,6 +4,26 @@
 
 ---
 
+## ✅ Done — Production Hardening (Opus polish pass · Wave 1)
+
+| Area | Details |
+|------|---------|
+| **DB connection discipline** | HikariCP tuned (pool 30, 60s leak detection); JDBC batching (`batch_size: 30`, ordered inserts/updates). *(`open-in-view: false` is the production target but is deferred until controllers stop touching LAZY associations outside a transaction — see the backend fetch-boundary wave.)* |
+| **Tomcat thread pool** | Explicit `max: 200`, `min-spare: 20`, `max-connections: 8192`, `accept-count: 100`. |
+| **Consistent error envelope** | `GlobalExceptionHandler` enriches every `ProblemDetail` with `error` code, ISO-8601 `timestamp`, and request `path`; adds `FabricException`→503, `IpfsException`→503, `DataIntegrityViolationException`→409; never leaks raw exception text on 500. |
+| **HTTP security headers** | CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` on every response. |
+| **Performance indexes** | Liquibase `005-performance-indexes.sql` — `audit_log(event_type)`, `documents(category)`, `case_clients(client_id)`, `messages(sender_id)`, `messages(recipient_id, read_at)`, `hearings(case_id, hearing_date)`. |
+| **Resilient API client** | Single-flight token refresh (concurrent 401s → one `/auth/refresh`); 30s timeout; distinct toasts for network-down vs timeout; 403 redirect; 503 deferred to page-level Fabric banner. |
+| **Auth store hydration** | `hasHydrated` flag gates route redirects (no login-page flash on reload); tokens persisted to **sessionStorage** (PBKDF2-wrapped keys stay in localStorage by design); specific selectors replace whole-store subscriptions. |
+| **Shared UI primitives** | `Skeleton` (+ Stat/TableRow/CaseCard/Page variants) and canonical `StatusBadge` component. |
+
+> Deferred to later waves (not yet implemented): full React Query migration of all pages,
+> Resilience4j circuit breaker + `@Async` Fabric executor, Bucket4j rate limiting, IPFS
+> streaming uploads, the SecureDownloadModal stage-timing redesign, and the per-page
+> empty-state / form-validation / mobile pass.
+
+---
+
 ## ✅ Done — Core Security Infrastructure
 
 | Feature | Details |
@@ -139,7 +159,7 @@
 |---------|---------|
 | **DataSeeder** | On startup seeds 4 users, 3 cases, 5 hearings, 4 reminders, timeline events |
 | **Liquibase migrations** | `001–004-*.sql` — reproducible DB setup including ECDSA signing key columns |
-| **Docker Compose** | `postgres`, `ipfs` services — single command startup |
+| **Docker Compose** | `postgres`, `ipfs` services — `docker compose up postgres ipfs -d` (requires Compose plugin v2, not legacy `docker-compose`) |
 | **Fabric Makefile** | `make up/chaincode/smoke/down/clean` |
 | **TypeScript strict** | Zero TS errors (`npx tsc --noEmit` clean) |
 
@@ -190,7 +210,8 @@
 
 ```bash
 # 1. Start PostgreSQL + IPFS
-docker-compose up postgres ipfs
+# Requires Docker Compose plugin (docker compose, not docker-compose)
+docker compose up postgres ipfs -d
 
 # 2. Start Spring Boot backend (seeds data on first run)
 cd pangochain-backend

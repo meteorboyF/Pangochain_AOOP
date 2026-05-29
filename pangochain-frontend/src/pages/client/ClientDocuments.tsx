@@ -55,9 +55,13 @@ export default function ClientDocuments() {
   async function loadDocs() {
     try {
       const { data } = await api.get('/documents')
-      setDocuments(data ?? [])
+      // /documents returns a Spring Data Page ({ content: [...] }); older callers
+      // expected a bare array. Handle both so the list never receives a non-array
+      // (which would throw on .filter and blank the page).
+      const list: DocumentDto[] = Array.isArray(data) ? data : data?.content ?? []
+      setDocuments(list)
     } catch (e: any) {
-      setError(e.response?.data?.detail ?? 'Failed to load documents')
+      setError(e.response?.data?.detail ?? e.message ?? 'Failed to load documents')
     } finally {
       setLoading(false)
     }
