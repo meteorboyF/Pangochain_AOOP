@@ -7,11 +7,13 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - **Frontend:** `cd pangochain-frontend && npm run dev` (port 3000, proxies `/api` and `/ws` → 8080).
 - Both are currently running in the background (logs: `/tmp/pangochain-backend.log`, `/tmp/pangochain-frontend.log`). To reclaim them in your own terminal, kill the bg PIDs and start them yourself.
 
-## Seed credentials (DataSeeder)
-- Managing Partner: `admin@pangolawfirm.com` / `Admin123!`
-- Senior Associate: `lawyer@pangolawfirm.com` / `Lawyer123!`
+## Seed credentials (DataSeeder) — full table in FEATURES.md
+- Managing Partner: `admin@pangolawfirm.com` / `Admin123!` (MFA required)
+- Senior Associate: `lawyer@pangolawfirm.com` / `Lawyer123!` (lead, Chen v. Meridian)
 - Paralegal: `paralegal@pangolawfirm.com` / `Paralegal123!`
-- Client: `client@demo.com` / `Client123!` · `client2@demo.com` / `Client123!`
+- Associates A–D: `a@pangolawfirm.com` … `d@pangolawfirm.com` / `Assoc123!` (subordinates for delegation demo)
+- Clients: `client@demo.com` / `Client123!` · `client2@demo.com` / `Client123!`
+- **First-login key provisioning** auto-generates E2E keypairs on first browser login, so every account above is E2E-capable (chat, documents, signing).
 
 ## Test status
 - Backend: **38** JUnit (`./mvnw test`) — was 35; +3 `ChatCryptoServiceTest`.
@@ -44,8 +46,13 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Frontend: `pages/Chat.tsx` (channel sidebar + live message pane), `lib/chatSocket.ts` (@stomp/stompjs + sockjs-client), `/messages` route now → Chat. Vite proxy `/ws` + `define global`.
 - **Verified live:** lawyer auto-sees CASE channels + FIRM channel; messages persist encrypted, broadcast over STOMP.
 
+## DONE — Seeded accounts + first-login key provisioning
+- `PUT /api/users/me/public-keys` upserts the current user's ECIES + ECDSA public keys.
+- Frontend `lib/provisionKeys.ts` `ensureUserKeys()` runs on login: if no local wrapped key, generates ECIES+ECDSA, wraps to localStorage (PBKDF2), uploads public keys. Wired into `Login.storeAndRedirect`. Makes any account (incl. seeded) E2E-capable on first browser login.
+- `DataSeeder` now additive/idempotent: seeds Associates A–D into FirmA + Chen v. Meridian team, plus starter chat messages in the case + firm channels. **Verified live** (A sees both channels with decrypted seeded messages).
+
 ## KNOWN ISSUES / LIMITATIONS
-- **E2E for seeded users:** document upload (client) and the old E2E DM relied on keypairs generated at browser **registration**. Seeded accounts have **no keys** (`/users/{id}/public-key` 404, no wrapped key in localStorage). New team chat avoids this (server-readable). Documents still require registered-in-browser users. _Proposed fix: first-login key provisioning (not yet built)._
+- ~~E2E for seeded users~~ → **RESOLVED** via first-login key provisioning above.
 - `open-in-view: true` is a stopgap; flipping to `false` (the prod target) needs `@Transactional`/`JOIN FETCH` boundaries on controllers that touch lazy associations (e.g. `user.getFirm()`).
 - Chaincode Go tests can't be run in this environment (Go not installed).
 - `src/pages/Messages.tsx` is now dead code (route repointed to Chat) — left in place; safe to delete later.

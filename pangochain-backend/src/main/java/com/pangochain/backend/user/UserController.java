@@ -1,8 +1,13 @@
 package com.pangochain.backend.user;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -15,6 +20,29 @@ import java.util.UUID;
 public class UserController {
 
     private final UserRepository userRepository;
+
+    public record SetPublicKeysRequest(@NotBlank String publicKeyJwk, String signingPublicKeyJwk) {}
+
+    /**
+     * Upsert the current user's public keys. Used by first-login key provisioning so that
+     * accounts created server-side (e.g. seeded demo users) become E2E-capable the first
+     * time they log in through the browser — the browser generates the keypairs, keeps the
+     * PBKDF2-wrapped private keys in localStorage, and registers the public keys here.
+     */
+    @Transactional
+    @PutMapping("/me/public-keys")
+    public ResponseEntity<Void> setMyPublicKeys(
+            @Valid @RequestBody SetPublicKeysRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        User user = userRepository.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        user.setPublicKeyEcies(req.publicKeyJwk());
+        if (req.signingPublicKeyJwk() != null && !req.signingPublicKeyJwk().isBlank()) {
+            user.setSigningPublicKey(req.signingPublicKeyJwk());
+        }
+        userRepository.save(user);
+        return ResponseEntity.noContent().build();
+    }
 
     /** Returns the ECIES P-256 public key (JWK) for a user — needed before granting document access. */
     @GetMapping("/{id}/public-key")

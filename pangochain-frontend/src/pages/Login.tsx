@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { ParticlesBackground } from '../components/ParticlesBackground'
 import { DEMO_USER } from '../lib/mockData'
+import { ensureUserKeys } from '../lib/provisionKeys'
 
 type LoginStage = 'password' | 'mfa_code' | 'mfa_setup_required'
 
@@ -30,7 +31,7 @@ export default function Login() {
     navigate('/dashboard')
   }
 
-  const storeAndRedirect = (data: any) => {
+  const storeAndRedirect = async (data: any) => {
     setAuth(data.accessToken, data.refreshToken, {
       id: data.userId,
       email: data.email,
@@ -39,6 +40,12 @@ export default function Login() {
       firmId: data.firmId,
       mfaEnabled: data.mfaEnabled,
     })
+    // First-login key provisioning — makes the account E2E-capable on this device.
+    // Never block login on failure; provisioning retries on the next login.
+    try {
+      const provisioned = await ensureUserKeys(data.userId, password)
+      if (provisioned) toast.success('Security keys generated for this device')
+    } catch { /* non-fatal */ }
     toast.success(`Welcome back, ${data.fullName.split(' ')[0]}!`)
     navigate(data.role.startsWith('CLIENT') ? '/client/portal' : '/dashboard')
   }
@@ -60,7 +67,7 @@ export default function Login() {
       if (loginStage === 'mfa_code') {
         // Stage 2: submit TOTP code against challenge token
         const { data } = await api.post('/auth/mfa/challenge', { challengeToken, totpCode })
-        storeAndRedirect(data)
+        await storeAndRedirect(data)
         return
       }
 
@@ -75,7 +82,7 @@ export default function Login() {
         return
       }
 
-      storeAndRedirect(data)
+      await storeAndRedirect(data)
     } catch (err: any) {
       const status = err.response?.status
       const body = err.response?.data

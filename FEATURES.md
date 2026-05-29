@@ -4,6 +4,34 @@
 
 ---
 
+## 🔑 Demo Logins (seeded)
+
+All accounts are seeded by `DataSeeder` on backend startup. On first browser login each
+account auto-provisions its E2E keypairs (see *First-login key provisioning*), so document
+encryption, signing, and chat all work for any account below.
+
+| Role | Email | Password | Notes |
+|------|-------|----------|-------|
+| Managing Partner | `admin@pangolawfirm.com` | `Admin123!` | Firm-wide admin; lead on Probate + Pinnacle cases. **MFA required** on login. |
+| Senior Associate | `lawyer@pangolawfirm.com` | `Lawyer123!` | James Harrington — lead on *Chen v. Meridian*; supervises Associates A–D. |
+| Paralegal | `paralegal@pangolawfirm.com` | `Paralegal123!` | On the Chen v. Meridian team. |
+| Associate A | `a@pangolawfirm.com` | `Assoc123!` | Aaron Avers — subordinate on Chen v. Meridian (delegation demo). |
+| Associate B | `b@pangolawfirm.com` | `Assoc123!` | Bianca Bose — subordinate. |
+| Associate C | `c@pangolawfirm.com` | `Assoc123!` | Carlos Cruz — subordinate. |
+| Associate D | `d@pangolawfirm.com` | `Assoc123!` | Dana Diaz — subordinate. |
+| Client (primary) | `client@demo.com` | `Client123!` | Marcus Chen — client on Chen v. Meridian. |
+| Client (secondary) | `client2@demo.com` | `Client123!` | Sofia Delgado — client on Delgado Estate. |
+
+**Seeded to demonstrate features:** 3 cases, hearings + reminders, case timelines, a staffed
+case team (lawyer + Associates A–D + paralegal + client on Chen v. Meridian), and starter
+**chat** messages in the Chen v. Meridian case channel and the firm-wide channel.
+
+> Try real-time chat: log in as `lawyer@…` in one browser and `a@…` in another (or an
+> incognito window), open **Messages**, and send in the Chen v. Meridian channel — it
+> appears live in both.
+
+---
+
 ## ✅ Done — Production Hardening (Opus polish pass · Wave 1)
 
 | Area | Details |

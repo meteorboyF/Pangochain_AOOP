@@ -159,6 +159,22 @@ public class ChatService {
         return memberRepository.existsByConversationIdAndUserId(conversationId, userId);
     }
 
+    // ─── Seeding helpers (used by DataSeeder) ──────────────────────────────────
+
+    @Transactional
+    public UUID ensureCaseConversationId(Case c) {
+        return ensureCaseConversation(c).getId();
+    }
+
+    @Transactional
+    public UUID ensureFirmConversationId(UUID firmId) {
+        return ensureFirmConversation(firmId).getId();
+    }
+
+    public boolean isEmpty(UUID conversationId) {
+        return messageRepository.findTopByConversationIdOrderByCreatedAtDesc(conversationId) == null;
+    }
+
     private void requireMember(UUID conversationId, User user) {
         if (!isMember(conversationId, user.getId())) {
             throw new AccessDeniedException("Not a member of this conversation");
