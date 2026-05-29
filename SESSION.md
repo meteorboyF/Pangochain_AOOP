@@ -57,8 +57,11 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Chaincode Go tests can't be run in this environment (Go not installed).
 - `src/pages/Messages.tsx` is now dead code (route repointed to Chat) — left in place; safe to delete later.
 
+## Feature 2 — Bulk access distribution + delegation (IN PROGRESS)
+- **DONE (backend):** capability-capped delegation in `AccessControlService.grant()` (owner>write>read; can't grant above your own); `POST /api/access/grant-batch` (per-item transactions, partial success, returns per-pair ok/error). Backend 38 tests green.
+- **NEXT (frontend):** bulk-distribute matrix UI — pick docs × members, choose capability + expiry; the granter's browser unwraps each doc key and re-wraps (ECIES) per grantee, then calls `grant-batch`. Add to case/documents view. Then a delegation test.
+
 ## TODO / NEXT (agreed roadmap)
-- **Feature 2 — Bulk access distribution + delegation (Jira-style):** multi-select docs × members × capability × expiry → batched `GrantAccess`; per-case delegation chain capped at granter's capability (decision: per-case, no global org chart). Reuses existing versioning + audit.
 - **Feature 3 — Case-journey tree:** `case_nodes` (parent edges, author, date, linked docs) + git-graph visualization converging on a Hearing node; click → detail panel. (Decision: **visual convergence first**, real "merge into filing" later.)
 - Optional: first-login key provisioning (unblocks E2E for seeded users); WebSocket-push for the old DM; flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; SecureDownloadModal stage-timing redesign.
 

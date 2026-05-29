@@ -56,6 +56,15 @@ public class AccessControlService {
             throw new IllegalStateException("Read-only users cannot grant access");
         }
 
+        // Capability-capped delegation: a granter may never grant a capability higher than
+        // their own (owner > write > read). This bounds the per-case delegation chain — e.g.
+        // a 'write' delegate can pass on read/write but never owner.
+        DocumentAccess.Capability requested = DocumentAccess.Capability.valueOf(req.getCapability().toLowerCase());
+        if (rank(requested) > rank(granterAccess.getCapability())) {
+            throw new IllegalStateException(
+                    "Cannot grant '" + requested + "' — it exceeds your own '" + granterAccess.getCapability() + "' capability");
+        }
+
         User grantee = userRepository.findById(granteeId)
                 .orElseThrow(() -> new IllegalArgumentException("Grantee not found: " + req.getGranteeId()));
 
@@ -198,5 +207,14 @@ public class AccessControlService {
 
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); } catch (Exception e) { return "{}"; }
+    }
+
+    /** Capability ranking for delegation checks: owner(3) > write(2) > read(1). */
+    private static int rank(DocumentAccess.Capability cap) {
+        return switch (cap) {
+            case owner -> 3;
+            case write -> 2;
+            case read -> 1;
+        };
     }
 }
