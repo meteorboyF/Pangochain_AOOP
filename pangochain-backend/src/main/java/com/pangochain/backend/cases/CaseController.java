@@ -60,6 +60,30 @@ public class CaseController {
         return ResponseEntity.ok(caseService.getById(id));
     }
 
+    /** GET /api/cases/{id}/members — case team (for access distribution + delegation UI). */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/members")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<List<Map<String, Object>>> members(@PathVariable UUID id) {
+        List<Object[]> rows = em.createNativeQuery(
+                "SELECT u.id, u.full_name, u.email, u.role, cm.role_in_case, " +
+                "(u.public_key_ecies IS NOT NULL) AS has_key " +
+                "FROM case_members cm JOIN users u ON u.id = cm.user_id WHERE cm.case_id = :cid " +
+                "ORDER BY u.full_name")
+                .setParameter("cid", id).getResultList();
+        List<Map<String, Object>> out = rows.stream().map(r -> {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("userId", r[0].toString());
+            m.put("fullName", r[1]);
+            m.put("email", r[2]);
+            m.put("role", r[3]);
+            m.put("roleInCase", r[4] != null ? r[4] : "");
+            m.put("hasPublicKey", r[5]);
+            return m;
+        }).toList();
+        return ResponseEntity.ok(out);
+    }
+
     @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR')")
     @PostMapping("/{id}/close")
     public ResponseEntity<CaseDto> close(

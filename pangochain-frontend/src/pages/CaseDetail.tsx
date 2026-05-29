@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
@@ -164,9 +164,14 @@ export default function CaseDetail() {
             {legalCase.firmName && ` · ${legalCase.firmName}`}
           </p>
         </div>
-        <button onClick={() => setShowUpload(true)} className="btn-primary shrink-0">
-          <Plus className="w-4 h-4" /> Upload Document
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <Share2 className="w-4 h-4" /> Distribute Access
+          </Link>
+          <button onClick={() => setShowUpload(true)} className="btn-primary">
+            <Plus className="w-4 h-4" /> Upload Document
+          </button>
+        </div>
       </div>
 
       {/* Description */}

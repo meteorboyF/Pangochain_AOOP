@@ -57,9 +57,11 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Chaincode Go tests can't be run in this environment (Go not installed).
 - `src/pages/Messages.tsx` is now dead code (route repointed to Chat) — left in place; safe to delete later.
 
-## Feature 2 — Bulk access distribution + delegation (IN PROGRESS)
-- **DONE (backend):** capability-capped delegation in `AccessControlService.grant()` (owner>write>read; can't grant above your own); `POST /api/access/grant-batch` (per-item transactions, partial success, returns per-pair ok/error). Backend 38 tests green.
-- **NEXT (frontend):** bulk-distribute matrix UI — pick docs × members, choose capability + expiry; the granter's browser unwraps each doc key and re-wraps (ECIES) per grantee, then calls `grant-batch`. Add to case/documents view. Then a delegation test.
+## Feature 2 — Bulk access distribution + delegation (COMPLETE)
+- Backend: capability-capped delegation in `AccessControlService.grant()` (owner>write>read); `POST /api/access/grant-batch` (per-item txns, partial success); `GET /api/cases/{id}/members` (case team for the UI).
+- Frontend: `pages/DistributeAccess.tsx` at `/cases/:id/distribute` (linked from CaseDetail header "Distribute Access"). Matrix of documents × team members; unlock key → per-doc unwrap + per-grantee ECIES re-wrap → `grant-batch`; capability + expiry; per-pair results. Grantees are case members with a public key (others shown as "must log in once").
+- Verified: `/cases/{id}/members` returns the seeded team. Full E2E test needs the lawyer to upload a doc + associates to have logged in once (to provision keys).
+- Backend 38 tests, frontend 67, 0 TS errors.
 
 ## TODO / NEXT (agreed roadmap)
 - **Feature 3 — Case-journey tree:** `case_nodes` (parent edges, author, date, linked docs) + git-graph visualization converging on a Hearing node; click → detail panel. (Decision: **visual convergence first**, real "merge into filing" later.)
