@@ -29,13 +29,13 @@ Stack:
 8. **Every backend endpoint writes an audit entry to BOTH PostgreSQL and Fabric.**
 9. **No mock data in production code paths.** Demo mode only for `userId === 'demo-user-001'`.
 10. **TypeScript strict mode — zero type errors.**
-11. **Authority prefix**: The JWT filter sets authorities as `ROLE_MANAGING_PARTNER`, etc. Always use `hasAnyRole()` not `hasAnyAuthority()` in `@PreAuthorize`.
+11. **Authority prefix**: JWT filter sets authorities as `ROLE_MANAGING_PARTNER`, etc. Always use `hasAnyRole()` not `hasAnyAuthority()` in `@PreAuthorize`.
 
 ---
 
 ## Current Test Status
 
-**Frontend (Vitest)**: 48 tests, 8 test files, 0 failures
+**Frontend (Vitest)**: 55 tests, 9 test files, 0 failures
 ```
 src/test/ParticleBackground.test.tsx     — 7 tests (ParticleBackground ui wrapper)
 src/test/ParticlesBackground.test.tsx    — 5 tests (canvas engine)
@@ -44,11 +44,11 @@ src/test/Navigation.test.tsx             — 7 tests (Sidebar: roles, badge, mob
 src/test/CaseList.test.tsx               — 5 tests
 src/test/SecureDownloadModal.test.tsx    — 5 tests
 src/test/crypto.test.ts                  — 8 tests
-src/test/ParticleBackground.test.tsx     — 7 tests
+src/test/LawyerDashboard.test.tsx        — 7 tests
 ```
 Run: `cd pangochain-frontend && npm test`
 
-**Backend (JUnit 5 + Mockito)**: All fixed, BUILD SUCCESS
+**Backend (JUnit 5 + Mockito)**: BUILD SUCCESS
 Run: `cd pangochain-backend && ./mvnw test`
 
 **TypeScript**: Zero errors
@@ -58,113 +58,89 @@ Run: `cd pangochain-frontend && npm run type-check`
 
 ## What Is Already Done
 
-### Phase 1 — Spring Security Hardening + Feature Solidification
-Complete. Key changes:
-- `GlobalExceptionHandler.java` — AccessDeniedException → 403, AuthenticationException → 401
-- `AdminController.java` — critical bug fixed (hasAnyAuthority → hasAnyRole), audit logging added
-- `SecurityConfig.java` — GET /api/health is public
-- `HealthController.java` — NEW, GET /api/health
-- `AuditService.java` — dual-write: Fabric LogAuditEvent first, PostgreSQL second, graceful fallback
-- `LedgerController.java` — NEW: GET /api/ledger/events, GET /api/ledger/tx/{txId}
-- `DashboardController.java` — @PreAuthorize on /stats, new GET /lawyer, new GET /client
-- `DocumentController.java` — @PreAuthorize on all + GET /{id}/history, PUT /{id}/metadata
-- `CaseController.java` — @PreAuthorize on all + GET /{id}/timeline
-- `MessageController.java` — GET /conversations, GET /conversation/{userId}, PUT /{id}/read
-- `HearingController.java` — @PreAuthorize on all + PUT /{id}, POST /{id}/remind
+### Phase 1 — Spring Security Hardening + Feature Solidification — COMPLETE
+- `GlobalExceptionHandler`, `AdminController`, `SecurityConfig`, `HealthController`, `AuditService` (dual-write)
+- `LedgerController` (GET /api/ledger/events, GET /api/ledger/tx/{txId})
+- `DashboardController` (GET /lawyer, GET /client added)
+- `DocumentController`, `CaseController`, `MessageController`, `HearingController` — all @PreAuthorize + new endpoints
 
-### Phase 2 — Particles Background Site-Wide
-Complete. Key changes:
-- `src/components/ui/ParticleBackground.tsx` — position fixed, z-0, pointer-events none, memo, prefers-reduced-motion guard, aria-hidden, data-testid="particle-background-root"
-- `App.tsx` — mounts `<ParticleBackground />` ONCE before Routes, all pages in `relative z-10`; wrapped in `<ErrorBoundary>`
-- `MainLayout.tsx` — bg-surface/80 semi-transparent
-- `Login.tsx` — right panel bg-surface/90; left dark teal panel keeps its own inline auth particles
-- `Register.tsx` — bg-surface/90
+### Phase 2 — Particles Background Site-Wide — COMPLETE
+- `src/components/ui/ParticleBackground.tsx` — position fixed, z-0, pointer-events none, memo, prefers-reduced-motion, aria-hidden
+- `App.tsx` — ParticleBackground mounted once before Routes; wrapped in ErrorBoundary; all pages in `relative z-10`
+- `Login.tsx`, `Register.tsx` — semi-transparent bg (particles show through)
+- `src/test/ParticleBackground.test.tsx` — 7 tests
 
-### Phase 3 — Frontend Hardening (Completed)
+### Phase 3 — Frontend Hardening — COMPLETE
+
+All pages assessed and complete. Changes made this session:
 
 **ErrorBoundary** (`src/components/ui/ErrorBoundary.tsx`):
 - Class component, `getDerivedStateFromError` + `componentDidCatch`
-- Fallback: AlertTriangle icon + "Something went wrong" + "Go to Dashboard" `<a href="/dashboard">`
-- Wraps entire app in App.tsx
+- Fallback: AlertTriangle + "Something went wrong" + `<a href="/dashboard">Go to Dashboard</a>`
 
 **AuditTrail.tsx**:
-- `ACL_FABRIC_FALLBACK` event type: amber badge (`bg-amber-100 text-amber-800 border border-amber-400`)
-- Amber row background (`bg-amber-50/50`) for these rows
+- `ACL_FABRIC_FALLBACK` event: amber badge (`bg-amber-100 text-amber-800 border border-amber-400`) + amber row bg
 - Added to EVENT_TYPES filter list
 
 **Dashboard.tsx**:
-- Fetches `/dashboard/lawyer` via `Promise.allSettled`
-- `NextHearing` interface + `HearingCountdown` component (days/hours, amber=today/tomorrow, teal=future)
-- Next Hearing card in right column above Security Status; shows "No upcoming hearings" when null
+- Fetches `/dashboard/lawyer` via `Promise.allSettled` → `nextHearing` state
+- `HearingCountdown` component: days/hours display (amber=today/tomorrow, teal=future)
+- Next Hearing card in right column above Security Status
+- Fabric Tx ID (first 8 chars + `…`) shown in Recent Activity per entry
 
 **Sidebar.tsx** (`src/layout/Sidebar.tsx`):
-- Unread message badge: fetches `/dashboard/stats` on mount, shows teal circle count on Messages link
-- Mobile hamburger: sidebar splits into `hidden lg:flex` desktop + `fixed` overlay with backdrop for mobile
+- Unread badge: fetches `/dashboard/stats` on mount → shows teal circle count on Messages link
+- Mobile hamburger: `hidden lg:flex` desktop + `fixed` overlay with backdrop for mobile
 - Props: `mobileOpen?: boolean`, `onClose?: () => void`
-- Nav link `onClick={onClose}` closes mobile drawer on navigation
 
-**MainLayout.tsx** (`src/layout/MainLayout.tsx`):
-- Manages `mobileOpen` state (useState)
-- Mobile header bar (`lg:hidden`): sticky, hamburger `<Menu>` + "PangoChain" title
+**MainLayout.tsx**:
+- Manages `mobileOpen` state; sticky mobile header with `<Menu>` hamburger + "PangoChain" title
 
-**Pages already complete** (assessed, no changes needed):
-- Cases.tsx — search, debounced filter, status chips, loading, error, empty ✅
-- HearingManager.tsx — upcoming/past separation, create form, delete, send reminder ✅
-- AdminPanel.tsx — activate/suspend per-row, toasts, MFA column ✅
-- LedgerExplorer.tsx — event filter, search, expandable JSON, pagination ✅
-- Messages.tsx — password-unlock, per-message decrypt, compose, empty state ✅
-- CaseDetail.tsx — 4 tabs (documents/hearings/team/timeline), loading, not-found ✅
-- ClientPortal.tsx — HearingCountdown, stats, reminders, loading, error ✅
+**Documents.tsx**:
+- `DocCategory` type: `ALL | GENERAL | CONTRACT | EVIDENCE | PLEADING | CORRESPONDENCE`
+- Category filter chips UI + passes `?category=` param to `/documents` API
+
+**Already-complete pages** (no changes needed):
+- Cases.tsx, HearingManager.tsx, AuditTrail.tsx, AdminPanel.tsx, LedgerExplorer.tsx, Messages.tsx, CaseDetail.tsx, ClientPortal.tsx, ClientCase.tsx, MfaSetup.tsx ✅
+
+### Phase 4 — Tests — MOSTLY COMPLETE
+- `LawyerDashboard.test.tsx`: 7 tests (stat cards, recent cases, next hearing, countdown, no-hearing, tx ID)
+- All other Phase 4 tests done in previous sessions
 
 ---
 
 ## What Remains — Resume Here
 
-### Priority 1: Phase 3 remaining minor items
+### Priority 1: Phase 5 — Documentation Updates
 
-**3-C Dashboard — Fabric Tx ID in Recent Activity**
-In `Dashboard.tsx` Recent Activity section (around line ~246), add truncated tx ID for each audit entry that has `fabricTxId`. Show `e.fabricTxId.slice(0,8) + '…'` in a `code` element next to the resourceId.
+**1. Update `FEATURES.md`**
+Path: `/home/angkon/Pangochain_AOOP/pangochain-frontend/FEATURES.md` (or check if it's in root `/home/angkon/Pangochain_AOOP/FEATURES.md`)
+Add these sections:
+- **Phase 2 — Site-wide Particle Background**: global fixed canvas (position: fixed, z-0, pointer-events: none), respects `prefers-reduced-motion`, mounted once in App.tsx above Routes
+- **Phase 3 — Frontend Hardening**:
+  - ErrorBoundary wrapping entire app
+  - Audit Trail: ACL_FABRIC_FALLBACK amber highlight
+  - Dashboard: next hearing countdown card, Fabric tx ID in activity feed
+  - Sidebar: unread message badge, mobile hamburger drawer
+  - Documents: category filter (GENERAL, CONTRACT, EVIDENCE, PLEADING, CORRESPONDENCE)
 
-**3-B MFA Setup page** (`src/pages/MfaSetup.tsx`)
-Read this file first. Check it has:
-1. Fetches QR code from `GET /mfa/setup` 
-2. Input for 6-digit TOTP code
-3. Calls `POST /mfa/verify` with code
-4. Success toast + redirect
-If anything is missing, add it.
+**2. Update `TEST-REPORT.md`**
+Path: `/home/angkon/Pangochain_AOOP/TEST-REPORT.md`
+- Update frontend test count: 29 → 55
+- Add test descriptions for:
+  - `ParticleBackground.test.tsx` (7 tests): renders, position fixed, z-index 0, pointer-events none, full viewport, reduced-motion returns null, aria-hidden
+  - `ErrorBoundary.test.tsx` (5 tests): renders children normally, shows fallback when child throws, "Go to Dashboard" link href, no error page when no error, catches different errors
+  - `Navigation.test.tsx` (7 tests): no user renders nothing, legal nav items, client nav items, no admin for non-admin, admin section for managing partner, shows full name, onClose called on link click
+  - `LawyerDashboard.test.tsx` (7 tests): loading skeleton, stat cards, recent cases, next hearing card, countdown days, no upcoming hearings, tx ID truncation
 
-**3-F Documents page** (`src/pages/Documents.tsx`)
-Read this file. Verify it has:
-- Category filter (GENERAL, CONTRACT, EVIDENCE, PLEADING, CORRESPONDENCE)
-- `SecureDownloadModal` wired to download action
-- Loading skeleton, error banner, empty state
-Add what's missing.
-
-**3-L Client Case page** (`src/pages/client/ClientCase.tsx`)
-Read this file. Add if missing:
-- Privacy rights section (client's right to view own docs, right to encryption key)
-- Blockchain timeline of case events (fetch from `GET /cases/{id}/timeline`)
-
-### Priority 2: Phase 4 — Tests to Write
-
-**`src/test/LawyerDashboard.test.tsx`**:
-```
-Mock api.get for /dashboard/stats, /cases, /audit, /dashboard/lawyer
-Tests:
-- renders stat cards (Active Cases, Documents, etc.)
-- shows next hearing card with countdown when hearing data present
-- shows "No upcoming hearings" when nextHearing is null
-- shows loading skeleton initially
-- shows Recent Cases list entries
-```
+### Priority 2: Phase 4 — Remaining Test
 
 **`src/test/SecureUploadProgress.test.tsx`**:
-Read `DocumentUploadDropzone.tsx` first. Test upload state transitions (idle → uploading → complete/error).
-
-### Priority 3: Phase 5 — Documentation
-
-1. Update `/home/angkon/Pangochain_AOOP/pangochain-frontend/FEATURES.md` — add Phase 2 particle background + Phase 3 hardening items
-2. Update `/home/angkon/Pangochain_AOOP/TEST-REPORT.md` — update frontend test count to 48, add ErrorBoundary (5) and Navigation (7) test descriptions
+First read `DocumentUploadDropzone.tsx` to understand its props and state. Then test:
+- renders idle state (drop zone visible)
+- shows progress/uploading state when upload in progress
+- shows success state after upload completes
+- shows error state on failure
 
 ---
 
@@ -181,46 +157,43 @@ pangochain-frontend/src/
       ErrorBoundary.tsx                — class error boundary
       ParticleBackground.tsx           — global fixed particle wrapper (lazy + memo)
       EncryptionBadge.tsx              — client encryption status badge
-    ParticlesBackground.tsx            — vanilla canvas particle engine (3 variants: vivid/auth/app)
+    ParticlesBackground.tsx            — vanilla canvas particle engine (3 variants)
     DocumentUploadDropzone.tsx         — drag-drop upload with ECIES key wrapping
     SecureDownloadModal.tsx            — IPFS + AES-GCM decrypt + SHA-256 verify
     TeamAccessPanel.tsx                — ACL management per document
     SignDocumentModal.tsx              — ECDSA signing
   pages/
-    Dashboard.tsx                      — next-hearing card, HearingCountdown component
+    Dashboard.tsx                      — next-hearing card, HearingCountdown, tx ID in activity
     Cases.tsx                          — search + filter + pagination
     CaseDetail.tsx                     — 4-tab view
-    AuditTrail.tsx                     — ACL_FABRIC_FALLBACK amber highlight
+    AuditTrail.tsx                     — ACL_FABRIC_FALLBACK amber row highlight
     HearingManager.tsx                 — upcoming/past separation
     AdminPanel.tsx                     — activate/suspend users
     Messages.tsx                       — E2E encrypted messaging
+    Documents.tsx                      — category filter (ALL/GENERAL/CONTRACT/EVIDENCE/PLEADING/CORRESPONDENCE)
     LedgerExplorer.tsx                 — expandable Fabric events
-    MfaSetup.tsx                       — TOTP enrollment (may need work)
-    Documents.tsx                      — document vault (may need work)
+    MfaSetup.tsx                       — TOTP enrollment (complete)
     client/
       ClientPortal.tsx                 — hearing countdown, reminders
       ClientDocuments.tsx              — document vault
-      ClientCase.tsx                   — case timeline (may need work)
-  lib/
-    api.ts                             — axios instance (JWT interceptor + refresh)
-    crypto.ts                          — WebCrypto: ECIES, AES-GCM, PBKDF2, ECDSA
-    mockData.ts                        — demo-user-001 fixture data only
-  store/
-    authStore.ts                       — Zustand: user, accessToken, refreshToken
+      ClientCase.tsx                   — privacy rights, blockchain timeline
   test/
-    ParticleBackground.test.tsx        — 7 tests (ui wrapper)
-    ParticlesBackground.test.tsx       — 5 tests (canvas engine)
+    ParticleBackground.test.tsx        — 7 tests
+    ParticlesBackground.test.tsx       — 5 tests
     ErrorBoundary.test.tsx             — 5 tests
-    Navigation.test.tsx                — 7 tests (Sidebar)
+    Navigation.test.tsx                — 7 tests
     CaseList.test.tsx                  — 5 tests
     SecureDownloadModal.test.tsx       — 5 tests
     crypto.test.ts                     — 8 tests
+    LawyerDashboard.test.tsx           — 7 tests
 ```
 
 ---
 
 ## Git Log (recent)
 ```
+78f6f0b  feat: Phase 3 complete + Phase 4 LawyerDashboard tests — Documents category filter, Dashboard Fabric tx IDs, 55 tests
+fa6b2b8  docs: update SESSION_HANDOFF with Phase 3 completion state and remaining tasks
 b7428c1  feat: Phase 3 — ErrorBoundary, Dashboard next-hearing card, Sidebar unread badge + mobile hamburger, AuditTrail ACL_FABRIC_FALLBACK highlight
 1eae3e5  feat: Phase 2 — particle effect rollout and config alignment
 943cbc6  feat: Phase 1 — Spring Security hardening, missing endpoints, TS fixes
@@ -233,7 +206,7 @@ b7428c1  feat: Phase 3 — ErrorBoundary, Dashboard next-hearing card, Sidebar u
 ```bash
 cd /home/angkon/Pangochain_AOOP/pangochain-frontend
 npm run type-check      # must output nothing (0 errors)
-npm test                # must show 48 tests, 0 failures
+npm test                # must show 55 tests, 0 failures
 
 cd /home/angkon/Pangochain_AOOP/pangochain-backend
 ./mvnw test -q          # must show BUILD SUCCESS
