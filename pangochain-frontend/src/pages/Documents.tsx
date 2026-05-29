@@ -4,6 +4,10 @@ import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import api from '../lib/api'
 
+type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
+
+const CATEGORIES: DocCategory[] = ['ALL', 'GENERAL', 'CONTRACT', 'EVIDENCE', 'PLEADING', 'CORRESPONDENCE']
+
 interface DocumentDto {
   id: string
   caseId: string
@@ -15,6 +19,7 @@ interface DocumentDto {
   version: number
   status: string
   createdAt: string
+  category?: string
 }
 
 interface Page<T> { content: T[]; totalElements: number }
@@ -30,6 +35,7 @@ function fileIcon(name: string) {
 
 export default function Documents() {
   const [search, setSearch] = useState('')
+  const [category, setCategory] = useState<DocCategory>('ALL')
   const [page, setPage] = useState<Page<DocumentDto> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -42,6 +48,7 @@ export default function Documents() {
     try {
       const params: Record<string, string> = { page: '0', size: '50' }
       if (search.trim()) params.q = search.trim()
+      if (category !== 'ALL') params.category = category
       const { data } = await api.get<Page<DocumentDto>>('/documents', { params })
       setPage(data)
     } catch (err: any) {
@@ -49,12 +56,12 @@ export default function Documents() {
     } finally {
       setLoading(false)
     }
-  }, [search])
+  }, [search, category])
 
   useEffect(() => {
     const t = setTimeout(load, search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [load, search])
+  }, [load])
 
   const docs = page?.content ?? []
 
@@ -78,15 +85,32 @@ export default function Documents() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          className="input pl-9"
-          placeholder="Search documents…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Search + Category Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative max-w-md flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            className="input pl-9"
+            placeholder="Search documents…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
+                category === cat
+                  ? 'bg-[#1d6464] text-white border-[#1d6464]'
+                  : 'bg-white text-text-secondary border-border hover:border-[#1d6464]/40'
+              }`}
+            >
+              {cat === 'ALL' ? <><Filter className="w-3 h-3 inline mr-1" />All</> : cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* States */}

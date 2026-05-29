@@ -304,6 +304,9 @@ export default function Dashboard() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-xs text-text-secondary truncate">{a.resourceId}</p>
+                      {a.fabricTxId && (
+                        <code className="text-[9px] text-[#1d6464] font-mono">{a.fabricTxId.slice(0, 8)}…</code>
+                      )}
                       <p className="text-[10px] text-text-muted">{new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>

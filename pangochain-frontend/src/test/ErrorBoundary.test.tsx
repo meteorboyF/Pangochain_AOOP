@@ -56,7 +56,7 @@ describe('ErrorBoundary', () => {
   })
 
   it('catches multiple different errors', () => {
-    function AnotherBoom() { throw new Error('Another error') }
+    function AnotherBoom(): never { throw new Error('Another error') }
     render(
       <ErrorBoundary>
         <AnotherBoom />
