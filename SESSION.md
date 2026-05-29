@@ -63,9 +63,14 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Verified: `/cases/{id}/members` returns the seeded team. Full E2E test needs the lawyer to upload a doc + associates to have logged in once (to provision keys).
 - Backend 38 tests, frontend 67, 0 TS errors.
 
-## TODO / NEXT (agreed roadmap)
-- **Feature 3 — Case-journey tree:** `case_nodes` (parent edges, author, date, linked docs) + git-graph visualization converging on a Hearing node; click → detail panel. (Decision: **visual convergence first**, real "merge into filing" later.)
-- Optional: first-login key provisioning (unblocks E2E for seeded users); WebSocket-push for the old DM; flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; SecureDownloadModal stage-timing redesign.
+## Feature 3 — Case-journey tree (COMPLETE)
+- Backend `casenode` package: `CaseNode` (parentId tree edge, mergeIntoId dashed convergence edge, author, type ROOT/FINDING/EVIDENCE/RESEARCH/LOOPHOLE/HEARING/FILING, title, description, linkedDocId, nodeDate); `CaseNodeService` (auto-provisions ROOT dated to case open; create logs CASE_NODE_ADDED audit); `GET/POST /api/cases/{id}/nodes`; migration `007-case-journey.sql`.
+- Frontend `pages/CaseJourney.tsx` at `/cases/:id/journey` (linked from CaseDetail "Journey"): depth-layered git-graph (SVG solid parent edges + dashed merge-into edges), type-colored node cards, click→detail panel (date/author/type/description/linked doc), add-node modal (type, branch-from, converges-into, details). Visual convergence per decision; operational merge deferred.
+- Verified live: ROOT auto-created, finding nodes add + render.
+
+## TODO / NEXT (optional / deferred)
+- Operational "merge into filing" for the journey tree; link findings to documents in the add-node UI.
+- first-login provisioning is DONE; flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; SecureDownloadModal stage-timing redesign; WebSocket-push for old 1:1 DM.
 
 ## Decisions locked (this session)
 - Realtime transport: **WebSocket/STOMP**. Chat crypto: **TLS + encrypted-at-rest** (documents stay E2E). Delegation: **per-case chain**. Tree merge: **visual-first**. Color palette: **keep existing tokens** (`#1d6464`/`#1E3A5F`). Tokens in sessionStorage approved.

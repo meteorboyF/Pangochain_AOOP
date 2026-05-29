@@ -12,6 +12,7 @@ import Cases from './pages/Cases'
 import CaseDetail from './pages/CaseDetail'
 import NewCase from './pages/NewCase'
 import DistributeAccess from './pages/DistributeAccess'
+import CaseJourney from './pages/CaseJourney'
 import Documents from './pages/Documents'
 import AuditTrail from './pages/AuditTrail'
 import Chat from './pages/Chat'
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/cases/new" element={<NewCase />} />
           <Route path="/cases/:id" element={<CaseDetail />} />
           <Route path="/cases/:id/distribute" element={<DistributeAccess />} />
+          <Route path="/cases/:id/journey" element={<CaseJourney />} />
 
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<Documents />} />

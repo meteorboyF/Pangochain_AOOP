@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
@@ -165,6 +165,9 @@ export default function CaseDetail() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link to={`/cases/${id}/journey`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <GitBranch className="w-4 h-4" /> Journey
+          </Link>
           <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
             <Share2 className="w-4 h-4" /> Distribute Access
           </Link>
