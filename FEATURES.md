@@ -107,6 +107,32 @@
 
 ---
 
+## ✅ Done — Site-Wide Particle Background (Phase 2)
+
+| Feature | Details |
+|---------|---------|
+| **Global fixed canvas** | `ParticleBackground` component: `position: fixed`, `z-index: 0`, `pointer-events: none` — mounted once in App.tsx above all routes |
+| **Reduced-motion support** | Returns null when `prefers-reduced-motion: reduce` is set — no animation for users who opt out |
+| **Accessibility** | `aria-hidden="true"` on the particle container — decorative only, excluded from screen readers |
+| **Performance** | Wrapped in `React.memo` + `React.lazy` to prevent re-renders; 3 canvas variants: vivid (landing), auth (login), app (dashboard) |
+| **Page transparency** | Auth pages (`Login`, `Register`) use `bg-surface/90`; MainLayout uses `bg-surface/80` — particles show through from the fixed layer |
+
+---
+
+## ✅ Done — Frontend Hardening (Phase 3)
+
+| Feature | Details |
+|---------|---------|
+| **Error Boundary** | `ErrorBoundary` class component wraps entire app; on uncaught render error shows "Something went wrong" with AlertTriangle icon and "Go to Dashboard" link |
+| **ACL Fabric Fallback highlight** | AuditTrail page: `ACL_FABRIC_FALLBACK` events rendered with amber badge and amber row background — immediately visible to auditors |
+| **Dashboard next hearing card** | Fetches `GET /dashboard/lawyer` on load; displays countdown in days/hours (amber for today/tomorrow, teal for future); "No upcoming hearings" when null |
+| **Fabric tx ID in activity feed** | Dashboard Recent Activity shows first 8 chars + `…` of each entry's Fabric tx ID in monospace |
+| **Sidebar unread badge** | Messages nav link shows teal circular badge with count; fetches `/dashboard/stats` on mount; hidden when count is 0 |
+| **Mobile hamburger** | Sidebar hidden on small screens; hamburger `<Menu>` button in sticky mobile header toggles full-screen overlay drawer with backdrop + close button |
+| **Document category filter** | Documents page: filter chips for ALL / GENERAL / CONTRACT / EVIDENCE / PLEADING / CORRESPONDENCE; passes `?category=` to API |
+
+---
+
 ## ✅ Done — Developer & Ops
 
 | Feature | Details |

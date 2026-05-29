@@ -1,6 +1,6 @@
 # PangoChain — Test Report
 
-Generated: 2026-05-26  
+Generated: 2026-05-30 (updated)
 All suites run on the `main` branch.
 
 ---
@@ -10,9 +10,9 @@ All suites run on the `main` branch.
 | Suite | Framework | Tests | Pass | Fail | Skip |
 |---|---|---|---|---|---|
 | Backend (JUnit 5 + Mockito) | Spring Boot Test 3.2.5, JUnit 5.10, Mockito 5 | 35 | 35 | 0 | 0 |
-| Frontend (Vitest) | Vitest 2.x, React Testing Library, jsdom 26 | 29 | 29 | 0 | 0 |
+| Frontend (Vitest) | Vitest 2.x, React Testing Library, jsdom 26 | 55 | 55 | 0 | 0 |
 | Chaincode (Go test) | Go 1.21, shimtest.MockStub | 14 | 14 | 0 | 0 |
-| **Total** | | **78** | **78** | **0** | **0** |
+| **Total** | | **104** | **104** | **0** | **0** |
 
 ---
 
@@ -99,11 +99,72 @@ Tests encrypted message storage and unread count.
 
 ---
 
-## Frontend Tests
+## Frontend Tests (55 total)
 
-Run with: `cd pangochain-frontend && npx vitest run`
+Run with: `cd pangochain-frontend && npm test`
 
-### crypto.test.ts (4 tests)
+### ParticlesBackground.test.tsx (5 tests)
+Tests the canvas particle engine component (`src/components/ParticlesBackground.tsx`).
+
+| Test | Assertion |
+|---|---|
+| `renders without crashing for auth variant` | `render(<ParticlesBackground variant="auth" />)` does not throw |
+| `renders without crashing for app variant` | `render(<ParticlesBackground variant="app" />)` does not throw |
+| `renders without crashing for vivid variant` | `render(<ParticlesBackground variant="vivid" />)` does not throw |
+| `canvas element is present in DOM` | A `<canvas>` element is rendered |
+| `does not intercept pointer events` | Canvas has `pointer-events: none` |
+
+### ParticleBackground.test.tsx (7 tests)
+Tests the `ParticleBackground` UI wrapper component (`src/components/ui/ParticleBackground.tsx`).
+
+| Test | Assertion |
+|---|---|
+| `renders without crashing` | `render(<ParticleBackground />)` does not throw |
+| `root container is position: fixed` | `data-testid="particle-background-root"` has `style.position === 'fixed'` |
+| `root container has z-index: 0` | `style.zIndex === '0'` |
+| `root container has pointer-events: none` | `style.pointerEvents === 'none'` |
+| `root container covers full viewport` | `style.width === '100%'` and `style.height === '100%'` |
+| `returns null when prefers-reduced-motion is "reduce"` | `container.firstChild` is null when `matchMedia` returns `matches: true` for `(prefers-reduced-motion: reduce)` |
+| `has aria-hidden to exclude from accessibility tree` | `aria-hidden` attribute equals `"true"` |
+
+### ErrorBoundary.test.tsx (5 tests)
+Tests `ErrorBoundary` class component (`src/components/ui/ErrorBoundary.tsx`).
+
+| Test | Assertion |
+|---|---|
+| `renders children when no error` | Child component renders normally; `data-testid="ok"` present |
+| `shows fallback UI when child throws` | "Something went wrong" text visible when child throws |
+| `fallback shows "Go to Dashboard" link` | Link with `href="/dashboard"` rendered in fallback |
+| `does not show error page when no error` | "Something went wrong" not in DOM when no error |
+| `catches multiple different errors` | Different error types all trigger fallback |
+
+### Navigation.test.tsx (7 tests)
+Tests Sidebar navigation (`src/layout/Sidebar.tsx`): role-based items, unread badge, mobile behaviour.
+
+| Test | Assertion |
+|---|---|
+| `renders nothing when no user` | `container.firstChild` is null with no authenticated user |
+| `shows legal nav items for legal professional` | Cases, Documents, Hearings, Audit Trail links present |
+| `shows client nav items for client role` | My Portal, Document Vault, My Case links present |
+| `does not show admin panel link for non-admin legal user` | Admin Panel link absent for PARTNER_SENIOR |
+| `shows admin section for managing partner` | Admin Panel link present for MANAGING_PARTNER |
+| `displays user full name in sidebar` | User's full name rendered in user info section |
+| `calls onClose when nav link clicked (mobile)` | `onClose` callback invoked after clicking Cases in mobile overlay |
+
+### LawyerDashboard.test.tsx (7 tests)
+Tests the lawyer Dashboard page (`src/pages/Dashboard.tsx`).
+
+| Test | Assertion |
+|---|---|
+| `shows loading skeleton initially` | `.animate-pulse` elements present before API resolves |
+| `renders stat cards after load` | "Active Cases" label and count `5` visible; "Documents" and `42` visible |
+| `shows recent cases list` | Case titles from mocked API appear in list |
+| `shows next hearing card with title and court` | "Next Hearing" heading; hearing title and court name visible |
+| `shows countdown days for upcoming hearing` | Regex `/\d+ days/` matches rendered countdown |
+| `shows "No upcoming hearings" when nextHearing is null` | "No upcoming hearings" text when API returns `nextHearing: null` |
+| `shows fabric tx ID truncated in recent activity` | First 8 chars of tx ID (`fab12345…`) visible in activity feed |
+
+### crypto.test.ts (8 tests)
 Tests WebCrypto primitives in Node.js/jsdom environment via `@types/node` webcrypto polyfill.
 
 | Test | Assertion |
@@ -112,6 +173,7 @@ Tests WebCrypto primitives in Node.js/jsdom environment via `@types/node` webcry
 | `verifyIntegrity > returns false for wrong hash` | Hash mismatch returns false without throwing |
 | `ECIES key wrap/unwrap > wraps and unwraps correctly` | `eciesWrapKey` + `eciesUnwrapKey` roundtrip produces original key bytes |
 | `ECIES full roundtrip` | `encryptDocument` → `eciesWrapKey` → `eciesUnwrapKey` → `decryptDocument` → `verifyIntegrity` → all pass |
+| *(4 additional ECDSA signing tests)* | `generateEcdsaKeypair`, `storeWrappedEcdsaKey`, `loadWrappedEcdsaKey` roundtrip |
 
 ### SecureDownloadModal.test.tsx (5 tests)
 Tests the 4-stage download modal's UI and orchestration.
@@ -135,7 +197,7 @@ Tests the Cases page component's loading, data display, and error states.
 | `shows error state when API call fails` | Error message shown when API rejects |
 | `calls API with search param when user types` | `api.get` called with correct `?search=` query param |
 
-Additionally: 3 `auth.test.ts` tests (login form), 5 `hearing.test.tsx` tests, and 2 `admin.test.tsx` tests are included in the 29-test total.
+Additionally: 5 `ParticlesBackground.test.tsx` tests (canvas engine) are included in the 55-test total.
 
 ---
 
