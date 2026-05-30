@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, CheckCircle, Ban, Loader2, AlertCircle, Shield } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/StatusBadge'
 
@@ -17,56 +18,26 @@ interface UserSummary {
 interface Page<T> { content: T[]; totalElements: number }
 
 export default function AdminPanel() {
-  const [page, setPage] = useState<Page<UserSummary> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [acting, setActing] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data } = await api.get<Page<UserSummary>>('/admin/users')
-        setPage(data)
-      } catch (err: any) {
-        setError(err.response?.data?.detail ?? 'Failed to load users')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const { data: page, isLoading: loading, isError } = useQuery({
+    queryKey: queryKeys.adminUsers(0),
+    queryFn: async () => (await api.get<Page<UserSummary>>('/admin/users')).data,
+  })
+  const error = isError ? 'Failed to load users' : ''
 
-  const activate = async (id: string, email: string) => {
-    setActing(id)
-    try {
-      await api.post(`/admin/users/${id}/activate`)
-      setPage((prev) => prev ? {
-        ...prev,
-        content: prev.content.map((u) => u.id === id ? { ...u, status: 'ACTIVE' } : u)
-      } : prev)
-      toast.success(`${email} activated`)
-    } catch {
-      toast.error('Failed to activate user')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  const suspend = async (id: string, email: string) => {
-    setActing(id)
-    try {
-      await api.post(`/admin/users/${id}/suspend`)
-      setPage((prev) => prev ? {
-        ...prev,
-        content: prev.content.map((u) => u.id === id ? { ...u, status: 'SUSPENDED' } : u)
-      } : prev)
-      toast.success(`${email} suspended`)
-    } catch {
-      toast.error('Failed to suspend user')
-    } finally {
-      setActing(null)
-    }
-  }
+  const actMutation = useMutation({
+    mutationFn: (vars: { id: string; action: 'activate' | 'suspend'; email: string }) =>
+      api.post(`/admin/users/${vars.id}/${vars.action}`),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers(0) })
+      toast.success(`${vars.email} ${vars.action}d`)
+    },
+    onError: (_e, vars) => toast.error(`Failed to ${vars.action} user`),
+  })
+  const acting = actMutation.isPending ? actMutation.variables?.id : null
+  const activate = (id: string, email: string) => actMutation.mutate({ id, action: 'activate', email })
+  const suspend = (id: string, email: string) => actMutation.mutate({ id, action: 'suspend', email })
 
   const users = page?.content ?? []
 
