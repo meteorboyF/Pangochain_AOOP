@@ -71,8 +71,12 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 ## DONE — SecureDownloadModal redesign (Area 4-F)
 - Numbered stage circles (pending→active→done/error), per-stage technical detail + "Completed in Nms" timing, distinct decryption-failure vs **integrity-failure** banners (exact tamper-warning copy), success banner with filename+size, auto-download 500ms after verify. +2 pipeline tests (69 frontend total). Findings can link a case document (CaseJourney add-node + detail panel).
 
+## DONE — StatusBadge rollout
+- `StatusBadge` is now used for status chips in Cases, Dashboard (recent cases), and AdminPanel (user status); removed each page's inline `STATUS_COLORS` map. Added a `PENDING_APPROVAL` variant. AuditTrail left as-is (event-type taxonomy, not status). 69 frontend tests still green.
+
 ## TODO / NEXT (optional / deferred)
-- Operational "merge into filing" for the journey tree; link findings to documents in the add-node UI.
+- Operational "merge into filing" for the journey tree.
+- Skeleton loaders rollout into list pages (CaseList.test asserts `.animate-spin`, so update that test if Cases switches from spinner to skeleton).
 - Flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
 
 ## Decisions locked (this session)

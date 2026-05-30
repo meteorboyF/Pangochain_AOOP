@@ -3,6 +3,7 @@ import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRig
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
 import api from '../lib/api'
+import { StatusBadge } from '../components/ui/StatusBadge'
 
 interface NextHearing {
   id: string
@@ -215,9 +216,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-3 flex-shrink-0 ${STATUS_COLORS[c.status] ?? ''}`}>
-                    {c.status}
-                  </span>
+                  <span className="ml-3 flex-shrink-0"><StatusBadge status={c.status} /></span>
                 </Link>
               ))}
             </div>

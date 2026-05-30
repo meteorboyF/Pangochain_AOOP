@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { FolderOpen, Plus, Search, Clock, FileText, Filter, Loader2, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
+import { StatusBadge } from '../components/ui/StatusBadge'
 
 interface CaseDto {
   id: string
@@ -20,12 +21,6 @@ interface Page<T> {
   totalElements: number
   totalPages: number
   number: number
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:   'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED:   'bg-gray-100 text-gray-600 border border-gray-200',
-  ARCHIVED: 'bg-amber-50 text-amber-700 border border-amber-200',
 }
 
 export default function Cases() {
@@ -137,9 +132,7 @@ export default function Cases() {
                 <div className="w-10 h-10 rounded-xl bg-[#1d6464]/10 flex items-center justify-center group-hover:bg-[#1d6464] transition-colors">
                   <FolderOpen className="w-5 h-5 text-[#1d6464] group-hover:text-white transition-colors" />
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[c.status]}`}>
-                  {c.status}
-                </span>
+                <StatusBadge status={c.status} />
               </div>
               <h3 className="font-heading font-semibold text-text-primary text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#1d6464] transition-colors">
                 {c.title}

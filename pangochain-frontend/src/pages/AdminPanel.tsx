@@ -123,9 +123,7 @@ export default function AdminPanel() {
                     <span className="text-text-secondary text-xs">{u.firmName ?? '—'}</span>
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[u.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {u.status.replace(/_/g, ' ')}
-                    </span>
+                    <StatusBadge status={u.status} />
                   </td>
                   <td className="px-4 py-3.5 hidden md:table-cell">
                     <span className={`text-xs font-medium ${u.mfaEnabled ? 'text-success' : 'text-text-muted'}`}>
