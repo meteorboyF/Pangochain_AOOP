@@ -23,6 +23,7 @@ const VARIANTS: Record<string, Variant> = {
   ACL_FALLBACK: { classes: 'bg-amber-100 text-amber-800 border-amber-200', label: 'ACL Fallback' },
   PENDING:      { classes: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Pending' },
   PENDING_APPROVAL: { classes: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Pending Approval' },
+  DEACTIVATED:  { classes: 'bg-slate-100 text-slate-600 border-slate-200', label: 'Deactivated' },
   VERIFIED:     { classes: 'bg-teal-100 text-teal-700 border-teal-200', label: 'Verified' },
 }
 

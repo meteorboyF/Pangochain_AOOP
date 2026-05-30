@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Users, CheckCircle, Ban, Loader2, AlertCircle, Shield } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
+import { StatusBadge } from '../components/ui/StatusBadge'
 
 interface UserSummary {
   id: string
@@ -14,13 +15,6 @@ interface UserSummary {
 }
 
 interface Page<T> { content: T[]; totalElements: number }
-
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:           'bg-emerald-50 text-emerald-700',
-  PENDING_APPROVAL: 'bg-amber-50 text-amber-700',
-  SUSPENDED:        'bg-red-50 text-red-700',
-  DEACTIVATED:      'bg-gray-100 text-gray-600',
-}
 
 export default function AdminPanel() {
   const [page, setPage] = useState<Page<UserSummary> | null>(null)
