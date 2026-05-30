@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Cases from '../pages/Cases'
 
 // Mock the api module — Cases.tsx imports from '../lib/api'
@@ -54,10 +55,16 @@ const sampleCases = [
 ]
 
 function renderCases() {
+  // Fresh client per render + retry off so loading/error states are deterministic in tests.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
   return render(
-    <MemoryRouter>
-      <Cases />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <Cases />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

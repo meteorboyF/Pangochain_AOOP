@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { FolderOpen, Plus, Search, Clock, FileText, Filter, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { CardGridSkeleton } from '../components/ui/Skeleton'
 
@@ -27,31 +29,29 @@ interface Page<T> {
 export default function Cases() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
-  const [page, setPage] = useState<Page<CaseDto> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // Debounce the search term so typing doesn't fire a request per keystroke; the
+  // debounced value becomes part of the query key, so React Query handles caching,
+  // dedup and refetch automatically.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
+  const { data: page, isLoading, isError } = useQuery({
+    queryKey: queryKeys.cases({ status: statusFilter, q: debouncedSearch }),
+    queryFn: async () => {
       const params: Record<string, string> = { page: '0', size: '30' }
       if (statusFilter !== 'ALL') params.status = statusFilter
-      if (search.trim()) params.q = search.trim()
+      if (debouncedSearch) params.q = debouncedSearch
       const { data } = await api.get<Page<CaseDto>>('/cases', { params })
-      setPage(data)
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Failed to load cases')
-    } finally {
-      setLoading(false)
-    }
-  }, [search, statusFilter])
+      return data
+    },
+    placeholderData: (prev) => prev, // keep showing prior results while refetching on filter change
+  })
 
-  useEffect(() => {
-    const t = setTimeout(load, search ? 300 : 0)
-    return () => clearTimeout(t)
-  }, [load, search])
-
+  const loading = isLoading
+  const error = isError ? 'Failed to load cases' : ''
   const cases = page?.content ?? []
   const total = page?.totalElements ?? 0
   const active = cases.filter((c) => c.status === 'ACTIVE').length

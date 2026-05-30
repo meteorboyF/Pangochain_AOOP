@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import { StatusBadge } from '../components/ui/StatusBadge'
 
 interface NextHearing {
@@ -92,32 +93,34 @@ function HearingCountdown({ date }: { date: string }) {
 
 export default function Dashboard() {
   const { user } = useAuthStore()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [cases, setCases] = useState<RecentCase[]>([])
-  const [audit, setAudit] = useState<AuditEntry[]>([])
-  const [nextHearing, setNextHearing] = useState<NextHearing | null | undefined>(undefined)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [statsRes, casesRes, auditRes, lawyerRes] = await Promise.allSettled([
-          api.get<Stats>('/dashboard/stats'),
-          api.get('/cases', { params: { size: 5 } }),
-          api.get('/audit', { params: { size: 4 } }),
-          api.get('/dashboard/lawyer'),
-        ])
-        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
-        if (casesRes.status === 'fulfilled') setCases(casesRes.value.data.content ?? [])
-        if (auditRes.status === 'fulfilled') setAudit(auditRes.value.data.content ?? [])
-        if (lawyerRes.status === 'fulfilled') setNextHearing(lawyerRes.value.data?.nextHearing ?? null)
-        else setNextHearing(null)
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  // Four independent queries — each tolerates its own failure (mirrors the old
+  // Promise.allSettled behaviour), so one endpoint being down never blanks the page.
+  const statsQuery = useQuery({
+    queryKey: queryKeys.dashboardStats(),
+    queryFn: async () => (await api.get<Stats>('/dashboard/stats')).data,
+  })
+  const casesQuery = useQuery({
+    queryKey: [...queryKeys.cases(), 'recent'],
+    queryFn: async () => (await api.get('/cases', { params: { size: 5 } })).data.content ?? [],
+  })
+  const auditQuery = useQuery({
+    queryKey: [...queryKeys.audit(), 'recent'],
+    queryFn: async () => (await api.get('/audit', { params: { size: 4 } })).data.content ?? [],
+  })
+  const lawyerQuery = useQuery({
+    queryKey: queryKeys.dashboardLawyer(),
+    queryFn: async () => (await api.get('/dashboard/lawyer')).data,
+  })
+
+  const stats: Stats | null = statsQuery.data ?? null
+  const cases: RecentCase[] = casesQuery.data ?? []
+  const audit: AuditEntry[] = auditQuery.data ?? []
+  const nextHearing: NextHearing | null | undefined =
+    lawyerQuery.isSuccess ? (lawyerQuery.data?.nextHearing ?? null)
+    : lawyerQuery.isError ? null : undefined
+  // Show the page once the primary (stats) query settles; secondary panels fill in as they resolve.
+  const loading = statsQuery.isLoading
 
   return (
     <div className="space-y-6 animate-fade-in">

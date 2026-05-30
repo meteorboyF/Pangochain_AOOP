@@ -95,9 +95,14 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - IMPORTANT GOTCHA fixed: Spring Security can't order a custom filter relative to another custom filter ("does not have a registered order") — both must anchor on a registered type (UsernamePasswordAuthenticationFilter), insertion order decides precedence.
 - Fallback point if regression: prior good = ef2c9a4.
 
+## Feature — React Query migration (IN PROGRESS)
+- QueryClient defaults tuned (staleTime 30s, gcTime 5m, retry 2 w/ backoff, no focus refetch); added `lib/queryKeys.ts` taxonomy.
+- Converted: **Cases** (useQuery + debounced search in queryKey + placeholderData), **Dashboard** (4 independent useQuery, each tolerates own failure like old allSettled). Both tested pages' render helpers wrapped in QueryClientProvider (retry off). 69 frontend tests green, type-check clean.
+- REMAINING pages still on useEffect+useState+api: Documents, ClientDocuments, AdminPanel, AuditTrail, HearingManager, LedgerExplorer, CaseDetail, RegulatorView, client/ClientPortal, client/ClientCase, Sidebar(unread). Convert incrementally; only Cases/CaseList + Dashboard/LawyerDashboard have tests to keep in sync.
+
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
-- React Query migration of pages; WebSocket-push for old 1:1 DM; IPFS streaming uploads + @Async Fabric executor.
+- WebSocket-push for old 1:1 DM; IPFS streaming uploads + @Async Fabric executor.
 
 ## Decisions locked (this session)
 - Realtime transport: **WebSocket/STOMP**. Chat crypto: **TLS + encrypted-at-rest** (documents stay E2E). Delegation: **per-case chain**. Tree merge: **visual-first**. Color palette: **keep existing tokens** (`#1d6464`/`#1E3A5F`). Tokens in sessionStorage approved.
