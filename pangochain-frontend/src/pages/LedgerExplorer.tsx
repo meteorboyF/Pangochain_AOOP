@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Activity, Search, Filter, Loader2, AlertCircle,
   ExternalLink, Hash, Clock, User, Shield, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 
 interface AuditEntry {
   id: string
@@ -33,35 +35,27 @@ const EVENT_TYPES = [
 ]
 
 export default function LedgerExplorer() {
-  const [entries, setEntries] = useState<AuditEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [eventType, setEventType] = useState('')
   const [resourceId, setResourceId] = useState('')
   const [page, setPage] = useState(0)
-  const [totalPages, setTotalPages] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
 
-  useEffect(() => {
-    load()
-  }, [page, eventType])
-
-  async function load() {
-    setLoading(true)
-    try {
+  // page + eventType are reactive (in the key); the free-text resourceId filter is read
+  // from the closure and applied when the Filter button calls refetch().
+  const { data, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: [...queryKeys.ledger(), page, eventType],
+    queryFn: async () => {
       const params: Record<string, any> = { page, size: 20 }
       if (eventType) params.eventType = eventType
       if (resourceId.trim()) params.resourceId = resourceId.trim()
-      const { data } = await api.get('/audit', { params })
-      const content = data.content ?? data ?? []
-      setEntries(content)
-      setTotalPages(data.totalPages ?? 1)
-    } catch (e: any) {
-      setError(e.response?.data?.detail ?? 'Failed to load ledger')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return (await api.get('/audit', { params })).data
+    },
+    placeholderData: (prev) => prev,
+  })
+  const entries: AuditEntry[] = data?.content ?? data ?? []
+  const totalPages: number = data?.totalPages ?? 1
+  const error = isError ? 'Failed to load ledger' : ''
+  const load = () => refetch()
 
   return (
     <div className="space-y-6 animate-fade-in">
