@@ -17,7 +17,7 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 
 ## Test status
 - Backend: **38** JUnit (`./mvnw test`) — was 35; +3 `ChatCryptoServiceTest`.
-- Frontend: **67** Vitest (`npm test`) — was 55; +6 `ApiClient`, +6 `StatusBadge`.
+- Frontend: **70** Vitest (`npm test`) — was 55; +6 `ApiClient`, +6 `StatusBadge`, +3 `SecureDownloadModal` pipeline.
 - Chaincode: 14 Go (unverified here — Go toolchain not installed).
 - TypeScript: 0 errors (`npm run type-check`).
 
@@ -68,9 +68,12 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Frontend `pages/CaseJourney.tsx` at `/cases/:id/journey` (linked from CaseDetail "Journey"): depth-layered git-graph (SVG solid parent edges + dashed merge-into edges), type-colored node cards, click→detail panel (date/author/type/description/linked doc), add-node modal (type, branch-from, converges-into, details). Visual convergence per decision; operational merge deferred.
 - Verified live: ROOT auto-created, finding nodes add + render.
 
+## DONE — SecureDownloadModal redesign (Area 4-F)
+- Numbered stage circles (pending→active→done/error), per-stage technical detail + "Completed in Nms" timing, distinct decryption-failure vs **integrity-failure** banners (exact tamper-warning copy), success banner with filename+size, auto-download 500ms after verify. +3 pipeline tests.
+
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree; link findings to documents in the add-node UI.
-- first-login provisioning is DONE; flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; SecureDownloadModal stage-timing redesign; WebSocket-push for old 1:1 DM.
+- Flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
 
 ## Decisions locked (this session)
 - Realtime transport: **WebSocket/STOMP**. Chat crypto: **TLS + encrypted-at-rest** (documents stay E2E). Delegation: **per-case chain**. Tree merge: **visual-first**. Color palette: **keep existing tokens** (`#1d6464`/`#1E3A5F`). Tokens in sessionStorage approved.

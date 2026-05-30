@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { X, Download, Shield, Lock, Loader2, CheckCircle, AlertCircle, Key } from 'lucide-react'
-import { decryptDocument, eciesUnwrapKey, base64ToBytes, verifyIntegrity, loadWrappedPrivateKey, unwrapPrivateKey } from '../lib/crypto'
+import { X, Download, Shield, Lock, Loader2, CheckCircle, AlertTriangle, Key, Check } from 'lucide-react'
+import { eciesUnwrapKey, base64ToBytes, verifyIntegrity, loadWrappedPrivateKey, unwrapPrivateKey } from '../lib/crypto'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -13,105 +13,147 @@ interface Props {
 }
 
 type Stage = 'idle' | 'fetching' | 'unwrapping' | 'decrypting' | 'verifying' | 'done' | 'error'
+type ErrorKind = 'password' | 'decrypt' | 'integrity' | 'generic'
+
+const ORDER: Stage[] = ['fetching', 'unwrapping', 'decrypting', 'verifying']
+
+const STAGE_META: Record<string, { label: string; detail: string }> = {
+  fetching:   { label: 'Fetch from IPFS',     detail: 'Fetching encrypted ciphertext from IPFS' },
+  unwrapping: { label: 'Unwrap key (ECIES)',  detail: 'Unwrapping AES-256 key with your ECDH P-256 private key' },
+  decrypting: { label: 'Decrypt (AES-GCM)',   detail: 'Decrypting with AES-256-GCM' },
+  verifying:  { label: 'Verify integrity',    detail: 'Verifying SHA-256 integrity against blockchain record' },
+}
+
+const INTEGRITY_MSG =
+  '⚠ Integrity check failed. The downloaded file does not match the blockchain record. ' +
+  'This document may have been tampered with. Do NOT use this document. Contact your IT administrator.'
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
 
 export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: Props) {
   const { user } = useAuthStore()
   const [stage, setStage] = useState<Stage>('idle')
+  const [durations, setDurations] = useState<Record<string, number>>({})
+  const [errorKind, setErrorKind] = useState<ErrorKind>('generic')
+  const [errorStage, setErrorStage] = useState<Stage | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [fileSize, setFileSize] = useState<number | null>(null)
   const [password, setPassword] = useState('')
-  const [needsPassword, setNeedsPassword] = useState(true)
+
+  const isDemo = user?.id === 'demo-user-001'
+
+  const fail = (kind: ErrorKind, atStage: Stage, msg: string) => {
+    setErrorKind(kind); setErrorStage(atStage); setErrorMsg(msg); setStage('error')
+  }
+
+  const triggerDownload = (data: BlobPart) => {
+    const blob = new Blob([data])
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(`${fileName} verified and downloaded`)
+  }
 
   const handleDownload = async () => {
-    setStage('fetching')
-    setErrorMsg('')
+    setStage('fetching'); setDurations({}); setErrorMsg('')
+
+    // Demo mode — simulate the pipeline with realistic per-stage timings.
+    if (isDemo) {
+      for (const s of ORDER) {
+        setStage(s)
+        const start = performance.now()
+        await new Promise((r) => setTimeout(r, 350))
+        setDurations((d) => ({ ...d, [s]: Math.round(performance.now() - start) }))
+      }
+      setFileSize(13)
+      setStage('done')
+      setTimeout(() => triggerDownload('Hello World'), 500)
+      return
+    }
 
     try {
-      const isDemoMode = user?.id === 'demo-user-001'
-
-      // Demo: simulate the full flow without backend
-      if (isDemoMode) {
-        setStage('unwrapping')
-        await new Promise((r) => setTimeout(r, 400))
-        setStage('decrypting')
-        await new Promise((r) => setTimeout(r, 600))
-        setStage('verifying')
-        await new Promise((r) => setTimeout(r, 400))
-        setStage('done')
-        // Trigger a fake download
-        const a = document.createElement('a')
-        a.href = 'data:application/octet-stream;base64,SGVsbG8gV29ybGQ='
-        a.download = fileName
-        a.click()
-        toast.success(`${fileName} decrypted and downloaded`)
-        return
-      }
-
-      // Stage 1: Fetch ciphertext + wrapped key from backend
+      // Stage 1 — fetch ciphertext + wrapped key
+      let start = performance.now()
       const [ciphertextRes, wrappedKeyRes] = await Promise.all([
         api.get(`/documents/${docId}/ciphertext`, { responseType: 'arraybuffer' }),
         api.get(`/documents/${docId}/wrapped-key`),
       ])
+      setDurations((d) => ({ ...d, fetching: Math.round(performance.now() - start) }))
       const ciphertextBytes: ArrayBuffer = ciphertextRes.data
       const wrappedKeyToken: string = wrappedKeyRes.data
 
-      // Stage 2: Unwrap the AES doc key using ECDH private key
-      setStage('unwrapping')
+      // Stage 2 — unwrap AES key with ECDH private key
+      setStage('unwrapping'); start = performance.now()
       const storedKey = loadWrappedPrivateKey(user!.id)
-      if (!storedKey) throw new Error('Private key not found — re-login required')
+      if (!storedKey) { fail('password', 'unwrapping', 'No private key on this device. Log in again to provision your keys.'); return }
+      let privateKey: CryptoKey
+      try {
+        privateKey = await unwrapPrivateKey(password, storedKey.saltB64, storedKey.ivB64, storedKey.encryptedB64)
+      } catch {
+        fail('password', 'unwrapping', 'Incorrect password. Your private key could not be unlocked.'); return
+      }
+      let docKeyB64: string
+      try {
+        docKeyB64 = await eciesUnwrapKey(privateKey, wrappedKeyToken)
+      } catch {
+        fail('decrypt', 'unwrapping', 'Could not unwrap the document key — you may not have access, or the key is corrupted.'); return
+      }
+      setDurations((d) => ({ ...d, unwrapping: Math.round(performance.now() - start) }))
 
-      const privateKey = await unwrapPrivateKey(password, storedKey.saltB64, storedKey.ivB64, storedKey.encryptedB64)
-      const docKeyB64 = await eciesUnwrapKey(privateKey, wrappedKeyToken)
+      // Stage 3 — AES-256-GCM decrypt
+      setStage('decrypting'); start = performance.now()
+      let plaintext: ArrayBuffer
+      try {
+        const fullBytes = new Uint8Array(ciphertextBytes)
+        const iv = fullBytes.slice(0, 12)
+        const ciphertext = fullBytes.slice(12)
+        const docKey = base64ToBytes(docKeyB64)
+        const cryptoKey = await window.crypto.subtle.importKey(
+          'raw', docKey.buffer as ArrayBuffer, { name: 'AES-GCM', length: 256 }, false, ['decrypt'],
+        )
+        plaintext = await window.crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, cryptoKey, ciphertext.buffer as ArrayBuffer,
+        )
+      } catch {
+        fail('decrypt', 'decrypting', 'Decryption failed — wrong key or corrupted data.'); return
+      }
+      setDurations((d) => ({ ...d, decrypting: Math.round(performance.now() - start) }))
 
-      // Stage 3: Decrypt ciphertext with AES-256-GCM
-      setStage('decrypting')
-      // First 12 bytes are the IV (as per encryptDocument convention — server packs IV+ciphertext)
-      const fullBytes = new Uint8Array(ciphertextBytes)
-      const iv = fullBytes.slice(0, 12)
-      const ciphertext = fullBytes.slice(12)
-      const docKey = base64ToBytes(docKeyB64)
+      // Stage 4 — SHA-256 integrity vs blockchain record
+      setStage('verifying'); start = performance.now()
+      let hash = expectedHash
+      if (!hash) {
+        try { hash = (await api.get(`/documents/${docId}`)).data.documentHash } catch { /* fall through */ }
+      }
+      const valid = hash ? await verifyIntegrity(plaintext, hash) : true
+      setDurations((d) => ({ ...d, verifying: Math.round(performance.now() - start) }))
+      if (!valid) { fail('integrity', 'verifying', INTEGRITY_MSG); return }
 
-      const cryptoKey = await window.crypto.subtle.importKey(
-        'raw', docKey.buffer as ArrayBuffer, { name: 'AES-GCM', length: 256 }, false, ['decrypt'],
-      )
-      const plaintext = await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, cryptoKey, ciphertext.buffer as ArrayBuffer,
-      )
-
-      // Stage 4: Integrity verification
-      setStage('verifying')
-      const hashRes = await api.get(`/documents/${docId}`)
-      const expectedHash: string = hashRes.data.documentHash
-      const valid = await verifyIntegrity(plaintext, expectedHash)
-      if (!valid) throw new Error('Integrity check failed — document may have been tampered')
-
+      setFileSize(plaintext.byteLength)
       setStage('done')
-
-      // Trigger download
-      const blob = new Blob([plaintext])
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      a.click()
-      URL.revokeObjectURL(url)
-      toast.success(`${fileName} verified and downloaded`)
+      setTimeout(() => triggerDownload(plaintext), 500)
     } catch (err: any) {
-      setStage('error')
-      setErrorMsg(err.message ?? 'Download failed')
+      fail('generic', stage, err?.message ?? 'Download failed')
     }
   }
 
-  const stageInfo: Record<Stage, { label: string; detail: string }> = {
-    idle:       { label: 'Ready',                        detail: 'Enter your password to decrypt' },
-    fetching:   { label: 'Fetching ciphertext…',         detail: 'Retrieving encrypted file from IPFS' },
-    unwrapping: { label: 'Unwrapping document key…',     detail: 'ECDH P-256 key derivation' },
-    decrypting: { label: 'Decrypting…',                  detail: 'AES-256-GCM in browser (offline)' },
-    verifying:  { label: 'Verifying integrity…',         detail: 'SHA-256 hash against blockchain anchor' },
-    done:       { label: 'Download complete',            detail: 'Integrity verified ✓' },
-    error:      { label: 'Error',                        detail: errorMsg },
+  const isProcessing = ORDER.includes(stage)
+  const stageState = (s: Stage): 'done' | 'active' | 'error' | 'pending' => {
+    if (stage === 'error' && errorStage === s) return 'error'
+    if (stage === 'done') return 'done'
+    const idx = ORDER.indexOf(s)
+    const cur = ORDER.indexOf(stage)
+    if (cur === idx) return 'active'
+    if (cur > idx) return 'done'
+    return 'pending'
   }
-
-  const isProcessing = ['fetching', 'unwrapping', 'decrypting', 'verifying'].includes(stage)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -122,81 +164,92 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
             <Shield className="w-5 h-5 text-[#1d6464]" />
             <h2 className="font-heading font-semibold text-text-primary">Secure Download</h2>
           </div>
-          <button onClick={onClose} disabled={isProcessing} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
+          <button onClick={onClose} disabled={isProcessing} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors disabled:opacity-40">
             <X className="w-4 h-4 text-text-muted" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
-          {/* File name */}
+          {/* File */}
           <div className="bg-surface-muted rounded-xl px-4 py-3 flex items-center gap-3">
             <Lock className="w-4 h-4 text-[#1d6464] shrink-0" />
-            <div>
-              <p className="font-medium text-text-primary text-sm">{fileName}</p>
+            <div className="min-w-0">
+              <p className="font-medium text-text-primary text-sm truncate">{fileName}</p>
               <p className="text-text-muted text-xs">AES-256-GCM encrypted · IPFS stored</p>
             </div>
           </div>
 
-          {/* Password field (for ECIES unwrap) */}
-          {needsPassword && stage === 'idle' && user?.id !== 'demo-user-001' && (
+          {/* Password */}
+          {stage === 'idle' && !isDemo && (
             <div>
-              <label className="label flex items-center gap-1.5">
-                <Key className="w-3.5 h-3.5" /> Account Password
-              </label>
-              <input
-                type="password"
-                className="input"
-                placeholder="To decrypt your private key"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <label className="label flex items-center gap-1.5"><Key className="w-3.5 h-3.5" /> Account Password</label>
+              <input type="password" className="input" placeholder="To decrypt your private key"
+                value={password} onChange={(e) => setPassword(e.target.value)} />
               <p className="text-text-muted text-xs mt-1">Used only in-browser for PBKDF2 key derivation. Never sent to the server.</p>
             </div>
           )}
 
-          {/* Progress stages */}
-          <div className="space-y-2">
-            {(['fetching', 'unwrapping', 'decrypting', 'verifying'] as Stage[]).map((s) => {
-              const isActive = stage === s
-              const isDone = ['fetching', 'unwrapping', 'decrypting', 'verifying', 'done']
-                .indexOf(stage) > ['fetching', 'unwrapping', 'decrypting', 'verifying'].indexOf(s)
-              const stageLabels: Record<string, string> = {
-                fetching:   'Fetch from IPFS',
-                unwrapping: 'Unwrap key (ECIES)',
-                decrypting: 'Decrypt (AES-GCM)',
-                verifying:  'Verify integrity',
-              }
+          {/* Numbered stages */}
+          <div className="space-y-2.5">
+            {ORDER.map((s, i) => {
+              const st = stageState(s)
+              const meta = STAGE_META[s]
               return (
-                <div key={s} className={`flex items-center gap-2.5 text-sm transition-opacity ${
-                  isActive || isDone ? 'opacity-100' : 'opacity-30'
-                }`}>
-                  {isDone ? (
-                    <CheckCircle className="w-4 h-4 text-success shrink-0" />
-                  ) : isActive ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-[#1d6464] shrink-0" />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full border-2 border-border shrink-0" />
-                  )}
-                  <span className={isActive ? 'text-[#1d6464] font-medium' : isDone ? 'text-text-secondary' : 'text-text-muted'}>
-                    {stageLabels[s]}
-                  </span>
-                  {isActive && <span className="text-text-muted text-xs">— {stageInfo[s].detail}</span>}
+                <div key={s} className="flex items-start gap-3">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    st === 'done' ? 'bg-[#1d6464] text-white'
+                    : st === 'active' ? 'bg-[#1E3A5F] text-white'
+                    : st === 'error' ? 'bg-red-600 text-white'
+                    : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {st === 'done' ? <Check className="w-3.5 h-3.5" />
+                      : st === 'error' ? <X className="w-3.5 h-3.5" />
+                      : st === 'active' ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className={`text-sm font-medium ${st === 'pending' ? 'text-text-muted' : 'text-text-primary'}`}>{meta.label}</span>
+                      {durations[s] != null && st === 'done' && (
+                        <span className="text-[10px] text-[#1d6464] font-medium shrink-0">Completed in {durations[s]}ms</span>
+                      )}
+                    </div>
+                    {(st === 'active' || st === 'error') && (
+                      <p className={`text-xs mt-0.5 ${st === 'error' ? 'text-red-600' : 'text-text-muted'}`}>{meta.detail}</p>
+                    )}
+                  </div>
                 </div>
               )
             })}
           </div>
 
-          {stage === 'error' && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3 text-sm text-error">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              {errorMsg}
+          {/* Integrity failure — serious security event */}
+          {stage === 'error' && errorKind === 'integrity' && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 mb-1 text-red-700 font-bold text-sm">
+                <AlertTriangle className="w-4 h-4" /> Integrity check failed
+              </div>
+              <p className="text-xs text-red-700 leading-relaxed">{INTEGRITY_MSG}</p>
             </div>
           )}
 
+          {/* Other failures */}
+          {stage === 'error' && errorKind !== 'integrity' && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3 text-sm text-red-600">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Success */}
           {stage === 'done' && (
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-3 text-sm text-success font-medium">
-              <CheckCircle className="w-4 h-4 shrink-0" />
-              Download complete — integrity verified against blockchain
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 text-success font-medium text-sm">
+                <CheckCircle className="w-4 h-4 shrink-0" /> Document verified and ready
+              </div>
+              <p className="text-xs text-text-muted mt-1">
+                {fileName}{fileSize != null && ` · ${formatBytes(fileSize)}`} — download starting…
+              </p>
             </div>
           )}
         </div>
@@ -207,14 +260,14 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
             {stage === 'done' ? 'Close' : 'Cancel'}
           </button>
           {stage !== 'done' && (
-            <button
-              onClick={handleDownload}
-              disabled={isProcessing || (user?.id !== 'demo-user-001' && !password)}
-              className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50"
-            >
+            <button onClick={handleDownload}
+              disabled={isProcessing || (!isDemo && !password)}
+              className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
               {isProcessing
                 ? <><Loader2 className="w-4 h-4 animate-spin" /> Decrypting…</>
-                : <><Download className="w-4 h-4" /> Decrypt & Download</>}
+                : stage === 'error'
+                  ? <><Download className="w-4 h-4" /> Retry</>
+                  : <><Download className="w-4 h-4" /> Decrypt & Download</>}
             </button>
           )}
         </div>
