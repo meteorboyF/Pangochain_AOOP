@@ -26,7 +26,10 @@ const HEARING_TYPES = [
 ]
 
 export default function HearingManager() {
-  const queryClient = useQueryClient()
+  const [hearings, setHearings] = useState<Hearing[]>([])
+  const [cases, setCases] = useState<CaseDto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 

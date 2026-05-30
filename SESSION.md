@@ -98,8 +98,7 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 ## Feature — React Query migration (IN PROGRESS)
 - QueryClient defaults tuned (staleTime 30s, gcTime 5m, retry 2 w/ backoff, no focus refetch); added `lib/queryKeys.ts` taxonomy.
 - Converted: **Cases**, **Dashboard** (4 independent useQuery, tolerant), **Documents** (useQuery + refetch on upload), **ClientDocuments** (useQuery + refetch on upload), **AdminPanel** (useQuery + useMutation activate/suspend with invalidateQueries), **AuditTrail** (useQuery + debounced search + pagination in key). Both tested pages' render helpers wrapped in QueryClientProvider (retry off). 69 frontend tests green, type-check clean.
-- Also converted: **HearingManager** (hearings+cases useQuery, invalidate on create/remind), **LedgerExplorer** (useQuery, page in key, filters applied on page-change/button via refetch).
-- REMAINING on useEffect+useState+api (lower priority): CaseDetail (complex, many sub-loads), RegulatorView, client/ClientPortal, client/ClientCase, Sidebar(unread — would need Navigation.test rewrite). Intentionally NOT converting auth/form pages (Login, MfaSetup, NewCase, Profile) — they're submit flows, not cached reads. Only Cases/CaseList + Dashboard/LawyerDashboard have tests.
+- REMAINING pages still on useEffect+useState+api: HearingManager, LedgerExplorer, CaseDetail, RegulatorView, client/ClientPortal, client/ClientCase, Sidebar(unread), MfaSetup, NewCase, Profile, Login (auth flows — leave as-is). Convert incrementally; only Cases/CaseList + Dashboard/LawyerDashboard have tests to keep in sync.
 
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
