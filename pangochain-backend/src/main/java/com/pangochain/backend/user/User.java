@@ -36,7 +36,11 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private UserRole role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER: the authenticated principal is loaded once per request in the JWT filter and
+    // its firm (name/id/mspId) is needed across many controllers. With open-in-view=false the
+    // session is closed before controllers run, so a LAZY firm would throw
+    // LazyInitializationException. The firm row is tiny, so eager loading is cheap and correct.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "firm_id")
     private Firm firm;
 

@@ -77,9 +77,19 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 ## DONE — Skeleton loaders rollout
 - `Skeleton` helpers `CardGridSkeleton` + `ListSkeleton` added; wired into Cases (card grid), Documents and ClientDocuments (list rows), replacing page-load spinners. CaseList.test loading assertion updated from `.animate-spin` → `.animate-pulse`. Removed now-unused `Loader2` imports. 69 frontend tests green, type-check clean.
 
+## DONE — open-in-view: false (production DB-connection correctness)
+- Flipped `spring.jpa.open-in-view` to **false** so a Hikari connection is no longer pinned for the whole request (critical with multi-second Fabric calls).
+- Fetch-boundary fixes so no lazy access happens outside a transaction:
+  - `User.firm` → **EAGER** (principal loaded once/request in JWT filter; used across many controllers + AdminController UserSummary).
+  - `HearingRepository.findByLegalCaseId*` + `findUpcomingByFirm` → `JOIN FETCH legalCase + createdBy` (HearingDto.from).
+  - `CaseEventRepository` timeline → `LEFT JOIN FETCH actor`.
+  - `ReminderRepository.findByRecipientId*` → `JOIN FETCH sender + legalCase` (ReminderDto.from).
+- Verified live under open-in-view=false: dashboard/stats, dashboard/lawyer, hearings/upcoming, hearings/by-case, cases (list/my-cases/detail/members), reminders (+unread), case-events/by-case timeline, chat/conversations, client reminders + dashboard/client — all 200, **zero LazyInitializationException** in logs. Backend 38 tests green.
+- Dead code left as-is: `findUpcomingForClient` (native, no callers), `findFirstByLegalCaseIdAndHearingDateAfter...` (no callers).
+
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
-- Flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
+- Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
 
 ## Decisions locked (this session)
 - Realtime transport: **WebSocket/STOMP**. Chat crypto: **TLS + encrypted-at-rest** (documents stay E2E). Delegation: **per-case chain**. Tree merge: **visual-first**. Color palette: **keep existing tokens** (`#1d6464`/`#1E3A5F`). Tokens in sessionStorage approved.

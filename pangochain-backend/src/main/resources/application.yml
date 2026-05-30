@@ -19,14 +19,12 @@ spring:
     hibernate:
       ddl-auto: validate
     show-sql: false
-    # NOTE: open-in-view is intentionally left enabled (true) for now. Flipping it to false
-    # is the correct production target — it stops a Hikari connection being pinned for the
-    # whole request across multi-second Fabric calls — BUT several controllers currently
-    # access LAZY associations (e.g. user.getFirm()) outside a transaction and rely on the
-    # open session to lazy-load them. Setting false without first adding @Transactional /
-    # JOIN FETCH / @EntityGraph boundaries throws LazyInitializationException (HTTP 500).
-    # Deferred to the backend N+1/fetch-boundary wave, where it must be flipped together.
-    open-in-view: true
+    # open-in-view=false: do NOT pin a Hikari connection for the whole HTTP request (which,
+    # with multi-second Fabric calls, would exhaust the pool under load). Lazy associations
+    # accessed outside a transaction are handled explicitly: User.firm is EAGER (loaded once
+    # per request in the JWT filter), and the hearing/case-event/reminder list queries use
+    # JOIN FETCH so their DTO mappers read already-initialized associations.
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
