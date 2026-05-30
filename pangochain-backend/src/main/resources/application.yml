@@ -89,6 +89,27 @@ management:
     health:
       show-details: when-authorized
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      fabric:
+        sliding-window-type: TIME_BASED
+        sliding-window-size: 10          # 10-second window
+        minimum-number-of-calls: 5       # need 5 calls before evaluating
+        failure-rate-threshold: 50       # >=50% failures opens the breaker
+        wait-duration-in-open-state: 30s # stay open 30s, then HALF_OPEN
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - com.pangochain.backend.blockchain.FabricException
+  retry:
+    instances:
+      fabric:
+        max-attempts: 3
+        wait-duration: 500ms
+        retry-exceptions:
+          - com.pangochain.backend.blockchain.FabricException
+
 logging:
   level:
     com.pangochain: INFO

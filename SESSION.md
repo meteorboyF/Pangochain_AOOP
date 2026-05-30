@@ -16,7 +16,7 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - **First-login key provisioning** auto-generates E2E keypairs on first browser login, so every account above is E2E-capable (chat, documents, signing).
 
 ## Test status
-- Backend: **38** JUnit (`./mvnw test`) — was 35; +3 `ChatCryptoServiceTest`.
+- Backend: **44** JUnit (`./mvnw test`) — was 35; +3 `ChatCryptoServiceTest`, +4 `RateLimitTest`, +2 `FabricCircuitBreakerTest`.
 - Frontend: **69** Vitest (`npm test`) — was 55; +6 `ApiClient`, +6 `StatusBadge`, +2 `SecureDownloadModal` pipeline.
 - Chaincode: 14 Go (unverified here — Go toolchain not installed).
 - TypeScript: 0 errors (`npm run type-check`).
@@ -87,9 +87,17 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Verified live under open-in-view=false: dashboard/stats, dashboard/lawyer, hearings/upcoming, hearings/by-case, cases (list/my-cases/detail/members), reminders (+unread), case-events/by-case timeline, chat/conversations, client reminders + dashboard/client — all 200, **zero LazyInitializationException** in logs. Backend 38 tests green.
 - Dead code left as-is: `findUpcomingForClient` (native, no callers), `findFirstByLegalCaseIdAndHearingDateAfter...` (no callers).
 
+## DONE — Resilience4j circuit breaker + rate limiting
+- Added deps: `spring-boot-starter-aop` + `resilience4j-spring-boot3:2.2.0`.
+- `@CircuitBreaker(name="fabric", fallback=...)` + `@Retry(name="fabric")` on `FabricGatewayService.submitTransaction` & `evaluateTransaction`; fallback methods always throw `FabricException` so existing service-layer DB/ACL fallback (ACL_FABRIC_FALLBACK) behaviour is unchanged — just fires fast when the breaker is OPEN. Config in application.yml: 10s window, 5 min calls, 50% failure rate → OPEN 30s → HALF_OPEN 3 trial calls; retry 3×/500ms on FabricException.
+- Rate limiting: hand-rolled in-memory token bucket (no Bucket4j dep). `RateLimitFilter` (added before UsernamePasswordAuthenticationFilter; auto-registration disabled via FilterRegistrationBean). Limits per IP: login 10/min, refresh 20/min, mfa 5/min → 429 + Retry-After + JSON body.
+- **Verified live:** 11th login from same IP → 429 Retry-After:6; circuit fallback log fires on Fabric submit while case creation still returns 200 via DB. Backend 44 tests (+4 RateLimitTest, +2 FabricCircuitBreakerTest).
+- IMPORTANT GOTCHA fixed: Spring Security can't order a custom filter relative to another custom filter ("does not have a registered order") — both must anchor on a registered type (UsernamePasswordAuthenticationFilter), insertion order decides precedence.
+- Fallback point if regression: prior good = ef2c9a4.
+
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
-- Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
+- React Query migration of pages; WebSocket-push for old 1:1 DM; IPFS streaming uploads + @Async Fabric executor.
 
 ## Decisions locked (this session)
 - Realtime transport: **WebSocket/STOMP**. Chat crypto: **TLS + encrypted-at-rest** (documents stay E2E). Delegation: **per-case chain**. Tree merge: **visual-first**. Color palette: **keep existing tokens** (`#1d6464`/`#1E3A5F`). Tokens in sessionStorage approved.

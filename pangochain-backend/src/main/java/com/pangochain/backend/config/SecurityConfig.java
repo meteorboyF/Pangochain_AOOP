@@ -1,6 +1,7 @@
 package com.pangochain.backend.config;
 
 import com.pangochain.backend.auth.JwtAuthenticationFilter;
+import com.pangochain.backend.config.ratelimit.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -26,6 +27,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -63,8 +65,25 @@ public class SecurityConfig {
                         .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                // Both custom filters are anchored before UsernamePasswordAuthenticationFilter
+                // (a registered filter type). Spring Security preserves insertion order, so the
+                // rate limiter is added first and therefore runs before the JWT filter — shedding
+                // abusive auth traffic before any authentication work.
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * Prevent Boot from also auto-registering the @Component RateLimitFilter in the plain
+     * servlet chain — it must run only once, inside the Spring Security filter chain.
+     */
+    @Bean
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<RateLimitFilter>
+            rateLimitFilterRegistration(RateLimitFilter filter) {
+        var reg = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(filter);
+        reg.setEnabled(false);
+        return reg;
     }
 
     @Bean

@@ -1,6 +1,8 @@
 package com.pangochain.backend.blockchain;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -67,6 +69,8 @@ public class FabricGatewayService {
      * so callers can store it as an immutable ledger reference.
      * Uses the two-step endorse/submit API to capture getTransactionId().
      */
+    @CircuitBreaker(name = "fabric", fallbackMethod = "submitFallback")
+    @Retry(name = "fabric")
     public String submitTransaction(String functionName, String... args) throws FabricException {
         try {
             Transaction tx = contract.newProposal(functionName)
@@ -81,6 +85,19 @@ public class FabricGatewayService {
             log.error("Submit transaction '{}' failed: {}", functionName, e.getMessage());
             throw new FabricException("Blockchain submit failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Circuit-breaker fallback for {@link #submitTransaction}. Fires immediately when the
+     * breaker is OPEN (Fabric outage) instead of waiting for each call to time out. Always
+     * throws FabricException so existing service-layer catch blocks run their DB/ACL fallback
+     * and emit ACL_FABRIC_FALLBACK as before — behaviour is identical, just faster.
+     */
+    @SuppressWarnings("unused")
+    private String submitFallback(String functionName, String[] args, Throwable t) throws FabricException {
+        log.warn("Fabric submit circuit fallback for '{}': {}", functionName, t.getMessage());
+        if (t instanceof FabricException fe) throw fe;
+        throw new FabricException("Blockchain unavailable (circuit open): " + t.getMessage(), t);
     }
 
     /**
@@ -103,6 +120,8 @@ public class FabricGatewayService {
     /**
      * Evaluates a read-only transaction and returns the JSON string payload.
      */
+    @CircuitBreaker(name = "fabric", fallbackMethod = "evaluateFallback")
+    @Retry(name = "fabric")
     public String evaluateTransaction(String functionName, String... args) throws FabricException {
         try {
             byte[] result = contract.evaluateTransaction(functionName, args);
@@ -111,6 +130,13 @@ public class FabricGatewayService {
             log.error("Evaluate transaction '{}' failed: {}", functionName, e.getMessage());
             throw new FabricException("Blockchain query failed: " + e.getMessage(), e);
         }
+    }
+
+    @SuppressWarnings("unused")
+    private String evaluateFallback(String functionName, String[] args, Throwable t) throws FabricException {
+        log.warn("Fabric evaluate circuit fallback for '{}': {}", functionName, t.getMessage());
+        if (t instanceof FabricException fe) throw fe;
+        throw new FabricException("Blockchain unavailable (circuit open): " + t.getMessage(), t);
     }
 
     /**

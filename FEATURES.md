@@ -42,6 +42,8 @@ case team (lawyer + Associates A–D + paralegal + client on Chen v. Meridian), 
 | **HTTP security headers** | CSP, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` on every response. |
 | **Performance indexes** | Liquibase `005-performance-indexes.sql` — `audit_log(event_type)`, `documents(category)`, `case_clients(client_id)`, `messages(sender_id)`, `messages(recipient_id, read_at)`, `hearings(case_id, hearing_date)`. |
 | **Resilient API client** | Single-flight token refresh (concurrent 401s → one `/auth/refresh`); 30s timeout; distinct toasts for network-down vs timeout; 403 redirect; 503 deferred to page-level Fabric banner. |
+| **Fabric circuit breaker** | Resilience4j `@CircuitBreaker` + `@Retry` on Fabric submit/evaluate. Opens after ≥50% failures in a 10s window (min 5 calls), stays open 30s, then 3 half-open trial calls. While open, the DB/ACL fallback (`ACL_FABRIC_FALLBACK`) fires immediately instead of waiting for each call to time out. |
+| **Rate limiting** | Per-IP in-memory token buckets on auth endpoints: login 10/min, refresh 20/min, MFA 5/min → `429` + `Retry-After`. |
 | **Auth store hydration** | `hasHydrated` flag gates route redirects (no login-page flash on reload); tokens persisted to **sessionStorage** (PBKDF2-wrapped keys stay in localStorage by design); specific selectors replace whole-store subscriptions. |
 | **Shared UI primitives** | `Skeleton` (+ Stat/TableRow/CaseCard/Page variants) and canonical `StatusBadge` component. |
 
