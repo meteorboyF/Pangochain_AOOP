@@ -1,12 +1,10 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect, useCallback } from 'react'
 import {
   FileText, Upload, Download, Lock, Shield, AlertCircle,
   Loader2, Eye, Trash2, CheckCircle, AlertTriangle, Search, Filter,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
-import { queryKeys } from '../../lib/queryKeys'
 import { encryptDocument, eciesWrapKey, bytesToBase64 } from '../../lib/crypto'
 import { SecureDownloadModal } from '../../components/SecureDownloadModal'
 import { ListSkeleton } from '../../components/ui/Skeleton'
@@ -37,6 +35,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ClientDocuments() {
   const { user } = useAuthStore()
+  const [documents, setDocuments] = useState<DocumentDto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState('ALL')
   const [search, setSearch] = useState('')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
@@ -50,15 +51,22 @@ export default function ClientDocuments() {
   const [uploadConfidential, setUploadConfidential] = useState(false)
   const [uploadNote, setUploadNote] = useState('')
 
-  const { data: documents = [], isLoading: loading, isError, refetch } = useQuery({
-    queryKey: queryKeys.myDocuments(),
-    queryFn: async () => {
+  useEffect(() => { loadDocs() }, [])
+
+  async function loadDocs() {
+    try {
       const { data } = await api.get('/documents')
-      // /documents returns a Spring Data Page ({ content: [...] }); tolerate a bare array too.
-      return (Array.isArray(data) ? data : data?.content ?? []) as DocumentDto[]
-    },
-  })
-  const error = isError ? 'Failed to load documents' : ''
+      // /documents returns a Spring Data Page ({ content: [...] }); older callers
+      // expected a bare array. Handle both so the list never receives a non-array
+      // (which would throw on .filter and blank the page).
+      const list: DocumentDto[] = Array.isArray(data) ? data : data?.content ?? []
+      setDocuments(list)
+    } catch (e: any) {
+      setError(e.response?.data?.detail ?? e.message ?? 'Failed to load documents')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleUpload = async () => {
     if (!uploadFile || !user) return
@@ -92,7 +100,7 @@ export default function ClientDocuments() {
       setUploadModalOpen(false)
       setUploadFile(null)
       setUploadNote('')
-      refetch()
+      loadDocs()
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? e.message ?? 'Upload failed')
     } finally {

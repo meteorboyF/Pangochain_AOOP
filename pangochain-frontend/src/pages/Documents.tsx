@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect, useCallback } from 'react'
 import { FileText, Search, Download, Shield, Clock, Eye, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
-import { queryKeys } from '../lib/queryKeys'
 
 type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
 
@@ -39,29 +37,33 @@ function fileIcon(name: string) {
 export default function Documents() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<DocCategory>('ALL')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState<Page<DocumentDto> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [showUpload, setShowUpload] = useState(false)
   const [downloadTarget, setDownloadTarget] = useState<DocumentDto | null>(null)
 
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
-    return () => clearTimeout(t)
-  }, [search])
-
-  const { data: page, isLoading, isError, refetch } = useQuery({
-    queryKey: [...queryKeys.documents('all', category === 'ALL' ? undefined : category), debouncedSearch],
-    queryFn: async () => {
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
       const params: Record<string, string> = { page: '0', size: '50' }
-      if (debouncedSearch) params.q = debouncedSearch
+      if (search.trim()) params.q = search.trim()
       if (category !== 'ALL') params.category = category
       const { data } = await api.get<Page<DocumentDto>>('/documents', { params })
-      return data
-    },
-    placeholderData: (prev) => prev,
-  })
+      setPage(data)
+    } catch (err: any) {
+      setError(err.response?.data?.detail ?? 'Failed to load documents')
+    } finally {
+      setLoading(false)
+    }
+  }, [search, category])
 
-  const loading = isLoading
-  const error = isError ? 'Failed to load documents' : ''
+  useEffect(() => {
+    const t = setTimeout(load, search ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [load])
+
   const docs = page?.content ?? []
 
   return (
@@ -208,7 +210,7 @@ export default function Documents() {
         <DocumentUploadDropzone
           caseId=""
           onClose={() => setShowUpload(false)}
-          onUploaded={() => { setShowUpload(false); refetch() }}
+          onUploaded={() => { setShowUpload(false); load() }}
         />
       )}
       {downloadTarget && (

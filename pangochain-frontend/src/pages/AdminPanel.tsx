@@ -1,7 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { Users, CheckCircle, Ban, Loader2, AlertCircle, Shield } from 'lucide-react'
 import api from '../lib/api'
-import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/StatusBadge'
 
