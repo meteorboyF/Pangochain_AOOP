@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FolderOpen, Plus, Search, Clock, FileText, Filter, Loader2, AlertCircle } from 'lucide-react'
+import { FolderOpen, Plus, Search, Clock, FileText, Filter, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { CardGridSkeleton } from '../components/ui/Skeleton'
 
 interface CaseDto {
   id: string
@@ -99,11 +100,7 @@ export default function Cases() {
       </div>
 
       {/* States */}
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
-        </div>
-      )}
+      {loading && <CardGridSkeleton />}
 
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">

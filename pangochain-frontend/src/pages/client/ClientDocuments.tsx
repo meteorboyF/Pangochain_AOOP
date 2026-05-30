@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
 import { encryptDocument, eciesWrapKey, bytesToBase64 } from '../../lib/crypto'
 import { SecureDownloadModal } from '../../components/SecureDownloadModal'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
 
 interface DocumentDto {
@@ -156,7 +157,7 @@ export default function ClientDocuments() {
         />
       </div>
 
-      {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
+      {loading && <ListSkeleton />}
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
           <AlertCircle className="w-4 h-4" /> {error}

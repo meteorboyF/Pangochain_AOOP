@@ -23,6 +23,28 @@ export function CaseCardSkeleton() {
   return <Skeleton className="h-20 w-full rounded-lg" />
 }
 
+/** A responsive grid of card skeletons — matches the Cases page card grid. */
+export function CardGridSkeleton({ count = 6 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-40 w-full rounded-xl" />
+      ))}
+    </div>
+  )
+}
+
+/** A stack of list-row skeletons — matches document/list pages. */
+export function ListSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} className="h-16 w-full rounded-xl" />
+      ))}
+    </div>
+  )
+}
+
 /**
  * Generic page skeleton: a header line plus a grid of card placeholders.
  * Drop into `if (isLoading) return <PageSkeleton />` on list pages.

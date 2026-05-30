@@ -70,10 +70,8 @@ describe('Cases page', () => {
     // api.get resolves after render — loading indicator shows first
     mockGet.mockImplementation(() => new Promise(() => {})) // never resolves
     renderCases()
-    // Loading spinner or loading text
-    expect(document.querySelector('.animate-spin, [data-testid="loading"]') ||
-           screen.queryByText(/loading/i) ||
-           document.querySelector('svg.animate-spin')).toBeTruthy()
+    // Skeleton loader (animate-pulse) communicates the page shape while loading.
+    expect(document.querySelector('.animate-pulse')).toBeTruthy()
   })
 
   it('renders list of cases from API response', async () => {

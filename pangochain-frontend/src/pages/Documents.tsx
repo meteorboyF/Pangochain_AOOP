@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { FileText, Search, Download, Shield, Clock, Eye, Filter, Loader2, AlertCircle, Plus } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, Eye, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
+import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 
 type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
@@ -114,11 +115,7 @@ export default function Documents() {
       </div>
 
       {/* States */}
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
-        </div>
-      )}
+      {loading && <ListSkeleton />}
 
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">

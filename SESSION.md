@@ -74,9 +74,11 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 ## DONE — StatusBadge rollout
 - `StatusBadge` is now used for status chips in Cases, Dashboard (recent cases), and AdminPanel (user status); removed each page's inline `STATUS_COLORS` map. Added a `PENDING_APPROVAL` variant. AuditTrail left as-is (event-type taxonomy, not status). 69 frontend tests still green.
 
+## DONE — Skeleton loaders rollout
+- `Skeleton` helpers `CardGridSkeleton` + `ListSkeleton` added; wired into Cases (card grid), Documents and ClientDocuments (list rows), replacing page-load spinners. CaseList.test loading assertion updated from `.animate-spin` → `.animate-pulse`. Removed now-unused `Loader2` imports. 69 frontend tests green, type-check clean.
+
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
-- Skeleton loaders rollout into list pages (CaseList.test asserts `.animate-spin`, so update that test if Cases switches from spinner to skeleton).
 - Flip `open-in-view:false` with fetch-boundary audit; Resilience4j circuit breaker + Bucket4j rate limiting (needs dep approval); React Query migration of pages; WebSocket-push for old 1:1 DM.
 
 ## Decisions locked (this session)
