@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Activity, Search, Shield, ExternalLink, Filter, Loader2, AlertCircle } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 
 interface AuditLog {
   id: number
@@ -44,31 +46,26 @@ const EVENT_TYPES = ['ALL', 'DOC_REGISTERED', 'ACCESS_GRANTED', 'ACCESS_REVOKED'
 export default function AuditTrail() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
-  const [page, setPage] = useState<Page<AuditLog> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [currentPage, setCurrentPage] = useState(0)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params: Record<string, string> = { page: String(currentPage), size: '25' }
-      if (typeFilter !== 'ALL') params.eventType = typeFilter
-      if (search.trim()) params.resourceId = search.trim()
-      const { data } = await api.get<Page<AuditLog>>('/audit', { params })
-      setPage(data)
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Failed to load audit log')
-    } finally {
-      setLoading(false)
-    }
-  }, [typeFilter, search, currentPage])
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   useEffect(() => {
-    const t = setTimeout(load, search ? 300 : 0)
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [load, search])
+  }, [search])
+
+  const { data: page, isLoading: loading, isError } = useQuery({
+    queryKey: queryKeys.audit({ typeFilter, resourceId: debouncedSearch, currentPage }),
+    queryFn: async () => {
+      const params: Record<string, string> = { page: String(currentPage), size: '25' }
+      if (typeFilter !== 'ALL') params.eventType = typeFilter
+      if (debouncedSearch) params.resourceId = debouncedSearch
+      const { data } = await api.get<Page<AuditLog>>('/audit', { params })
+      return data
+    },
+    placeholderData: (prev) => prev,
+  })
+  const error = isError ? 'Failed to load audit log' : ''
 
   const entries = page?.content ?? []
 
