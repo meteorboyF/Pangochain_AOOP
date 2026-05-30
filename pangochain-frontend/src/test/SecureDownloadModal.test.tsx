@@ -118,4 +118,42 @@ describe('SecureDownloadModal', () => {
     const btn = screen.getByRole('button', { name: /Decrypt & Download/i })
     expect(btn).toBeDisabled()
   })
+
+  it('on decryption failure: shows a decryption-specific message (not integrity)', async () => {
+    vi.mocked(verifyIntegrity).mockResolvedValue(true)
+    mockGet.mockImplementation((url: string) =>
+      url.includes('/ciphertext') ? Promise.resolve({ data: new ArrayBuffer(16) })
+        : url.includes('/wrapped-key') ? Promise.resolve({ data: 'tok' })
+        : Promise.resolve({ data: { documentHash: 'h' } }))
+    vi.spyOn(window.crypto.subtle, 'importKey').mockResolvedValue({} as CryptoKey)
+    vi.spyOn(window.crypto.subtle, 'decrypt').mockRejectedValue(new Error('bad key'))
+
+    renderModal()
+    fireEvent.change(document.querySelector('input[type="password"]') as HTMLInputElement, { target: { value: 'pw' } })
+    fireEvent.click(screen.getByText(/Decrypt & Download/i))
+
+    await waitFor(() => expect(screen.getByText(/Decryption failed — wrong key or corrupted data/i)).toBeTruthy())
+    expect(screen.queryByText('Integrity check failed')).toBeNull()
+  })
+
+  it('on success: shows per-stage duration and auto-downloads', async () => {
+    vi.mocked(verifyIntegrity).mockResolvedValue(true)
+    mockGet.mockImplementation((url: string) =>
+      url.includes('/ciphertext') ? Promise.resolve({ data: new ArrayBuffer(16) })
+        : url.includes('/wrapped-key') ? Promise.resolve({ data: 'tok' })
+        : Promise.resolve({ data: { documentHash: 'h' } }))
+    vi.spyOn(window.crypto.subtle, 'importKey').mockResolvedValue({} as CryptoKey)
+    vi.spyOn(window.crypto.subtle, 'decrypt').mockResolvedValue(new TextEncoder().encode('hello world').buffer)
+    ;(window.URL as any).createObjectURL = vi.fn(() => 'blob:x')
+    ;(window.URL as any).revokeObjectURL = vi.fn()
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+
+    renderModal()
+    fireEvent.change(document.querySelector('input[type="password"]') as HTMLInputElement, { target: { value: 'pw' } })
+    fireEvent.click(screen.getByText(/Decrypt & Download/i))
+
+    await waitFor(() => expect(screen.getByText('Document verified and ready')).toBeTruthy())
+    expect(screen.getAllByText(/Completed in \d+ms/i).length).toBeGreaterThan(0)
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled(), { timeout: 2000 })
+  })
 })

@@ -20,6 +20,7 @@ interface Node {
   nodeDate: string
   createdAt: string
 }
+interface Doc { id: string; fileName: string }
 
 const TYPE_STYLE: Record<string, { dot: string; chip: string }> = {
   ROOT:     { dot: '#1E3A5F', chip: 'bg-[#1E3A5F]/10 text-[#1E3A5F]' },
@@ -37,6 +38,7 @@ const NW = 210, NH = 76, GAP_X = 36, ROW = 150, PAD = 24
 export default function CaseJourney() {
   const { id: caseId } = useParams<{ id: string }>()
   const [nodes, setNodes] = useState<Node[]>([])
+  const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Node | null>(null)
@@ -48,6 +50,7 @@ export default function CaseJourney() {
   const [description, setDescription] = useState('')
   const [parentId, setParentId] = useState('')
   const [mergeIntoId, setMergeIntoId] = useState('')
+  const [linkedDocId, setLinkedDocId] = useState('')
   const [saving, setSaving] = useState(false)
 
   const load = () => {
@@ -58,6 +61,13 @@ export default function CaseJourney() {
       .finally(() => setLoading(false))
   }
   useEffect(load, [caseId])
+
+  useEffect(() => {
+    if (!caseId) return
+    api.get<Doc[]>(`/documents/by-case/${caseId}`).then((r) => setDocs(r.data)).catch(() => setDocs([]))
+  }, [caseId])
+
+  const docName = (id: string | null) => (id ? docs.find((d) => d.id === id)?.fileName ?? 'document' : null)
 
   // ── Layout: assign each node a depth level (BFS via parentId), lay levels top→bottom.
   const { positions, width, height } = useMemo(() => {
@@ -103,10 +113,10 @@ export default function CaseJourney() {
     try {
       await api.post(`/cases/${caseId}/nodes`, {
         title: title.trim(), nodeType, description: description.trim() || null,
-        parentId: parentId || null, mergeIntoId: mergeIntoId || null,
+        parentId: parentId || null, mergeIntoId: mergeIntoId || null, linkedDocId: linkedDocId || null,
       })
       toast.success('Added to case journey')
-      setShowAdd(false); setTitle(''); setDescription(''); setParentId(''); setMergeIntoId(''); setNodeType('FINDING')
+      setShowAdd(false); setTitle(''); setDescription(''); setParentId(''); setMergeIntoId(''); setNodeType('FINDING'); setLinkedDocId('')
       load()
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? 'Could not add node')
@@ -198,7 +208,7 @@ export default function CaseJourney() {
             {selected.description && <p className="text-sm text-text-secondary mt-3 whitespace-pre-wrap">{selected.description}</p>}
             {selected.linkedDocId && (
               <Link to={`/documents/${selected.linkedDocId}`} className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#1d6464] hover:underline">
-                <FileText className="w-3.5 h-3.5" /> Linked document
+                <FileText className="w-3.5 h-3.5" /> {docName(selected.linkedDocId)}
               </Link>
             )}
           </div>
@@ -232,14 +242,23 @@ export default function CaseJourney() {
                 </select>
               </div>
             </div>
-            <div>
-              <label className="label">Converges into (optional — draws a dashed merge edge)</label>
-              <select className="input" value={mergeIntoId} onChange={(e) => setMergeIntoId(e.target.value)}>
-                <option value="">(none)</option>
-                {nodes.filter((n) => n.nodeType === 'HEARING' || n.nodeType === 'FILING').map((n) => (
-                  <option key={n.id} value={n.id}>{n.title} ({n.nodeType})</option>
-                ))}
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Converges into (optional)</label>
+                <select className="input" value={mergeIntoId} onChange={(e) => setMergeIntoId(e.target.value)}>
+                  <option value="">(none)</option>
+                  {nodes.filter((n) => n.nodeType === 'HEARING' || n.nodeType === 'FILING').map((n) => (
+                    <option key={n.id} value={n.id}>{n.title} ({n.nodeType})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Link document (optional)</label>
+                <select className="input" value={linkedDocId} onChange={(e) => setLinkedDocId(e.target.value)}>
+                  <option value="">(none)</option>
+                  {docs.map((d) => <option key={d.id} value={d.id}>{d.fileName}</option>)}
+                </select>
+              </div>
             </div>
             <div>
               <label className="label">Details</label>

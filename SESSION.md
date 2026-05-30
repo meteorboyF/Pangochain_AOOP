@@ -17,7 +17,7 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 
 ## Test status
 - Backend: **38** JUnit (`./mvnw test`) — was 35; +3 `ChatCryptoServiceTest`.
-- Frontend: **70** Vitest (`npm test`) — was 55; +6 `ApiClient`, +6 `StatusBadge`, +3 `SecureDownloadModal` pipeline.
+- Frontend: **69** Vitest (`npm test`) — was 55; +6 `ApiClient`, +6 `StatusBadge`, +2 `SecureDownloadModal` pipeline.
 - Chaincode: 14 Go (unverified here — Go toolchain not installed).
 - TypeScript: 0 errors (`npm run type-check`).
 
@@ -69,7 +69,7 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - Verified live: ROOT auto-created, finding nodes add + render.
 
 ## DONE — SecureDownloadModal redesign (Area 4-F)
-- Numbered stage circles (pending→active→done/error), per-stage technical detail + "Completed in Nms" timing, distinct decryption-failure vs **integrity-failure** banners (exact tamper-warning copy), success banner with filename+size, auto-download 500ms after verify. +3 pipeline tests.
+- Numbered stage circles (pending→active→done/error), per-stage technical detail + "Completed in Nms" timing, distinct decryption-failure vs **integrity-failure** banners (exact tamper-warning copy), success banner with filename+size, auto-download 500ms after verify. +2 pipeline tests (69 frontend total). Findings can link a case document (CaseJourney add-node + detail panel).
 
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree; link findings to documents in the add-node UI.
