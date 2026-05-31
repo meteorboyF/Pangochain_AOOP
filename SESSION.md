@@ -95,10 +95,11 @@ _Last updated: 2026-05-30. Keep this current so work can resume across session l
 - IMPORTANT GOTCHA fixed: Spring Security can't order a custom filter relative to another custom filter ("does not have a registered order") — both must anchor on a registered type (UsernamePasswordAuthenticationFilter), insertion order decides precedence.
 - Fallback point if regression: prior good = ef2c9a4.
 
-## Feature — React Query migration (IN PROGRESS)
+## Feature — React Query migration (list pages DONE @ e7b1b7c)
 - QueryClient defaults tuned (staleTime 30s, gcTime 5m, retry 2 w/ backoff, no focus refetch); added `lib/queryKeys.ts` taxonomy.
-- Converted: **Cases** (useQuery + debounced search in queryKey + placeholderData), **Dashboard** (4 independent useQuery, each tolerates own failure like old allSettled). Both tested pages' render helpers wrapped in QueryClientProvider (retry off). 69 frontend tests green, type-check clean.
-- REMAINING pages still on useEffect+useState+api: Documents, ClientDocuments, AdminPanel, AuditTrail, HearingManager, LedgerExplorer, CaseDetail, RegulatorView, client/ClientPortal, client/ClientCase, Sidebar(unread). Convert incrementally; only Cases/CaseList + Dashboard/LawyerDashboard have tests to keep in sync.
+- Converted (each verified type-check + tests, committed individually): **Cases**, **Dashboard** (4 independent useQuery, tolerant like old allSettled), **Documents** + **ClientDocuments** (refetch on upload), **AdminPanel** (useQuery + useMutation activate/suspend w/ invalidateQueries), **AuditTrail** (debounced search + page in key), **HearingManager** (hearings+cases useQuery; create/delete invalidate upcoming key), **LedgerExplorer** (page+eventType in key; free-text filter via refetch). Cases/CaseList + Dashboard/LawyerDashboard test helpers wrapped in QueryClientProvider (retry off). 69 frontend tests green, type-check clean.
+- LESSON LEARNED — do NOT repeat: rushed PARALLEL Edit batches + `cd`-chained Bash caused silently-failed edits to be committed/pushed with a FAILING type-check TWICE (db69df4/6fd8675 reverted to dd7ae9f; then 573b449 broke HearingManager, fixed in e7b1b7c). Tests passed because these pages are untested. RULE: edit ONE file, run `npm run type-check` from inside pangochain-frontend, THEN commit. Never batch multi-file edits with parallel tool calls. Always gate on type-check, not just `npm test`.
+- REMAINING on useEffect+useState (intentionally not converted): CaseDetail (large, many sub-loads), RegulatorView, client/ClientPortal, client/ClientCase, Sidebar(unread — would require Navigation.test rewrite). Auth/form pages (Login, MfaSetup, NewCase, Profile) stay as-is — submit flows, not cached reads.
 
 ## TODO / NEXT (optional / deferred)
 - Operational "merge into filing" for the journey tree.
