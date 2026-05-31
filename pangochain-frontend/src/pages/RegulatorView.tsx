@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Search, Filter, ChevronDown, ChevronRight, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import { useAuthStore } from '../store/authStore'
 import { Navigate } from 'react-router-dom'
 
@@ -36,39 +38,31 @@ export default function RegulatorView() {
   // Guard: only REGULATOR role
   if (user?.role !== 'REGULATOR') return <Navigate to="/dashboard" replace />
 
-  const [entries, setEntries] = useState<AuditEntry[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [total, setTotal] = useState(0)
   const [page, setPage] = useState(0)
   const [expandedId, setExpandedId] = useState<number | null>(null)
-
   const [resourceId, setResourceId] = useState('')
   const [eventType, setEventType] = useState('')
+  // Filters apply on submit (not per keystroke), so they live in the query key as a snapshot.
+  const [applied, setApplied] = useState<{ resourceId: string; eventType: string }>({ resourceId: '', eventType: '' })
 
-  const load = async (pg = 0) => {
-    setLoading(true)
-    setError('')
-    try {
-      const params: Record<string, string | number> = { page: pg, size: 50 }
-      if (resourceId.trim()) params.resourceId = resourceId.trim()
-      if (eventType) params.eventType = eventType
-      const { data } = await api.get<PagedResponse>('/audit/regulator', { params })
-      setEntries(data.content)
-      setTotal(data.totalElements)
-      setPage(pg)
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Failed to load audit trail')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load(0) }, [])
+  const { data, isLoading: loading, isError } = useQuery({
+    queryKey: [...queryKeys.audit({ ...applied, scope: 'regulator' }), page],
+    queryFn: async () => {
+      const params: Record<string, string | number> = { page, size: 50 }
+      if (applied.resourceId.trim()) params.resourceId = applied.resourceId.trim()
+      if (applied.eventType) params.eventType = applied.eventType
+      return (await api.get<PagedResponse>('/audit/regulator', { params })).data
+    },
+    placeholderData: (prev) => prev,
+  })
+  const entries: AuditEntry[] = data?.content ?? []
+  const total: number = data?.totalElements ?? 0
+  const error = isError ? 'Failed to load audit trail' : ''
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    load(0)
+    setPage(0)
+    setApplied({ resourceId, eventType })
   }
 
   const eventBadgeColor = (type: string) => {
@@ -229,7 +223,7 @@ export default function RegulatorView() {
         {total > 50 && (
           <div className="flex justify-between items-center px-4 py-3 border-t border-border">
             <button
-              onClick={() => load(page - 1)}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
               className="btn border border-border py-1.5 px-3 text-sm disabled:opacity-40"
             >
@@ -237,7 +231,7 @@ export default function RegulatorView() {
             </button>
             <span className="text-sm text-text-muted">Page {page + 1} of {Math.ceil(total / 50)}</span>
             <button
-              onClick={() => load(page + 1)}
+              onClick={() => setPage((p) => p + 1)}
               disabled={page >= Math.ceil(total / 50) - 1 || loading}
               className="btn border border-border py-1.5 px-3 text-sm disabled:opacity-40"
             >
