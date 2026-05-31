@@ -88,7 +88,7 @@ export default function HearingManager() {
 
   const handleDelete = async (id: string) => {
     await api.delete(`/hearings/${id}`).catch(() => {})
-    setHearings((prev) => prev.filter((h) => h.id !== id))
+    refreshHearings()
     toast.success('Hearing removed')
   }
 
