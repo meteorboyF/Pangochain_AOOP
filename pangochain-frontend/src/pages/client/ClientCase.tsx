@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Scale, Gavel, FileText, Calendar, Users, Clock,
   CheckCircle, AlertCircle, Loader2, Lock, ChevronRight,
   Activity, Shield,
 } from 'lucide-react'
 import api from '../../lib/api'
+import { queryKeys } from '../../lib/queryKeys'
 
 interface Hearing {
   id: string
@@ -58,47 +60,45 @@ interface CaseInfo {
 }
 
 export default function ClientCase() {
-  const [hearings, setHearings] = useState<Hearing[]>([])
-  const [events, setEvents] = useState<CaseEvent[]>([])
-  const [cases, setCases] = useState<CaseInfo[]>([])
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [hRes, auditRes, casesRes] = await Promise.allSettled([
-          api.get('/hearings/upcoming'),
-          api.get('/audit', { params: { size: 20 } }),
-          api.get('/cases/my-cases'),
-        ])
-        if (hRes.status === 'fulfilled') setHearings(hRes.value.data ?? [])
-        if (auditRes.status === 'fulfilled') {
-          const items = auditRes.value.data?.content ?? auditRes.value.data ?? []
-          setEvents(items.slice(0, 15).map((a: any) => ({
-            id: a.id,
-            eventType: a.eventType ?? 'GENERAL',
-            title: (a.eventType ?? 'GENERAL').replace(/_/g, ' '),
-            description: a.contextJson ?? '',
-            fabricTxId: a.fabricTxId ?? '',
-            actorName: a.actorEmail ?? 'System',
-            createdAt: a.timestamp ?? a.createdAt,
-          })))
-        }
-        if (casesRes.status === 'fulfilled') {
-          const cList = casesRes.value.data ?? []
-          setCases(cList)
-          if (cList.length > 0) setSelectedCaseId(cList[0].id)
-        }
-      } catch (e: any) {
-        setError('Failed to load case information')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  // Three independent queries — each tolerates its own failure (mirrors the old allSettled).
+  const hearingsQuery = useQuery({
+    queryKey: queryKeys.hearingsUpcoming(),
+    queryFn: async () => ((await api.get('/hearings/upcoming')).data as Hearing[]) ?? [],
+  })
+  const eventsQuery = useQuery({
+    queryKey: [...queryKeys.audit(), 'client-case'],
+    queryFn: async () => {
+      const data = (await api.get('/audit', { params: { size: 20 } })).data
+      const items = data?.content ?? data ?? []
+      return items.slice(0, 15).map((a: any): CaseEvent => ({
+        id: a.id,
+        eventType: a.eventType ?? 'GENERAL',
+        title: (a.eventType ?? 'GENERAL').replace(/_/g, ' '),
+        description: a.contextJson ?? '',
+        fabricTxId: a.fabricTxId ?? '',
+        actorName: a.actorEmail ?? 'System',
+        createdAt: a.timestamp ?? a.createdAt,
+      }))
+    },
+  })
+  const casesQuery = useQuery({
+    queryKey: [...queryKeys.cases(), 'my-cases'],
+    queryFn: async () => ((await api.get('/cases/my-cases')).data as CaseInfo[]) ?? [],
+  })
+
+  const hearings: Hearing[] = hearingsQuery.data ?? []
+  const events: CaseEvent[] = eventsQuery.data ?? []
+  const cases: CaseInfo[] = casesQuery.data ?? []
+  // Show the page once the primary (cases) query settles; the rest fill in as they resolve.
+  const loading = casesQuery.isLoading
+  const error = casesQuery.isError ? 'Failed to load case information' : ''
+
+  // Default the case selector to the first case once they load.
+  if (selectedCaseId === null && cases.length > 0) {
+    setSelectedCaseId(cases[0].id)
+  }
 
   if (loading) {
     return <div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-[#1d6464]" /></div>
