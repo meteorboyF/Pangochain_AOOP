@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Calendar, Bell, FileText, MessageSquare, Clock, Shield,
   AlertTriangle, ChevronRight, Upload, Download, Lock,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
+import { queryKeys } from '../../lib/queryKeys'
 
 interface NextHearing {
   id: string
@@ -54,33 +55,27 @@ function HearingCountdown({ date }: { date: string }) {
 
 export default function ClientPortal() {
   const { user } = useAuthStore()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [reminders, setReminders] = useState<Reminder[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [statsRes, remindersRes] = await Promise.allSettled([
-          api.get('/dashboard/stats'),
-          api.get('/reminders'),
-        ])
+  const statsQuery = useQuery({
+    queryKey: queryKeys.dashboardStats(),
+    queryFn: async () => (await api.get('/dashboard/stats')).data as Stats,
+  })
+  const remindersQuery = useQuery({
+    queryKey: queryKeys.reminders(),
+    queryFn: async () => ((await api.get('/reminders')).data as Reminder[])?.slice(0, 5) ?? [],
+  })
 
-        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
-        if (remindersRes.status === 'fulfilled') setReminders(remindersRes.value.data?.slice(0, 5) ?? [])
-      } catch (e: any) {
-        setError('Failed to load portal data')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const stats: Stats | null = statsQuery.data ?? null
+  const reminders: Reminder[] = remindersQuery.data ?? []
+  // Show the page once the primary (stats) query settles; reminders fill in when ready.
+  const loading = statsQuery.isLoading
+  const error = statsQuery.isError ? 'Failed to load portal data' : ''
 
   const markReminderRead = async (id: string) => {
     await api.patch(`/reminders/${id}/read`).catch(() => {})
-    setReminders((prev) => prev.map((r) => r.id === id ? { ...r, read: true } : r))
+    queryClient.setQueryData<Reminder[]>(queryKeys.reminders(), (prev) =>
+      prev?.map((r) => (r.id === id ? { ...r, read: true } : r)))
   }
 
   if (loading) {
