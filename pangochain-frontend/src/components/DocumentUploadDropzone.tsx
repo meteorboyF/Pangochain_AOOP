@@ -9,11 +9,13 @@ interface Props {
   caseId: string
   onClose: () => void
   onUploaded: () => void
+  /** When set, this upload is registered as the next version of an existing document. */
+  previousVersionId?: string
 }
 
 type Stage = 'idle' | 'encrypting' | 'wrapping' | 'uploading' | 'done' | 'error'
 
-export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
+export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVersionId }: Props) {
   const { user } = useAuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
@@ -69,6 +71,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
         ivBase64: encrypted.ivB64,
         documentHashSha256: encrypted.hashB64,
         wrappedKeyTokenForOwner: wrappedKeyToken,
+        previousVersionId: previousVersionId ?? null,
       })
 
       setStage('done')
@@ -96,7 +99,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">Secure Upload</h2>
+            <h2 className="font-heading font-semibold text-text-primary">{previousVersionId ? 'Upload New Version' : 'Secure Upload'}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-4 h-4 text-text-muted" />

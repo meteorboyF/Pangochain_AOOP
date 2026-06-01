@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, Eye, Filter, AlertCircle, Plus } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
@@ -42,6 +43,7 @@ export default function Documents() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showUpload, setShowUpload] = useState(false)
   const [downloadTarget, setDownloadTarget] = useState<DocumentDto | null>(null)
+  const [historyTarget, setHistoryTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
@@ -182,10 +184,11 @@ export default function Documents() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        onClick={() => setHistoryTarget(doc)}
                         className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="View"
+                        title="Version history"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <History className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setDownloadTarget(doc)}
@@ -215,6 +218,14 @@ export default function Documents() {
           docId={downloadTarget.id}
           fileName={downloadTarget.fileName}
           onClose={() => setDownloadTarget(null)}
+        />
+      )}
+      {historyTarget && (
+        <VersionHistoryPanel
+          docId={historyTarget.id}
+          fileName={historyTarget.fileName}
+          onClose={() => setHistoryTarget(null)}
+          onChanged={() => refetch()}
         />
       )}
     </div>

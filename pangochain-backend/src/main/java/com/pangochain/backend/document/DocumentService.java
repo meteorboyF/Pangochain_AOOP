@@ -60,6 +60,20 @@ public class DocumentService {
         // Upload to IPFS
         String cid = ipfsService.add(ciphertextBytes, req.getFileName());
 
+        // Version chaining: if this upload supersedes an existing document, link it as the next
+        // version (version = previous + 1) rather than starting a fresh v1 chain.
+        int versionNumber = 1;
+        UUID previousVersionId = null;
+        if (req.getPreviousVersionId() != null && !req.getPreviousVersionId().isBlank()) {
+            Document previous = documentRepository.findById(UUID.fromString(req.getPreviousVersionId()))
+                    .orElseThrow(() -> new IllegalArgumentException("Previous version not found"));
+            if (accessRepository.findActiveEntry(previous.getId(), uploader.getId()).isEmpty()) {
+                throw new AccessDeniedException("You do not have access to the document you are versioning");
+            }
+            versionNumber = previous.getVersion() + 1;
+            previousVersionId = previous.getId();
+        }
+
         // Persist document FIRST — establishes the authoritative UUID in PostgreSQL.
         // Fabric is called immediately after using doc.getId() so both systems share
         // the same UUID regardless of any Hibernate @GeneratedValue behaviour.
@@ -71,7 +85,8 @@ public class DocumentService {
                 .documentHashSha256(req.getDocumentHashSha256())
                 .fabricTxId(null)
                 .owner(uploader)
-                .version(1)
+                .version(versionNumber)
+                .previousVersionId(previousVersionId)
                 .status(DocStatus.ACTIVE)
                 .build();
         doc = documentRepository.save(doc);
@@ -223,6 +238,115 @@ public class DocumentService {
         return toDto(doc, doc.getOwner().getEmail());
     }
 
+    /**
+     * Full version lineage for a document, ordered oldest → newest. Walks up the
+     * previous_version_id chain to the root, then down through successors.
+     */
+    @Transactional(readOnly = true)
+    public List<DocumentDto> listVersions(UUID docId, User requester) {
+        Document doc = documentRepository.findById(docId)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        if (accessRepository.findActiveEntry(docId, requester.getId()).isEmpty()
+                && !doc.getOwner().getId().equals(requester.getId())) {
+            throw new AccessDeniedException("No access to document " + docId);
+        }
+
+        // Walk up to the root of the chain.
+        Document root = doc;
+        java.util.Set<UUID> guard = new java.util.HashSet<>();
+        while (root.getPreviousVersionId() != null && guard.add(root.getId())) {
+            Document prev = documentRepository.findById(root.getPreviousVersionId()).orElse(null);
+            if (prev == null) break;
+            root = prev;
+        }
+
+        // Walk down from the root collecting successors (linear chain).
+        List<Document> chain = new java.util.ArrayList<>();
+        Document current = root;
+        guard.clear();
+        while (current != null && guard.add(current.getId())) {
+            chain.add(current);
+            current = documentRepository.findByPreviousVersionId(current.getId())
+                    .stream().findFirst().orElse(null);
+        }
+        return chain.stream().map(d -> toDto(d, d.getOwner().getEmail())).toList();
+    }
+
+    /**
+     * Restore an earlier version: creates a NEW document at the head of the chain that reuses
+     * the selected version's ciphertext (same IPFS CID + hash + key), so existing key grants
+     * still decrypt it. A fresh Fabric anchor is written; the prior chain is preserved intact.
+     */
+    @Transactional
+    public DocumentDto restore(UUID versionId, User requester) {
+        Document source = documentRepository.findById(versionId)
+                .orElseThrow(() -> new IllegalArgumentException("Version not found"));
+        if (accessRepository.findActiveEntry(versionId, requester.getId()).isEmpty()
+                && !source.getOwner().getId().equals(requester.getId())) {
+            throw new AccessDeniedException("No access to document " + versionId);
+        }
+
+        // Find the current head of this chain (highest version reachable from the source).
+        List<DocumentDto> lineage = listVersions(versionId, requester);
+        UUID headId = lineage.get(lineage.size() - 1).getId();
+        Document head = documentRepository.findById(headId).orElse(source);
+
+        Document restored = Document.builder()
+                .id(UUID.randomUUID())
+                .legalCase(source.getLegalCase())
+                .fileName(source.getFileName())
+                .ipfsCid(source.getIpfsCid())
+                .documentHashSha256(source.getDocumentHashSha256())
+                .fabricTxId(null)
+                .owner(source.getOwner())
+                .version(head.getVersion() + 1)
+                .previousVersionId(head.getId())
+                .status(DocStatus.ACTIVE)
+                .category(source.getCategory())
+                .confidential(source.isConfidential())
+                .build();
+        restored = documentRepository.save(restored);
+
+        String fabricTxId = null;
+        try {
+            if (fabricGatewayService != null) {
+                fabricTxId = fabricGatewayService.registerDocument(
+                        restored.getId().toString(),
+                        source.getLegalCase().getId().toString(),
+                        source.getDocumentHashSha256(),
+                        source.getIpfsCid(),
+                        requester.getId().toString(),
+                        requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP",
+                        Instant.now().toString());
+                restored.setFabricTxId(fabricTxId);
+            }
+        } catch (FabricException e) {
+            log.warn("Fabric registration failed for restored version (continuing): {}", e.getMessage());
+        }
+
+        // Re-issue the same wrapped-key grants on the new document — same ciphertext/key, so
+        // every grantee on the restored version retains access.
+        for (DocumentAccess grant : accessRepository.findActiveByDoc(source.getId())) {
+            accessRepository.save(DocumentAccess.builder()
+                    .docId(restored.getId())
+                    .userId(grant.getUserId())
+                    .capability(grant.getCapability())
+                    .grantedBy(requester.getId())
+                    .wrappedKeyToken(grant.getWrappedKeyToken())
+                    .build());
+        }
+
+        auditService.log("DOC_VERSION_RESTORED", requester.getId(), "DOCUMENT",
+                restored.getId().toString(), fabricTxId,
+                toJson(Map.of("restoredFrom", source.getId().toString(),
+                        "restoredFromVersion", source.getVersion(),
+                        "newVersion", restored.getVersion())));
+        log.info("Restored doc v{} ({}) as new v{} ({})",
+                source.getVersion(), source.getId(), restored.getVersion(), restored.getId());
+
+        return toDto(restored, restored.getOwner().getEmail());
+    }
+
     private DocumentDto toDto(Document d, String ownerEmail) {
         return DocumentDto.builder()
                 .id(d.getId())
@@ -233,6 +357,7 @@ public class DocumentService {
                 .fabricTxId(d.getFabricTxId())
                 .ownerEmail(ownerEmail)
                 .version(d.getVersion())
+                .previousVersionId(d.getPreviousVersionId())
                 .status(d.getStatus().name())
                 .keyRotationPending(d.isKeyRotationPending())
                 .category(d.getCategory())

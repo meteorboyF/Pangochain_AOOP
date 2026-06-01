@@ -28,4 +28,7 @@ public interface DocumentRepository extends JpaRepository<Document, UUID> {
     long countByLegalCaseIdAndStatus(UUID caseId, DocStatus status);
 
     long countByOwnerId(UUID ownerId);
+
+    /** Direct successors in the version chain (documents whose previous_version_id is this doc). */
+    List<Document> findByPreviousVersionId(UUID previousVersionId);
 }

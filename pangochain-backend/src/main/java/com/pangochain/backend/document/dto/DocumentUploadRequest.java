@@ -27,4 +27,10 @@ public class DocumentUploadRequest {
     /** ECIES-wrapped document key for the uploading user (owner) */
     @NotBlank
     private String wrappedKeyTokenForOwner;
+
+    /**
+     * Optional: the document this upload supersedes. When set, the new document is linked
+     * as the next version in the chain (version = previous + 1) instead of starting at v1.
+     */
+    private String previousVersionId;
 }

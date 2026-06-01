@@ -139,6 +139,30 @@ public class DocumentController {
     }
 
     /**
+     * GET /api/documents/{id}/versions
+     * Full version lineage (oldest → newest) for a document, traversing previous_version_id.
+     */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<List<DocumentDto>> versions(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(documentService.listVersions(id, resolveUser(principal)));
+    }
+
+    /**
+     * POST /api/documents/{id}/restore
+     * Restore an earlier version as a new head of the chain (reuses ciphertext + key grants).
+     */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
+    @PostMapping("/{id}/restore")
+    public ResponseEntity<DocumentDto> restore(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(documentService.restore(id, resolveUser(principal)));
+    }
+
+    /**
      * PUT /api/documents/{id}/metadata
      * Update document category and confidential flag (metadata only, no ciphertext).
      */

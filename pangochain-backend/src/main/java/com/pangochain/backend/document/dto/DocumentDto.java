@@ -17,6 +17,7 @@ public class DocumentDto {
     private String fabricTxId;
     private String ownerEmail;
     private int version;
+    private UUID previousVersionId;
     private String status;
     private boolean keyRotationPending;
     private String category;
