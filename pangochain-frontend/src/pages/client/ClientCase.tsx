@@ -8,6 +8,7 @@ import {
 import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
 import { MilestoneTimeline } from '../../components/MilestoneTimeline'
+import { BillingPanel } from '../../components/BillingPanel'
 
 interface Hearing {
   id: string
@@ -156,6 +157,16 @@ export default function ClientCase() {
       {selectedCaseId && (
         <div className="card">
           <MilestoneTimeline caseId={selectedCaseId} canEdit={false} />
+        </div>
+      )}
+
+      {/* ── Billing transparency (read-only itemised time + invoices) ────────────── */}
+      {selectedCaseId && (
+        <div className="card">
+          <h2 className="font-heading font-semibold text-text-primary flex items-center gap-2 mb-4">
+            <Scale className="w-4 h-4 text-[#1d6464]" /> Billing &amp; Invoices
+          </h2>
+          <BillingPanel caseId={selectedCaseId} canEdit={false} />
         </div>
       )}
 
