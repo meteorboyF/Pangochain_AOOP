@@ -4,6 +4,7 @@ import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { SecurityAlertsPanel } from '../components/SecurityAlertsPanel'
 
 interface UserSummary {
   id: string
@@ -52,6 +53,8 @@ export default function AdminPanel() {
           <Shield className="w-3.5 h-3.5" /> Managing Partner / IT Admin only
         </div>
       </div>
+
+      <SecurityAlertsPanel />
 
       {loading && <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
 
