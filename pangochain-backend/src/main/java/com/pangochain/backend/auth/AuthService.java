@@ -30,6 +30,7 @@ public class AuthService {
     private final Pbkdf2Service pbkdf2Service;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuditService auditService;
+    private final RecoveryCodeService recoveryCodeService;
 
     private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
 
@@ -162,6 +163,45 @@ public class AuthService {
         auditService.log("USER_LOGIN", user.getId(), "USER", user.getId().toString(), null, "mfa-challenge");
 
         String accessToken  = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name());
+        return buildResponse(user, accessToken, refreshToken, false);
+    }
+
+    /**
+     * Login fallback via a single-use recovery code. Validates the challenge token, consumes the
+     * code, then RESETS MFA (clears the secret, disables MFA) so the user is forced to re-enrol on
+     * their next login — a used recovery path must never silently leave the old TOTP secret active.
+     */
+    @Transactional
+    public AuthResponse completeRecoveryChallenge(String challengeToken, String recoveryCode) {
+        try {
+            if (!jwtTokenProvider.isMfaChallengeToken(challengeToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid challenge token");
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired challenge token");
+        }
+
+        UUID userId = jwtTokenProvider.extractUserId(challengeToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        if (!recoveryCodeService.consume(userId, recoveryCode)) {
+            auditService.log("RECOVERY_CODE_FAILED", userId, "USER", userId.toString(), null, null);
+            throw new InvalidMfaCodeException("Invalid or already-used recovery code");
+        }
+
+        // Force re-enrolment: drop the TOTP secret and disable MFA for this account.
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null);
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
+
+        auditService.log("RECOVERY_CODE_USED", userId, "USER", userId.toString(), null,
+                "{\"mfaReset\":true,\"remaining\":" + recoveryCodeService.remaining(userId) + "}");
+        log.warn("Recovery code used for user={} — MFA reset, re-enrolment required", user.getEmail());
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name());
         return buildResponse(user, accessToken, refreshToken, false);
     }

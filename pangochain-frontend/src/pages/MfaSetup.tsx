@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Shield, QrCode, Loader2, CheckCircle, AlertCircle, Copy } from 'lucide-react'
+import { Shield, QrCode, Loader2, CheckCircle, AlertCircle, Copy, KeyRound, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 
-type Stage = 'idle' | 'loading' | 'scan' | 'verify' | 'done' | 'error'
+type Stage = 'idle' | 'loading' | 'scan' | 'verify' | 'recovery' | 'done' | 'error'
 
 export default function MfaSetup() {
   const { user, updateUser } = useAuthStore()
@@ -13,6 +13,7 @@ export default function MfaSetup() {
   const [secret, setSecret] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
 
   const handleSetup = async () => {
     setStage('loading')
@@ -33,10 +34,15 @@ export default function MfaSetup() {
     setStage('loading')
     setError('')
     try {
-      await api.post('/auth/mfa/verify', { code })
+      const { data } = await api.post('/auth/mfa/verify', { code })
       updateUser({ mfaEnabled: true })
-      setStage('done')
       toast.success('Two-factor authentication enabled!')
+      if (Array.isArray(data?.recoveryCodes) && data.recoveryCodes.length > 0) {
+        setRecoveryCodes(data.recoveryCodes)
+        setStage('recovery')
+      } else {
+        setStage('done')
+      }
     } catch (err: any) {
       setError(err.response?.data?.detail ?? 'Invalid code')
       setStage('scan')
@@ -46,6 +52,27 @@ export default function MfaSetup() {
   const copySecret = () => {
     navigator.clipboard.writeText(secret)
     toast.success('Secret copied to clipboard')
+  }
+
+  const copyRecoveryCodes = () => {
+    navigator.clipboard.writeText(recoveryCodes.join('\n'))
+    toast.success('Recovery codes copied')
+  }
+
+  const downloadRecoveryCodes = () => {
+    const blob = new Blob(
+      [`PangoChain recovery codes for ${user?.email ?? 'your account'}\n`
+        + `Generated ${new Date().toISOString()}\n`
+        + `Each code works once. Keep them somewhere safe and offline.\n\n`
+        + recoveryCodes.join('\n') + '\n'],
+      { type: 'text/plain' },
+    )
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'pangochain-recovery-codes.txt'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   if (user?.mfaEnabled && stage !== 'done') {
@@ -151,6 +178,35 @@ export default function MfaSetup() {
               Verify & Enable MFA
             </button>
           </form>
+        </div>
+      )}
+
+      {stage === 'recovery' && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-[#1d6464]">
+            <KeyRound className="w-5 h-5" />
+            <p className="font-semibold text-text-primary">Save your recovery codes</p>
+          </div>
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            Store these somewhere safe. Each code works <strong>once</strong> and lets you sign in if you
+            lose your authenticator. They will <strong>not</strong> be shown again.
+          </div>
+          <div className="grid grid-cols-2 gap-2 bg-surface-muted rounded-xl p-4">
+            {recoveryCodes.map((c) => (
+              <code key={c} className="text-sm font-mono text-text-primary tracking-wide text-center py-1">{c}</code>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={copyRecoveryCodes} className="btn border border-border text-text-secondary flex-1 justify-center py-2">
+              <Copy className="w-4 h-4" /> Copy
+            </button>
+            <button onClick={downloadRecoveryCodes} className="btn border border-border text-text-secondary flex-1 justify-center py-2">
+              <Download className="w-4 h-4" /> Download
+            </button>
+          </div>
+          <button onClick={() => setStage('done')} className="btn-primary w-full justify-center py-2.5">
+            I've saved my recovery codes
+          </button>
         </div>
       )}
 

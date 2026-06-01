@@ -19,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -38,6 +39,7 @@ public class MfaController {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final AuthService authService;
+    private final RecoveryCodeService recoveryCodeService;
 
     private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
 
@@ -101,14 +103,58 @@ public class MfaController {
         }
 
         // Activate MFA on first successful verify
+        boolean newlyEnabled = false;
         if (!user.isMfaEnabled()) {
             user.setMfaEnabled(true);
             userRepository.save(user);
+            newlyEnabled = true;
             log.info("MFA enabled for user={}", user.getEmail());
         }
 
         auditService.log("MFA_VERIFY_SUCCESS", user.getId(), "USER", user.getId().toString(), null, null);
-        return ResponseEntity.ok(Map.of("mfaEnabled", true, "message", "MFA verified successfully"));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("mfaEnabled", true);
+        body.put("message", "MFA verified successfully");
+        // Issue single-use recovery codes once, at enrolment. Shown to the user exactly here.
+        if (newlyEnabled) {
+            body.put("recoveryCodes", recoveryCodeService.regenerate(user.getId()));
+            auditService.log("RECOVERY_CODES_GENERATED", user.getId(), "USER", user.getId().toString(), null, null);
+        }
+        return ResponseEntity.ok(body);
+    }
+
+    /**
+     * POST /api/auth/mfa/recovery-codes
+     * Regenerate the authenticated user's recovery codes (invalidating the old set). Returns
+     * the fresh plaintext codes once. Requires MFA to already be enabled.
+     */
+    @PostMapping("/recovery-codes")
+    public ResponseEntity<Map<String, Object>> regenerateRecoveryCodes(@AuthenticationPrincipal User user) {
+        if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (!user.isMfaEnabled()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enable MFA before generating recovery codes");
+        }
+        auditService.log("RECOVERY_CODES_GENERATED", user.getId(), "USER", user.getId().toString(), null, "regenerated");
+        return ResponseEntity.ok(Map.of("recoveryCodes", recoveryCodeService.regenerate(user.getId())));
+    }
+
+    /** GET /api/auth/mfa/recovery-codes/remaining — how many unused codes the user has left. */
+    @GetMapping("/recovery-codes/remaining")
+    public ResponseEntity<Map<String, Object>> remainingRecoveryCodes(@AuthenticationPrincipal User user) {
+        if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        return ResponseEntity.ok(Map.of("remaining", recoveryCodeService.remaining(user.getId())));
+    }
+
+    /**
+     * POST /api/auth/mfa/recovery
+     * Login fallback: accepts a challenge token + a single-use recovery code. On success it
+     * consumes the code, completes login for one session, and resets MFA so the user must
+     * re-enrol (a fresh secret + new recovery codes).
+     */
+    @PostMapping("/recovery")
+    public ResponseEntity<AuthResponse> recoveryLogin(@Valid @RequestBody RecoveryLoginRequest req) {
+        return ResponseEntity.ok(authService.completeRecoveryChallenge(req.challengeToken(), req.recoveryCode()));
     }
 
     /**
@@ -130,5 +176,10 @@ public class MfaController {
     public record MfaChallengeRequest(
             @NotBlank String challengeToken,
             @NotBlank @Size(min = 6, max = 6) @Pattern(regexp = "\\d{6}") String totpCode
+    ) {}
+
+    public record RecoveryLoginRequest(
+            @NotBlank String challengeToken,
+            @NotBlank @Size(max = 64) String recoveryCode
     ) {}
 }

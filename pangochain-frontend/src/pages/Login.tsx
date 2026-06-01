@@ -17,6 +17,8 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
+  const [recoveryCode, setRecoveryCode] = useState('')
+  const [useRecovery, setUseRecovery] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [loginStage, setLoginStage] = useState<LoginStage>('password')
   const [challengeToken, setChallengeToken] = useState('')
@@ -65,7 +67,13 @@ export default function Login() {
 
     try {
       if (loginStage === 'mfa_code') {
-        // Stage 2: submit TOTP code against challenge token
+        // Stage 2: submit TOTP code — or a single-use recovery code — against the challenge token
+        if (useRecovery) {
+          const { data } = await api.post('/auth/mfa/recovery', { challengeToken, recoveryCode })
+          toast('Recovery code used — please set up MFA again from your profile', { icon: '🔑' })
+          await storeAndRedirect(data)
+          return
+        }
         const { data } = await api.post('/auth/mfa/challenge', { challengeToken, totpCode })
         await storeAndRedirect(data)
         return
@@ -92,8 +100,9 @@ export default function Login() {
         return
       }
       if (status === 401 && loginStage === 'mfa_code') {
-        setError('Invalid code — try again')
+        setError(useRecovery ? 'Invalid or already-used recovery code' : 'Invalid code — try again')
         setTotpCode('')
+        setRecoveryCode('')
         return
       }
       setError(body?.error ?? body?.detail ?? body?.message ?? 'Invalid credentials')
@@ -220,6 +229,26 @@ export default function Login() {
                   </div>
                 </div>
               </>
+            ) : useRecovery ? (
+              <div>
+                <label className="label">Recovery Code</label>
+                <input
+                  type="text"
+                  className="input text-center text-lg tracking-widest font-mono"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().slice(0, 16))}
+                  placeholder="XXXXX-XXXXX"
+                  autoFocus
+                  autoComplete="one-time-code"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(false); setError(''); setRecoveryCode('') }}
+                  className="mt-2 text-xs text-[#1d6464] hover:underline"
+                >
+                  Use authenticator code instead
+                </button>
+              </div>
             ) : (
               <div>
                 <label className="label">Authenticator Code</label>
@@ -235,6 +264,13 @@ export default function Login() {
                   maxLength={6}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(true); setError(''); setTotpCode('') }}
+                  className="mt-2 text-xs text-[#1d6464] hover:underline"
+                >
+                  Lost your device? Use a recovery code
+                </button>
               </div>
             )}
 
