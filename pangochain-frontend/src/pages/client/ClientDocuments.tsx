@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Upload, Download, Lock, Shield, AlertCircle,
-  Loader2, PenTool, AlertTriangle, Search,
+  Loader2, PenTool, AlertTriangle, Search, Sparkles,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
@@ -51,6 +51,24 @@ export default function ClientDocuments() {
   const [uploadCategory, setUploadCategory] = useState('GENERAL')
   const [uploadConfidential, setUploadConfidential] = useState(false)
   const [uploadNote, setUploadNote] = useState('')
+  const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
+
+  // AI auto-tagging: on file select, read a plaintext-side preview (text files only) and ask the
+  // classifier to suggest a category. Ciphertext is never sent — only filename + this preview.
+  const onPickFile = async (file: File | null) => {
+    setUploadFile(file)
+    setSuggestion(null)
+    if (!file) return
+    let previewText = ''
+    if (/^text\/|json|csv|xml/.test(file.type) || /\.(txt|md|json|csv|xml|log)$/i.test(file.name)) {
+      try { previewText = await file.slice(0, 4096).text() } catch { /* ignore */ }
+    }
+    try {
+      const { data } = await api.post('/documents/classify', { fileName: file.name, previewText })
+      setSuggestion(data)
+      if (data?.category) setUploadCategory(data.category)
+    } catch { /* classification is advisory */ }
+  }
 
   const { data: documents = [], isLoading: loading, isError, refetch } = useQuery({
     queryKey: queryKeys.myDocuments(),
@@ -241,7 +259,7 @@ export default function ClientDocuments() {
               <input
                 type="file"
                 className="input"
-                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
               />
             </div>
 
@@ -250,6 +268,18 @@ export default function ClientDocuments() {
               <select className="input" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
                 {CATEGORIES.filter((c) => c !== 'ALL').map((c) => <option key={c}>{c}</option>)}
               </select>
+              {suggestion && (
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-[#1d6464] bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-lg px-2.5 py-1.5">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Suggested: <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
+                    {uploadCategory !== suggestion.category && (
+                      <button type="button" onClick={() => setUploadCategory(suggestion.category)} className="ml-1 underline">apply</button>
+                    )}
+                    <span className="block text-text-muted">{suggestion.rationale}</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">

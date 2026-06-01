@@ -33,4 +33,10 @@ public class DocumentUploadRequest {
      * as the next version in the chain (version = previous + 1) instead of starting at v1.
      */
     private String previousVersionId;
+
+    /** Optional document category (accepted/overridden from the AI classification suggestion). */
+    private String category;
+
+    /** Optional confidential flag. */
+    private Boolean confidential;
 }

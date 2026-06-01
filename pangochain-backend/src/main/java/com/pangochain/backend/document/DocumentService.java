@@ -88,6 +88,8 @@ public class DocumentService {
                 .version(versionNumber)
                 .previousVersionId(previousVersionId)
                 .status(DocStatus.ACTIVE)
+                .category(req.getCategory() != null && !req.getCategory().isBlank() ? req.getCategory() : "GENERAL")
+                .confidential(Boolean.TRUE.equals(req.getConfidential()))
                 .build();
         doc = documentRepository.save(doc);
 
