@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hash, Briefcase, Send, Lock, Loader2, MessageSquare, Wifi, WifiOff } from 'lucide-react'
+import { Hash, Briefcase, Send, Lock, Loader2, MessageSquare, Wifi, WifiOff, Plus, User as UserIcon, X } from 'lucide-react'
 import type { Client, StompSubscription } from '@stomp/stompjs'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
@@ -25,6 +25,17 @@ interface ChatMessageDto {
   createdAt: string
 }
 
+interface DirectoryEntry {
+  id: string
+  fullName: string
+  email: string
+  role: string
+  hasPublicKey: boolean
+}
+
+const convIcon = (type: ConversationDto['type']) =>
+  type === 'FIRM' ? Hash : type === 'DIRECT' ? UserIcon : Briefcase
+
 export default function Chat() {
   const user = useAuthStore((s) => s.user)
   const token = useAuthStore((s) => s.accessToken)
@@ -37,6 +48,12 @@ export default function Chat() {
   const [loadingConvs, setLoadingConvs] = useState(true)
   const [loadingMsgs, setLoadingMsgs] = useState(false)
   const [sending, setSending] = useState(false)
+
+  // New direct-message picker
+  const [showPicker, setShowPicker] = useState(false)
+  const [directory, setDirectory] = useState<DirectoryEntry[]>([])
+  const [dirLoading, setDirLoading] = useState(false)
+  const [dirSearch, setDirSearch] = useState('')
 
   const clientRef = useRef<Client | null>(null)
   const subRef = useRef<StompSubscription | null>(null)
@@ -94,6 +111,35 @@ export default function Chat() {
 
   const active = conversations.find((c) => c.id === activeId) ?? null
 
+  const openPicker = () => {
+    setShowPicker(true)
+    if (directory.length === 0) {
+      setDirLoading(true)
+      api.get<DirectoryEntry[]>('/users/firm-directory')
+        .then((r) => setDirectory(r.data))
+        .catch(() => toast.error('Could not load your firm directory'))
+        .finally(() => setDirLoading(false))
+    }
+  }
+
+  const startDirect = async (userId: string) => {
+    try {
+      const { data } = await api.post<ConversationDto>('/chat/direct', { userId })
+      setConversations((prev) => (prev.some((c) => c.id === data.id) ? prev : [data, ...prev]))
+      setActiveId(data.id)
+      setShowPicker(false)
+      setDirSearch('')
+    } catch {
+      toast.error('Could not start the conversation')
+    }
+  }
+
+  const filteredDirectory = directory.filter(
+    (d) =>
+      d.fullName.toLowerCase().includes(dirSearch.toLowerCase()) ||
+      d.email.toLowerCase().includes(dirSearch.toLowerCase()),
+  )
+
   const handleSend = async () => {
     const body = input.trim()
     if (!body || !activeId) return
@@ -128,7 +174,14 @@ export default function Chat() {
 
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[18rem_1fr] gap-4">
         {/* Channel list */}
-        <div className="bg-white/95 border border-border rounded-2xl overflow-y-auto scrollbar-thin">
+        <div className="bg-white/95 border border-border rounded-2xl overflow-y-auto scrollbar-thin flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border sticky top-0 bg-white/95 z-10">
+            <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Channels</span>
+            <button onClick={openPicker} title="New direct message"
+              className="inline-flex items-center gap-1 text-xs font-medium text-[#1d6464] hover:bg-[#1d6464]/10 rounded-lg px-2 py-1">
+              <Plus className="w-3.5 h-3.5" /> New
+            </button>
+          </div>
           {loadingConvs ? (
             <div className="flex justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" /></div>
           ) : conversations.length === 0 ? (
@@ -148,9 +201,7 @@ export default function Chat() {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      {c.type === 'FIRM'
-                        ? <Hash className="w-4 h-4 text-[#1d6464] shrink-0" />
-                        : <Briefcase className="w-4 h-4 text-[#1d6464] shrink-0" />}
+                      {(() => { const Icon = convIcon(c.type); return <Icon className="w-4 h-4 text-[#1d6464] shrink-0" /> })()}
                       <span className="font-medium text-text-primary text-sm truncate flex-1">{c.title}</span>
                     </div>
                     {c.lastMessagePreview && (
@@ -173,9 +224,11 @@ export default function Chat() {
             <>
               <div className="px-5 py-3 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  {active.type === 'FIRM' ? <Hash className="w-4 h-4 text-[#1d6464]" /> : <Briefcase className="w-4 h-4 text-[#1d6464]" />}
+                  {(() => { const Icon = convIcon(active.type); return <Icon className="w-4 h-4 text-[#1d6464]" /> })()}
                   <span className="font-semibold text-text-primary">{active.title}</span>
-                  <span className="text-xs text-text-muted">· {active.memberCount} members</span>
+                  <span className="text-xs text-text-muted">
+                    · {active.type === 'DIRECT' ? 'Direct message' : `${active.memberCount} members`}
+                  </span>
                 </div>
                 <span className="flex items-center gap-1 text-[10px] text-[#1d6464] font-semibold bg-[#1d6464]/10 px-2 py-0.5 rounded">
                   <Lock className="w-3 h-3" /> Encrypted at rest
@@ -222,6 +275,41 @@ export default function Chat() {
           )}
         </div>
       </div>
+
+      {/* New direct-message picker */}
+      {showPicker && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPicker(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading font-bold text-text-primary">New direct message</h2>
+              <button onClick={() => setShowPicker(false)} className="text-text-muted hover:text-text-primary"><X className="w-5 h-5" /></button>
+            </div>
+            <input className="input" placeholder="Search your firm…" autoFocus
+              value={dirSearch} onChange={(e) => setDirSearch(e.target.value)} />
+            <div className="max-h-80 overflow-y-auto scrollbar-thin -mx-1">
+              {dirLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" /></div>
+              ) : filteredDirectory.length === 0 ? (
+                <p className="text-center text-sm text-text-muted py-8">No matching firm members.</p>
+              ) : (
+                filteredDirectory.map((d) => (
+                  <button key={d.id} onClick={() => startDirect(d.id)}
+                    className="w-full flex items-center gap-3 text-left rounded-xl px-3 py-2.5 hover:bg-surface-muted">
+                    <div className="w-8 h-8 rounded-full bg-[#1d6464]/10 flex items-center justify-center shrink-0">
+                      <UserIcon className="w-4 h-4 text-[#1d6464]" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary truncate">{d.fullName}</p>
+                      <p className="text-xs text-text-muted truncate">{d.email}</p>
+                    </div>
+                    <span className="text-[10px] text-text-muted uppercase tracking-wide shrink-0">{d.role.replace(/_/g, ' ')}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

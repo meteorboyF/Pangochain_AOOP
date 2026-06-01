@@ -59,11 +59,44 @@ public class ChatService {
         if (convIds.isEmpty()) return List.of();
 
         return conversationRepository.findByIdIn(convIds).stream()
-                .map(this::toDto)
+                .map(c -> toDto(c, user))
                 .sorted(Comparator.comparing(
                         (ConversationDto d) -> d.lastMessageAt() != null ? d.lastMessageAt() : Instant.EPOCH)
                         .reversed())
                 .toList();
+    }
+
+    /**
+     * Find-or-create the 1:1 DIRECT conversation between the caller and another user.
+     * DIRECT channels are not auto-provisioned; they spring into existence the first time
+     * someone opens a DM. Both participants must belong to the same firm.
+     */
+    @Transactional
+    public ConversationDto openDirect(User me, UUID otherUserId) {
+        if (me.getId().equals(otherUserId)) {
+            throw new IllegalArgumentException("Cannot start a direct message with yourself");
+        }
+        User other = userRepository.findById(otherUserId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + otherUserId));
+        UUID myFirm = me.getFirm() != null ? me.getFirm().getId() : null;
+        UUID otherFirm = other.getFirm() != null ? other.getFirm().getId() : null;
+        if (myFirm == null || !myFirm.equals(otherFirm)) {
+            throw new AccessDeniedException("You can only message members of your own firm");
+        }
+
+        Conversation conv = conversationRepository
+                .findDirectBetween(Conversation.Type.DIRECT, me.getId(), otherUserId)
+                .stream().findFirst()
+                .orElseGet(() -> {
+                    Conversation created = conversationRepository.save(Conversation.builder()
+                            .type(Conversation.Type.DIRECT)
+                            .firmId(myFirm)
+                            .title("Direct message")
+                            .build());
+                    syncMembers(created.getId(), Set.of(me.getId(), otherUserId));
+                    return created;
+                });
+        return toDto(conv, me);
     }
 
     private List<Case> casesForUser(User user) {
@@ -183,14 +216,26 @@ public class ChatService {
 
     // ─── Mapping ────────────────────────────────────────────────────────────
 
-    private ConversationDto toDto(Conversation c) {
-        int memberCount = memberRepository.findByConversationId(c.getId()).size();
+    private ConversationDto toDto(Conversation c, User viewer) {
+        List<ConversationMember> members = memberRepository.findByConversationId(c.getId());
         ChatMessage last = messageRepository.findTopByConversationIdOrderByCreatedAtDesc(c.getId());
         String preview = last != null ? crypto.decrypt(last.getBodyCiphertext()) : null;
         if (preview != null && preview.length() > 80) preview = preview.substring(0, 80) + "…";
+
+        // A DIRECT channel has no fixed title — show the *other* participant's name to the viewer.
+        String title = c.getTitle();
+        if (c.getType() == Conversation.Type.DIRECT) {
+            title = members.stream()
+                    .map(ConversationMember::getUserId)
+                    .filter(uid -> !uid.equals(viewer.getId()))
+                    .findFirst()
+                    .flatMap(userRepository::findById)
+                    .map(User::getFullName)
+                    .orElse("Direct message");
+        }
         return new ConversationDto(
-                c.getId(), c.getType().name(), c.getTitle(), c.getCaseId(),
-                memberCount, preview, last != null ? last.getCreatedAt() : null);
+                c.getId(), c.getType().name(), title, c.getCaseId(),
+                members.size(), preview, last != null ? last.getCreatedAt() : null);
     }
 
     private ChatMessageDto toMessageDto(ChatMessage m) {

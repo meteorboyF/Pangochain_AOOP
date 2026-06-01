@@ -31,6 +31,16 @@ public class ChatController {
         return ResponseEntity.ok(chatService.listConversations(resolve(principal)));
     }
 
+    /** Open (find-or-create) a 1:1 direct conversation with another firm member. */
+    @PostMapping("/direct")
+    public ResponseEntity<ConversationDto> openDirect(
+            @Valid @RequestBody OpenDirectRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(chatService.openDirect(resolve(principal), req.userId()));
+    }
+
+    public record OpenDirectRequest(@jakarta.validation.constraints.NotNull UUID userId) {}
+
     @GetMapping("/conversations/{id}/messages")
     public ResponseEntity<List<ChatMessageDto>> history(
             @PathVariable UUID id, @AuthenticationPrincipal UserDetails principal) {

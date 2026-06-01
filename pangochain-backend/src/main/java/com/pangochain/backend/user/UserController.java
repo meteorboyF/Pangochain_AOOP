@@ -55,6 +55,25 @@ public class UserController {
         return ResponseEntity.ok(Map.of("publicKeyJwk", user.getPublicKeyEcies(), "userId", id.toString()));
     }
 
+    /** List the caller's firm members (excluding self) — for the direct-message picker. */
+    @GetMapping("/firm-directory")
+    public ResponseEntity<java.util.List<Map<String, Object>>> firmDirectory(
+            @AuthenticationPrincipal UserDetails principal) {
+        User me = userRepository.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        if (me.getFirm() == null) return ResponseEntity.ok(java.util.List.of());
+        java.util.List<Map<String, Object>> directory = userRepository.findByFirm_Id(me.getFirm().getId()).stream()
+                .filter(u -> !u.getId().equals(me.getId()))
+                .map(u -> Map.<String, Object>of(
+                        "id", u.getId().toString(),
+                        "fullName", u.getFullName(),
+                        "email", u.getEmail(),
+                        "role", u.getRole().name(),
+                        "hasPublicKey", u.getPublicKeyEcies() != null))
+                .toList();
+        return ResponseEntity.ok(directory);
+    }
+
     /** Look up a user by email — for the access-grant form. */
     @GetMapping("/by-email")
     public ResponseEntity<Map<String, Object>> findByEmail(@RequestParam String email) {
