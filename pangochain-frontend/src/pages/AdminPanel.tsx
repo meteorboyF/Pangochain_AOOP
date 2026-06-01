@@ -5,6 +5,7 @@ import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SecurityAlertsPanel } from '../components/SecurityAlertsPanel'
+import { DeletionRequestsAdminPanel } from '../components/DeletionRequestsAdminPanel'
 
 interface UserSummary {
   id: string
@@ -54,7 +55,10 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      <SecurityAlertsPanel />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SecurityAlertsPanel />
+        <DeletionRequestsAdminPanel />
+      </div>
 
       {loading && <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
 

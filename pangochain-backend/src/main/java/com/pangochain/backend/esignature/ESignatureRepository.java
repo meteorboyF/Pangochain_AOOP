@@ -9,4 +9,5 @@ public interface ESignatureRepository extends JpaRepository<ESignature, UUID> {
     List<ESignature> findByDocumentId(UUID documentId);
     List<ESignature> findBySignerId(UUID signerId);
     boolean existsByDocumentIdAndSignerId(UUID documentId, UUID signerId);
+    long countBySignerId(UUID signerId);
 }

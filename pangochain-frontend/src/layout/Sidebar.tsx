@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, Calendar, Search, X,
+  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -46,6 +46,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/client/portal', icon: <Home className="w-4 h-4" />, label: 'My Portal', end: true },
     { to: '/client/documents', icon: <Shield className="w-4 h-4" />, label: 'Document Vault' },
     { to: '/client/case', icon: <Scale className="w-4 h-4" />, label: 'My Case' },
+    { to: '/client/privacy', icon: <ShieldCheck className="w-4 h-4" />, label: 'Privacy & Data' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
   ]
 

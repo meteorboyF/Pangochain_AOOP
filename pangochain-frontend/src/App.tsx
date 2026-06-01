@@ -26,6 +26,7 @@ import RegulatorView from './pages/RegulatorView'
 import ClientPortal from './pages/client/ClientPortal'
 import ClientDocuments from './pages/client/ClientDocuments'
 import ClientCase from './pages/client/ClientCase'
+import ClientPrivacy from './pages/client/ClientPrivacy'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   // Specific selectors — re-render only when these slices change, not on any store write.
@@ -109,6 +110,7 @@ export default function App() {
           <Route path="/client/portal" element={<ClientPortal />} />
           <Route path="/client/documents" element={<ClientDocuments />} />
           <Route path="/client/case" element={<ClientCase />} />
+          <Route path="/client/privacy" element={<ClientPrivacy />} />
           <Route path="/client/portal/sign/:docId" element={
             <div className="card">
               <p className="text-text-muted text-sm">E-Signature — Phase 7</p>
