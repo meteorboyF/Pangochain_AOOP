@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Upload, Download, Lock, Shield, AlertCircle,
-  Loader2, Eye, Trash2, CheckCircle, AlertTriangle, Search, Filter,
+  Loader2, PenTool, AlertTriangle, Search,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
-import { encryptDocument, eciesWrapKey, bytesToBase64 } from '../../lib/crypto'
+import { encryptDocument, eciesWrapKey } from '../../lib/crypto'
 import { SecureDownloadModal } from '../../components/SecureDownloadModal'
+import { SignDocumentModal } from '../../components/SignDocumentModal'
 import { ListSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
 
@@ -41,6 +42,7 @@ export default function ClientDocuments() {
   const [search, setSearch] = useState('')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [downloadDoc, setDownloadDoc] = useState<DocumentDto | null>(null)
+  const [signDoc, setSignDoc] = useState<DocumentDto | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadStage, setUploadStage] = useState('')
 
@@ -200,6 +202,13 @@ export default function ClientDocuments() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => setSignDoc(doc)}
+                    className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                    title="Sign document (ECDSA P-256)"
+                  >
+                    <PenTool className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => setDownloadDoc(doc)}
                     className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                     title="Decrypt and download"
@@ -303,6 +312,15 @@ export default function ClientDocuments() {
           fileName={downloadDoc.fileName}
           expectedHash={downloadDoc.documentHashSha256}
           onClose={() => setDownloadDoc(null)}
+        />
+      )}
+
+      {/* Sign Document Modal */}
+      {signDoc && (
+        <SignDocumentModal
+          docId={signDoc.id}
+          fileName={signDoc.fileName}
+          onClose={() => setSignDoc(null)}
         />
       )}
     </div>

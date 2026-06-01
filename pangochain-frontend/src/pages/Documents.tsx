@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, History, Filter, AlertCircle, Plus } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
+import { SignDocumentModal } from '../components/SignDocumentModal'
 import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
@@ -44,6 +45,7 @@ export default function Documents() {
   const [showUpload, setShowUpload] = useState(false)
   const [downloadTarget, setDownloadTarget] = useState<DocumentDto | null>(null)
   const [historyTarget, setHistoryTarget] = useState<DocumentDto | null>(null)
+  const [signTarget, setSignTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
@@ -184,6 +186,13 @@ export default function Documents() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        onClick={() => setSignTarget(doc)}
+                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                        title="Sign document"
+                      >
+                        <PenTool className="w-3.5 h-3.5" />
+                      </button>
+                      <button
                         onClick={() => setHistoryTarget(doc)}
                         className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                         title="Version history"
@@ -226,6 +235,13 @@ export default function Documents() {
           fileName={historyTarget.fileName}
           onClose={() => setHistoryTarget(null)}
           onChanged={() => refetch()}
+        />
+      )}
+      {signTarget && (
+        <SignDocumentModal
+          docId={signTarget.id}
+          fileName={signTarget.fileName}
+          onClose={() => setSignTarget(null)}
         />
       )}
     </div>

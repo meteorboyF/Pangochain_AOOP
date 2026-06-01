@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { X, PenTool, Shield, Loader2, CheckCircle, AlertCircle, Key, FileCheck } from 'lucide-react'
 import {
   decryptDocument, eciesUnwrapKey, base64ToBytes, bufferToHex,
@@ -16,6 +16,14 @@ interface Props {
   onSigned?: () => void
 }
 
+interface ESignatureDto {
+  id: string
+  signerEmail: string
+  verificationStatus: string
+  fabricTxId: string | null
+  signedAt: string
+}
+
 type Stage = 'idle' | 'fetching' | 'unwrapping' | 'decrypting' | 'confirm' | 'signing' | 'done' | 'error'
 
 export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props) {
@@ -23,7 +31,18 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
   const [stage, setStage] = useState<Stage>('idle')
   const [password, setPassword] = useState('')
   const [docHash, setDocHash] = useState('')
+  const [intentName, setIntentName] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
+  const [signatures, setSignatures] = useState<ESignatureDto[]>([])
+
+  const loadSignatures = () => {
+    api.get<ESignatureDto[]>(`/signatures/${docId}`)
+      .then((r) => setSignatures(r.data))
+      .catch(() => { /* non-fatal — list just stays empty */ })
+  }
+  useEffect(loadSignatures, [docId])
+
+  const intentValid = intentName.trim().toLowerCase() === (user?.fullName ?? '').trim().toLowerCase()
 
   const handlePrepare = async () => {
     setStage('fetching')
@@ -94,6 +113,7 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
 
       setStage('done')
       toast.success(`${fileName} signed and anchored on blockchain`)
+      loadSignatures()
       onSigned?.()
     } catch (err: any) {
       setStage('error')
@@ -124,6 +144,20 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
               <p className="text-text-muted text-xs">Signature anchored on Hyperledger Fabric</p>
             </div>
           </div>
+
+          {signatures.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-text-muted uppercase tracking-wide">Signatures ({signatures.length})</p>
+              {signatures.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 text-xs bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span className="text-text-secondary truncate flex-1">{s.signerEmail}</span>
+                  <span className="text-text-muted">{new Date(s.signedAt).toLocaleDateString()}</span>
+                  {s.fabricTxId && <code className="text-[10px] text-[#1d6464] font-mono">{s.fabricTxId.slice(0, 8)}…</code>}
+                </div>
+              ))}
+            </div>
+          )}
 
           {stage === 'idle' && (
             <div className="space-y-3">
@@ -176,15 +210,27 @@ export function SignDocumentModal({ docId, fileName, onClose, onSigned }: Props)
               <div className="flex items-start gap-2 text-sm text-text-secondary">
                 <Shield className="w-4 h-4 mt-0.5 shrink-0 text-[#1d6464]" />
                 <span>
-                  By clicking <strong>Confirm & Sign</strong>, you confirm that you have reviewed this document
-                  and the hash above matches the document you intend to sign.
+                  By signing, you confirm you have reviewed this document and the hash above matches the
+                  document you intend to sign. Type your full name below as your statement of intent.
                 </span>
+              </div>
+              <div>
+                <label className="label">Type your full name to confirm</label>
+                <input
+                  className="input"
+                  placeholder={user?.fullName ?? 'Your full name'}
+                  value={intentName}
+                  onChange={(e) => setIntentName(e.target.value)}
+                />
+                {intentName && !intentValid && (
+                  <p className="text-xs text-amber-600 mt-1">Must match your account name exactly.</p>
+                )}
               </div>
               <div className="flex gap-3">
                 <button onClick={onClose} className="flex-1 btn border border-border text-text-secondary hover:bg-surface-muted py-2.5">
                   Cancel
                 </button>
-                <button onClick={handleSign} className="flex-1 btn-primary py-2.5 justify-center">
+                <button onClick={handleSign} disabled={!intentValid} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
                   <PenTool className="w-4 h-4" /> Confirm & Sign
                 </button>
               </div>
