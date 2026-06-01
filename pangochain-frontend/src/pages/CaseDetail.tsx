@@ -3,13 +3,14 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
 import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
+import { BillingPanel } from '../components/BillingPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -59,7 +60,7 @@ interface Hearing {
   notes?: string
 }
 
-type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress'
+type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -144,6 +145,7 @@ export default function CaseDetail() {
     { id: 'hearings', label: 'Hearings', icon: <Gavel className="w-4 h-4" />, count: hearings.length },
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
     { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
+    { id: 'billing', label: 'Billing', icon: <Receipt className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
   ]
 
@@ -400,6 +402,13 @@ export default function CaseDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card"><MilestoneTimeline caseId={id!} canEdit /></div>
           <div className="card"><CaseDeadlinesPanel caseId={id!} canEdit /></div>
+        </div>
+      )}
+
+      {/* ── Tab: Billing ──────────────────────────────────────────────────────── */}
+      {activeTab === 'billing' && (
+        <div className="card">
+          <BillingPanel caseId={id!} canEdit />
         </div>
       )}
 
