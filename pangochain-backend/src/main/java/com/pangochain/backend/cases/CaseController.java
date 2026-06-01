@@ -1,5 +1,8 @@
 package com.pangochain.backend.cases;
 
+import com.pangochain.backend.cases.conflict.ConflictService;
+import com.pangochain.backend.cases.conflict.ConflictService.ConflictCheckRequest;
+import com.pangochain.backend.cases.conflict.ConflictService.ConflictCheckResult;
 import com.pangochain.backend.cases.dto.CaseCreateRequest;
 import com.pangochain.backend.cases.dto.CaseDto;
 import com.pangochain.backend.user.User;
@@ -26,6 +29,7 @@ import java.util.UUID;
 public class CaseController {
 
     private final CaseService caseService;
+    private final ConflictService conflictService;
     private final UserRepository userRepository;
 
     @PersistenceContext
@@ -38,6 +42,15 @@ public class CaseController {
             @AuthenticationPrincipal UserDetails principal) {
         User creator = resolveUser(principal);
         return ResponseEntity.ok(caseService.create(req, creator));
+    }
+
+    /** POST /api/cases/conflict-check — fuzzy-match prospective party names against existing matters. */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
+    @PostMapping("/conflict-check")
+    public ResponseEntity<ConflictCheckResult> conflictCheck(
+            @RequestBody ConflictCheckRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(conflictService.check(req, resolveUser(principal)));
     }
 
     @PreAuthorize("isAuthenticated()")

@@ -13,6 +13,9 @@ public class CaseDto {
     private String title;
     private String description;
     private String caseType;
+    private String clientName;
+    private String opposingParty;
+    private String relatedParties;
     private UUID firmId;
     private String firmName;
     private String createdByEmail;
