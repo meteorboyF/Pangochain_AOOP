@@ -50,6 +50,14 @@ public class CaseNode {
     @Column(name = "node_date", nullable = false)
     private Instant nodeDate;
 
+    /** Set when this node has been operationally consolidated into its merge-into target. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean merged = false;
+
+    @Column(name = "merged_at")
+    private Instant mergedAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

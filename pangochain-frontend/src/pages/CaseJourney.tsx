@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   GitBranch, Plus, Loader2, AlertCircle, ArrowLeft, X, FileText, User as UserIcon, Calendar,
+  GitMerge, Check,
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -19,6 +20,8 @@ interface Node {
   linkedDocId: string | null
   nodeDate: string
   createdAt: string
+  merged: boolean
+  mergedAt: string | null
 }
 interface Doc { id: string; fileName: string }
 
@@ -52,6 +55,7 @@ export default function CaseJourney() {
   const [mergeIntoId, setMergeIntoId] = useState('')
   const [linkedDocId, setLinkedDocId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [merging, setMerging] = useState(false)
 
   const load = () => {
     if (!caseId) return
@@ -105,6 +109,23 @@ export default function CaseJourney() {
   const center = (id: string) => {
     const p = positions.get(id)
     return p ? { x: p.x + NW / 2, y: p.y + NH / 2 } : null
+  }
+
+  // Branch nodes that converge into a given hearing/filing node.
+  const contributorsOf = (targetId: string) => nodes.filter((n) => n.mergeIntoId === targetId)
+
+  const handleConsolidate = async (target: Node) => {
+    setMerging(true)
+    try {
+      const { data } = await api.post<Node[]>(`/cases/${caseId}/nodes/${target.id}/merge`)
+      setNodes(data)
+      setSelected(data.find((n) => n.id === target.id) ?? null)
+      toast.success('Branch consolidated into ' + target.title)
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail ?? 'Could not consolidate')
+    } finally {
+      setMerging(false)
+    }
   }
 
   const handleAdd = async () => {
@@ -186,6 +207,11 @@ export default function CaseJourney() {
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: style.dot }} />
                     <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${style.chip}`}>{n.nodeType}</span>
+                    {n.merged && (
+                      <span className="ml-auto inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600" title="Consolidated">
+                        <Check className="w-3 h-3" /> merged
+                      </span>
+                    )}
                   </div>
                   <p className="text-sm font-medium text-text-primary truncate">{n.title}</p>
                   <p className="text-[10px] text-text-muted truncate">{n.authorName} · {new Date(n.nodeDate).toLocaleDateString()}</p>
@@ -211,6 +237,48 @@ export default function CaseJourney() {
                 <FileText className="w-3.5 h-3.5" /> {docName(selected.linkedDocId)}
               </Link>
             )}
+
+            {/* Consolidation bundle — only for hearing/filing nodes that branches converge into */}
+            {(selected.nodeType === 'HEARING' || selected.nodeType === 'FILING') && (() => {
+              const contributors = contributorsOf(selected.id)
+              const unmerged = contributors.filter((c) => !c.merged)
+              return (
+                <div className="mt-4 pt-3 border-t border-border">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <GitMerge className="w-4 h-4 text-[#1d6464]" />
+                    <span className="text-xs font-semibold text-text-primary">Consolidated bundle</span>
+                    <span className="text-[10px] text-text-muted">· {contributors.length} branch{contributors.length !== 1 ? 'es' : ''}</span>
+                  </div>
+                  {contributors.length === 0 ? (
+                    <p className="text-xs text-text-muted">No branches converge here yet. Set this node as “Converges into” when adding a finding.</p>
+                  ) : (
+                    <>
+                      <ul className="space-y-1.5 mb-3">
+                        {contributors.map((c) => (
+                          <li key={c.id} className="flex items-center gap-2 text-xs">
+                            {c.merged
+                              ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              : <span className="w-3.5 h-3.5 rounded-full border border-amber-400 shrink-0" />}
+                            <button onClick={() => setSelected(c)} className="text-text-secondary hover:text-[#1d6464] truncate text-left flex-1">{c.title}</button>
+                            {c.linkedDocId && (
+                              <span className="shrink-0" title={docName(c.linkedDocId) ?? 'document'}>
+                                <FileText className="w-3 h-3 text-text-muted" />
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      <button onClick={() => handleConsolidate(selected)} disabled={merging || unmerged.length === 0}
+                        className="btn-primary w-full py-2 text-xs disabled:opacity-50">
+                        {merging ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consolidating…</>
+                          : unmerged.length === 0 ? <><Check className="w-3.5 h-3.5" /> All branches consolidated</>
+                          : <><GitMerge className="w-3.5 h-3.5" /> Consolidate {unmerged.length} branch{unmerged.length !== 1 ? 'es' : ''}</>}
+                      </button>
+                    </>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
       </div>

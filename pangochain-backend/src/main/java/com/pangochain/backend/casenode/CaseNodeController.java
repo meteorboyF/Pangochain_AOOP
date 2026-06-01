@@ -40,4 +40,16 @@ public class CaseNodeController {
                 .orElseThrow(() -> new IllegalStateException("User not found"));
         return ResponseEntity.ok(caseNodeService.create(caseId, req, author));
     }
+
+    /** Operationally consolidate every branch converging into a hearing/filing node. */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
+    @PostMapping("/{nodeId}/merge")
+    public ResponseEntity<List<CaseNodeDto>> merge(
+            @PathVariable UUID caseId,
+            @PathVariable UUID nodeId,
+            @AuthenticationPrincipal UserDetails principal) {
+        User actor = userRepository.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        return ResponseEntity.ok(caseNodeService.consolidate(caseId, nodeId, actor));
+    }
 }

@@ -22,7 +22,9 @@ public final class CaseNodeDtos {
             String description,
             UUID linkedDocId,
             Instant nodeDate,
-            Instant createdAt
+            Instant createdAt,
+            boolean merged,
+            Instant mergedAt
     ) {}
 
     public record CreateNodeRequest(

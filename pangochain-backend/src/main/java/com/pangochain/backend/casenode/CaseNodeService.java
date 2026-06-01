@@ -69,6 +69,48 @@ public class CaseNodeService {
         return toDto(node);
     }
 
+    /**
+     * Operational merge: consolidate every branch node that converges into the given
+     * hearing/filing node. Contributors are flagged {@code merged} (sealed into the bundle)
+     * and the consolidation is recorded on the audit trail. Idempotent — re-running only
+     * folds in contributors added since the last consolidation.
+     */
+    @Transactional
+    public List<CaseNodeDto> consolidate(UUID caseId, UUID targetId, User actor) {
+        caseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Case not found"));
+        CaseNode target = nodeRepository.findById(targetId)
+                .orElseThrow(() -> new IllegalArgumentException("Node not found"));
+        if (!target.getCaseId().equals(caseId)) {
+            throw new IllegalArgumentException("Node does not belong to this case");
+        }
+        if (target.getNodeType() != CaseNode.Type.HEARING && target.getNodeType() != CaseNode.Type.FILING) {
+            throw new IllegalStateException("Only HEARING or FILING nodes can consolidate a branch");
+        }
+
+        List<CaseNode> contributors = nodeRepository.findByMergeIntoId(targetId);
+        int newlyMerged = 0;
+        Instant now = Instant.now();
+        for (CaseNode c : contributors) {
+            if (!c.isMerged()) {
+                c.setMerged(true);
+                c.setMergedAt(now);
+                nodeRepository.save(c);
+                newlyMerged++;
+            }
+        }
+
+        auditService.log("CASE_NODES_MERGED", actor.getId(), "CASE", caseId.toString(), null,
+                "{\"target\":\"" + target.getTitle().replace("\"", "'")
+                        + "\",\"contributors\":" + contributors.size()
+                        + ",\"newlyMerged\":" + newlyMerged + "}");
+        log.info("Consolidated {} contributor(s) into {} ({}) — {} newly merged",
+                contributors.size(), target.getTitle(), targetId, newlyMerged);
+
+        return nodeRepository.findByCaseIdOrderByNodeDateAsc(caseId).stream()
+                .map(this::toDto).toList();
+    }
+
     private CaseNodeDto toDto(CaseNode n) {
         String authorName = n.getAuthorId() != null
                 ? userRepository.findById(n.getAuthorId()).map(User::getFullName).orElse("Unknown")
@@ -77,6 +119,6 @@ public class CaseNodeService {
                 n.getId(), n.getCaseId(), n.getParentId(), n.getMergeIntoId(),
                 n.getAuthorId(), authorName, n.getNodeType().name(),
                 n.getTitle(), n.getDescription(), n.getLinkedDocId(),
-                n.getNodeDate(), n.getCreatedAt());
+                n.getNodeDate(), n.getCreatedAt(), n.isMerged(), n.getMergedAt());
     }
 }
