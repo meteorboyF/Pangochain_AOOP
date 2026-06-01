@@ -9,8 +9,7 @@ import com.pangochain.backend.document.Document;
 import com.pangochain.backend.document.DocumentAccess;
 import com.pangochain.backend.document.DocumentAccessRepository;
 import com.pangochain.backend.document.DocumentRepository;
-import com.pangochain.backend.notification.Notification;
-import com.pangochain.backend.notification.NotificationRepository;
+import com.pangochain.backend.notification.NotificationService;
 import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +30,7 @@ public class AccessControlService {
     private final DocumentAccessRepository accessRepository;
     private final DocumentRepository documentRepository;
     private final UserRepository userRepository;
-    private final NotificationRepository notificationRepository;
+    private final NotificationService notificationService;
     @Autowired(required = false)
     private FabricGatewayService fabricGatewayService;
     private final AuditService auditService;
@@ -101,13 +100,10 @@ public class AccessControlService {
                 .build();
         access = accessRepository.save(access);
 
-        // Notify grantee
-        notificationRepository.save(Notification.builder()
-                .userId(granteeId)
-                .type("ACCESS_GRANTED")
-                .message(String.format("%s granted you %s access to a document",
-                        granter.getFullName(), req.getCapability()))
-                .build());
+        // Notify grantee (real-time push + persisted)
+        notificationService.push(granteeId, "ACCESS_GRANTED",
+                String.format("%s granted you %s access to a document",
+                        granter.getFullName(), req.getCapability()));
 
         auditService.log("ACCESS_GRANTED", granter.getId(), "DOCUMENT",
                 docId.toString(), fabricTxId,
@@ -155,20 +151,14 @@ public class AccessControlService {
         }
 
         // Notify revoked user
-        notificationRepository.save(Notification.builder()
-                .userId(targetUserId)
-                .type("ACCESS_REVOKED")
-                .message("Your access to a document has been revoked by " + revoker.getFullName())
-                .build());
+        notificationService.push(targetUserId, "ACCESS_REVOKED",
+                "Your access to a document has been revoked by " + revoker.getFullName());
 
         // Notify document owner that key rotation is required
         if (doc != null) {
-            notificationRepository.save(Notification.builder()
-                    .userId(doc.getOwner().getId())
-                    .type("KEY_ROTATION_REQUIRED")
-                    .message("Key rotation required for document '" + doc.getFileName()
-                            + "' — a user's access was revoked. Please re-encrypt and redistribute the document key.")
-                    .build());
+            notificationService.push(doc.getOwner().getId(), "KEY_ROTATION_REQUIRED",
+                    "Key rotation required for document '" + doc.getFileName()
+                            + "' — a user's access was revoked. Please re-encrypt and redistribute the document key.");
         }
 
         auditService.log("ACCESS_REVOKED", revoker.getId(), "DOCUMENT",

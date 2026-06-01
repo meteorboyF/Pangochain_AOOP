@@ -29,6 +29,7 @@ import java.util.UUID;
 public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     private static final String TOPIC_PREFIX = "/topic/conversations/";
+    private static final String USER_TOPIC_PREFIX = "/topic/users/";
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
@@ -59,6 +60,16 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
                 User u = user != null ? userRepository.findByEmail(user.getName()).orElse(null) : null;
                 if (u == null || !chatService.isMember(convId, u.getId())) {
                     throw new IllegalArgumentException("Not authorized to subscribe to this conversation");
+                }
+            } else if (dest != null && dest.startsWith(USER_TOPIC_PREFIX)) {
+                // /topic/users/{userId}/notifications — a user may only subscribe to their own.
+                String segment = dest.substring(USER_TOPIC_PREFIX.length());
+                int slash = segment.indexOf('/');
+                String idPart = slash >= 0 ? segment.substring(0, slash) : segment;
+                Principal user = accessor.getUser();
+                User u = user != null ? userRepository.findByEmail(user.getName()).orElse(null) : null;
+                if (u == null || !u.getId().toString().equals(idPart)) {
+                    throw new IllegalArgumentException("Not authorized to subscribe to these notifications");
                 }
             }
         }

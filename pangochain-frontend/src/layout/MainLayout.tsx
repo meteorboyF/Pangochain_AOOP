@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Menu } from 'lucide-react'
 import { Sidebar } from './Sidebar'
+import { NotificationBell } from '../components/NotificationBell'
 
 export function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -22,6 +23,11 @@ export function MainLayout() {
             <Menu className="w-5 h-5" />
           </button>
           <img src="/logo-mark.png" alt="PangoChain" className="h-8 w-auto" />
+          <div className="ml-auto"><NotificationBell /></div>
+        </div>
+        {/* Floating bell for desktop (no persistent top bar) */}
+        <div className="hidden lg:block fixed top-4 right-6 z-30">
+          <NotificationBell />
         </div>
         <div className="max-w-7xl mx-auto px-6 py-8">
           <Outlet />

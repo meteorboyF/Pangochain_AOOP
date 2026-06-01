@@ -1,6 +1,36 @@
 # PangoChain — Session Handoff (Opus polish + features)
 
-_Last updated: 2026-05-30. Keep this current so work can resume across session limits._
+_Last updated: 2026-06-01. Keep this current so work can resume across session limits._
+
+## Session 2026-06-01 — deferred pieces + Sprint 1 (FeatureProposal roadmap)
+Working through `PangoChain_Feature_Proposal.md` one feature at a time. Rule: edit one file,
+`tsc`/`mvnw compile`, run both test suites, commit, push at milestones.
+
+**Deferred pieces (both DONE):**
+- **1:1 DIRECT chat** — `ChatService.openDirect` find-or-create DIRECT conversation (same-firm),
+  viewer-relative titles; `POST /api/chat/direct`, `GET /api/users/firm-directory`; Chat.tsx "New" picker.
+- **Operational journey merge** — `merged`/`merged_at` on case_nodes (mig 008); `POST /cases/{id}/nodes/{nodeId}/merge`
+  consolidates branches into a HEARING/FILING node (audited, idempotent); CaseJourney detail-panel bundle + Consolidate.
+
+**Sprint 1 (ALL 7 DONE):**
+1. **TOTP recovery codes** (mig 009) — 10 single-use PBKDF2 codes at enrolment; `/auth/mfa/recovery` login
+   fallback resets MFA; regenerate + remaining endpoints. MfaSetup shows/copies/downloads; Login fallback. +5 tests.
+2. **Document version history** — upload `previousVersionId`→version chain; `GET /documents/{id}/versions`,
+   `POST /documents/{id}/restore` (reuses ciphertext + re-issues grants). VersionHistoryPanel in Documents.
+3. **Client-side signing** — wired the pre-existing SignDocumentModal/`/signatures` into ClientDocuments + Documents;
+   added name-intent confirmation + existing-signature list. (Backend signing already existed.)
+4. **Conflict-of-interest checker** (mig 010) — party fields on cases; `POST /cases/conflict-check` fuzzy match
+   (Levenshtein + containment) → conflict_check_log; NewCase screens parties + ack-to-override. +5 tests.
+5. **Case progress timeline** (mig 011) — case_milestones, lawyer-write/client-read CRUD; MilestoneTimeline
+   (CaseDetail "Progress" tab + client My Case read-only).
+6. **Deadline & SoL tracker** (mig 012) — case_deadlines typed + colour-coded urgency; CaseDeadlinesPanel in Progress tab.
+7. **Real-time push notifications** — NotificationService.push persists + STOMP `/topic/users/{id}/notifications`
+   (interceptor authorizes own-topic); NotificationController; access grant/revoke/rotation push live;
+   NotificationBell (floating + mobile header) with browser Notifications API.
+
+**Migrations now through 012.** All committed + pushed to main.
+**NEXT:** Sprint 2 (AI doc classification, audit anomaly detection, billing, chain-of-custody visualiser,
+expense/invoice portal, GDPR dashboard, client satisfaction). Then Sprint 3, then Backlog (AI/RAG, data room, WebRTC — need external infra).
 
 ## How to run
 - **Backend:** `cd pangochain-backend && ./mvnw spring-boot:run` (port 8080). Needs local Postgres (`pangochain`/`pangochain_secret`). Fabric/IPFS optional — app uses DB fallback if down.
