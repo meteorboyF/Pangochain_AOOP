@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
+import { MilestoneTimeline } from '../../components/MilestoneTimeline'
 
 interface Hearing {
   id: string
@@ -148,6 +149,13 @@ export default function ClientCase() {
       {error && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
           <AlertCircle className="w-4 h-4" /> {error}
+        </div>
+      )}
+
+      {/* ── Case progress milestones (read-only for clients) ─────────────────────── */}
+      {selectedCaseId && (
+        <div className="card">
+          <MilestoneTimeline caseId={selectedCaseId} canEdit={false} />
         </div>
       )}
 

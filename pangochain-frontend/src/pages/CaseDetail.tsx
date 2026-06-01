@@ -3,11 +3,12 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
+import { MilestoneTimeline } from '../components/MilestoneTimeline'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -57,7 +58,7 @@ interface Hearing {
   notes?: string
 }
 
-type Tab = 'documents' | 'hearings' | 'team' | 'timeline'
+type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -141,6 +142,7 @@ export default function CaseDetail() {
     { id: 'documents', label: 'Documents', icon: <FileText className="w-4 h-4" />, count: documents.length },
     { id: 'hearings', label: 'Hearings', icon: <Gavel className="w-4 h-4" />, count: hearings.length },
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
+    { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
   ]
 
@@ -389,6 +391,13 @@ export default function CaseDetail() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Tab: Progress (milestones) ────────────────────────────────────────── */}
+      {activeTab === 'progress' && (
+        <div className="card">
+          <MilestoneTimeline caseId={id!} canEdit />
         </div>
       )}
 
