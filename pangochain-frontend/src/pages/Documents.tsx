@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, History, PenTool, Filter, AlertCircle, Plus } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { SignDocumentModal } from '../components/SignDocumentModal'
 import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
+import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
@@ -46,6 +47,7 @@ export default function Documents() {
   const [downloadTarget, setDownloadTarget] = useState<DocumentDto | null>(null)
   const [historyTarget, setHistoryTarget] = useState<DocumentDto | null>(null)
   const [signTarget, setSignTarget] = useState<DocumentDto | null>(null)
+  const [custodyTarget, setCustodyTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
@@ -200,6 +202,13 @@ export default function Documents() {
                         <History className="w-3.5 h-3.5" />
                       </button>
                       <button
+                        onClick={() => setCustodyTarget(doc)}
+                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                        title="Chain of custody"
+                      >
+                        <Network className="w-3.5 h-3.5" />
+                      </button>
+                      <button
                         onClick={() => setDownloadTarget(doc)}
                         className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                         title="Secure Download"
@@ -242,6 +251,13 @@ export default function Documents() {
           docId={signTarget.id}
           fileName={signTarget.fileName}
           onClose={() => setSignTarget(null)}
+        />
+      )}
+      {custodyTarget && (
+        <ChainOfCustodyModal
+          docId={custodyTarget.id}
+          fileName={custodyTarget.fileName}
+          onClose={() => setCustodyTarget(null)}
         />
       )}
     </div>
