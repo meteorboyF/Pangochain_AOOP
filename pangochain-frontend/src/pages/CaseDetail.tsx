@@ -9,6 +9,7 @@ import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
+import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -394,10 +395,11 @@ export default function CaseDetail() {
         </div>
       )}
 
-      {/* ── Tab: Progress (milestones) ────────────────────────────────────────── */}
+      {/* ── Tab: Progress (milestones + deadlines) ────────────────────────────── */}
       {activeTab === 'progress' && (
-        <div className="card">
-          <MilestoneTimeline caseId={id!} canEdit />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="card"><MilestoneTimeline caseId={id!} canEdit /></div>
+          <div className="card"><CaseDeadlinesPanel caseId={id!} canEdit /></div>
         </div>
       )}
 
