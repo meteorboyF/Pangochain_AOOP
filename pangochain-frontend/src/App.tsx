@@ -14,6 +14,7 @@ import NewCase from './pages/NewCase'
 import DistributeAccess from './pages/DistributeAccess'
 import CaseJourney from './pages/CaseJourney'
 import Documents from './pages/Documents'
+import TemplateEngine from './pages/TemplateEngine'
 import AuditTrail from './pages/AuditTrail'
 import Chat from './pages/Chat'
 import Profile from './pages/Profile'
@@ -84,6 +85,8 @@ export default function App() {
 
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<Documents />} />
+
+          <Route path="/templates" element={<TemplateEngine />} />
 
           <Route path="/audit" element={<AuditTrail />} />
           <Route path="/audit/ledger" element={<AuditTrail />} />

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X,
+  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X, FileSignature,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -37,6 +37,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', end: true },
     { to: '/cases', icon: <FolderOpen className="w-4 h-4" />, label: 'Cases' },
     { to: '/documents', icon: <FileText className="w-4 h-4" />, label: 'Documents' },
+    { to: '/templates', icon: <FileSignature className="w-4 h-4" />, label: 'Templates' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
     { to: '/hearings', icon: <Gavel className="w-4 h-4" />, label: 'Hearings' },
     { to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail' },

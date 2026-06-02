@@ -19,4 +19,5 @@ export const queryKeys = {
   adminUsers: (page: number) => ['admin', 'users', page] as const,
   ledger: () => ['ledger'] as const,
   reminders: () => ['reminders'] as const,
+  templates: () => ['templates'] as const,
 } as const
