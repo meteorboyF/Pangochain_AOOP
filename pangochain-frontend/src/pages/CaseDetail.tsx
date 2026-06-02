@@ -3,9 +3,10 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
+import { CourtBundleModal } from '../components/CourtBundleModal'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
@@ -73,6 +74,7 @@ export default function CaseDetail() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('documents')
   const [teamDocId, setTeamDocId] = useState<string | null>(null)
+  const [showBundle, setShowBundle] = useState(false)
 
   // Hearing form state
   const [showHearingForm, setShowHearingForm] = useState(false)
@@ -176,6 +178,9 @@ export default function CaseDetail() {
           <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
             <Share2 className="w-4 h-4" /> Distribute Access
           </Link>
+          <button onClick={() => setShowBundle(true)} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <FileStack className="w-4 h-4" /> Court Bundle
+          </button>
           <button onClick={() => setShowUpload(true)} className="btn-primary">
             <Plus className="w-4 h-4" /> Upload Document
           </button>
@@ -431,6 +436,13 @@ export default function CaseDetail() {
           fileName={downloadTarget.fileName}
           expectedHash={downloadTarget.documentHashSha256}
           onClose={() => setDownloadTarget(null)}
+        />
+      )}
+      {showBundle && (
+        <CourtBundleModal
+          caseId={id!}
+          documents={documents}
+          onClose={() => setShowBundle(false)}
         />
       )}
     </div>
