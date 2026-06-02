@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { CourtBundleModal } from '../components/CourtBundleModal'
@@ -12,6 +12,7 @@ import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
 import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
 import { BillingPanel } from '../components/BillingPanel'
+import { SettlementOffersPanel } from '../components/SettlementOffersPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -61,7 +62,7 @@ interface Hearing {
   notes?: string
 }
 
-type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing'
+type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing' | 'settlement'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -148,6 +149,7 @@ export default function CaseDetail() {
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
     { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
     { id: 'billing', label: 'Billing', icon: <Receipt className="w-4 h-4" /> },
+    { id: 'settlement', label: 'Settlement', icon: <Scale className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
   ]
 
@@ -415,6 +417,10 @@ export default function CaseDetail() {
         <div className="card">
           <BillingPanel caseId={id!} canEdit />
         </div>
+      )}
+
+      {activeTab === 'settlement' && (
+        <SettlementOffersPanel caseId={id!} canManage />
       )}
 
       {/* ── Tab: Timeline ─────────────────────────────────────────────────────── */}

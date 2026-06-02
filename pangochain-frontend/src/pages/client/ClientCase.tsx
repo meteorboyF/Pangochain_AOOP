@@ -9,6 +9,7 @@ import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
 import { MilestoneTimeline } from '../../components/MilestoneTimeline'
 import { BillingPanel } from '../../components/BillingPanel'
+import { SettlementOffersPanel } from '../../components/SettlementOffersPanel'
 
 interface Hearing {
   id: string
@@ -158,6 +159,11 @@ export default function ClientCase() {
         <div className="card">
           <MilestoneTimeline caseId={selectedCaseId} canEdit={false} />
         </div>
+      )}
+
+      {/* ── Settlement offers — compare side by side, accept or reject ────────────── */}
+      {selectedCaseId && (
+        <SettlementOffersPanel caseId={selectedCaseId} canRespond />
       )}
 
       {/* ── Billing transparency (read-only itemised time + invoices) ────────────── */}
