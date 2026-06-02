@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SecurityAlertsPanel } from '../components/SecurityAlertsPanel'
 import { DeletionRequestsAdminPanel } from '../components/DeletionRequestsAdminPanel'
+import { ComplianceReportsPanel } from '../components/ComplianceReportsPanel'
 
 interface UserSummary {
   id: string
@@ -58,6 +59,7 @@ export default function AdminPanel() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SecurityAlertsPanel />
         <DeletionRequestsAdminPanel />
+        <ComplianceReportsPanel />
       </div>
 
       {loading && <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
