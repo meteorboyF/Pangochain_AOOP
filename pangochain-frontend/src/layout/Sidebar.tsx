@@ -5,6 +5,7 @@ import {
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
   Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X, FileSignature,
+  Bot, TrendingUp, DoorOpen, Video, MessagesSquare,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -51,6 +52,18 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
   ]
 
+  // Planned (Backlog) features — scaffolding pages, role-scoped.
+  const plannedLegal: NavItem[] = [
+    { to: '/assistant', icon: <Bot className="w-4 h-4" />, label: 'AI Assistant' },
+    { to: '/insights', icon: <TrendingUp className="w-4 h-4" />, label: 'Case Insights' },
+    { to: '/data-rooms', icon: <DoorOpen className="w-4 h-4" />, label: 'Data Rooms' },
+    { to: '/consultations', icon: <Video className="w-4 h-4" />, label: 'Video Consults' },
+  ]
+  const plannedClient: NavItem[] = [
+    { to: '/client/assistant', icon: <MessagesSquare className="w-4 h-4" />, label: 'AI Assistant' },
+    { to: '/consultations', icon: <Video className="w-4 h-4" />, label: 'Video Consults' },
+  ]
+
   const adminItems: NavItem[] = [
     { to: '/admin', icon: <Settings className="w-4 h-4" />, label: 'Admin Panel' },
     { to: '/admin/users', icon: <Users className="w-4 h-4" />, label: 'Users' },
@@ -67,6 +80,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const showMfa = user.role === 'MANAGING_PARTNER' || user.role === 'IT_ADMIN' || user.role === 'PARTNER_SENIOR' || user.role === 'PARTNER_JUNIOR'
 
   const navItems = isClient(user.role) ? clientItems : legalItems
+  const plannedItems = isClient(user.role) ? plannedClient : plannedLegal
 
   const handleLogout = () => {
     clearAuth()
@@ -124,6 +138,26 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
             )}
           </NavLink>
         ))}
+
+        {plannedItems.length > 0 && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Coming Soon</p>
+            </div>
+            {plannedItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onClose}
+                className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+              >
+                {item.icon}
+                <span className="flex-1">{item.label}</span>
+                <span className="ml-auto text-[8px] font-bold uppercase bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Soon</span>
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {showRegulator && (
           <>
