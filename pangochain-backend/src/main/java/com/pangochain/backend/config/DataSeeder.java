@@ -54,6 +54,9 @@ public class DataSeeder implements ApplicationRunner {
         }
         // Idempotent: associates A–D, their case membership, and starter chat messages.
         seedTeamAndChat();
+        // Idempotent: demo data for Sprint 1–3 features (settlement offers, billing, milestones,
+        // deadlines, satisfaction feedback) on the Chen v. Meridian case so they're visible live.
+        seedFeatureDemoData();
     }
 
     private void seedBaseData() {
@@ -357,5 +360,112 @@ public class DataSeeder implements ApplicationRunner {
                 .actor(actor)
                 .build();
         caseEventRepository.save(ev);
+    }
+
+    // ── Sprint 1–3 feature demo data (idempotent) ────────────────────────────────
+    private void seedFeatureDemoData() {
+        User lawyer = userRepository.findByEmail("lawyer@pangolawfirm.com").orElse(null);
+        User client = userRepository.findByEmail("client@demo.com").orElse(null);
+        if (lawyer == null || client == null) return;
+        Case case1 = caseRepository.findAll().stream()
+                .filter(x -> x.getTitle() != null && x.getTitle().startsWith("Chen v. Meridian"))
+                .findFirst().orElse(null);
+        if (case1 == null) return;
+        UUID caseId = case1.getId();
+        UUID lawyerId = lawyer.getId();
+        UUID clientId = client.getId();
+
+        // Settlement offers — client can compare and accept/reject these live.
+        if (count("settlement_offers", "case_id", caseId) == 0) {
+            insertSettlement(caseId, lawyerId, "Opening offer — lump sum", 18_000_000L,
+                    "Confidentiality; no admission of liability.",
+                    "Low relative to the $485k claim. Recommend rejecting as an anchor.");
+            insertSettlement(caseId, lawyerId, "Revised offer — structured", 32_000_000L,
+                    "Payment over 12 months; mutual NDA; neutral reference.",
+                    "Closer to fair value. Worth a counter around $400k.");
+            insertSettlement(caseId, lawyerId, "Best-and-final", 41_000_000L,
+                    "Single payment within 30 days; full mutual release.",
+                    "Strong given litigation risk and cost. Recommend accepting.");
+        }
+
+        // Billing — time entries + one issued invoice (lawyer billing + client expense portal).
+        if (count("time_entries", "case_id", caseId) == 0) {
+            insertTimeEntry(caseId, lawyerId, "Drafted preliminary injunction motion", 180, 45_000, true, 3);
+            insertTimeEntry(caseId, lawyerId, "Reviewed lease agreement and exhibits", 120, 45_000, true, 2);
+            insertTimeEntry(caseId, lawyerId, "Client conference — settlement strategy", 60, 45_000, false, 1);
+            insertTimeEntry(caseId, lawyerId, "Prepared discovery document list", 90, 35_000, false, 0);
+            em.createNativeQuery("INSERT INTO invoices (case_id, invoice_number, status, amount_cents, minutes_total, created_by, issued_at) " +
+                    "VALUES (:c, 'INV-CHEN-001', 'SENT', 225000, 300, :by, now() - interval '1 day')")
+                    .setParameter("c", caseId).setParameter("by", lawyerId).executeUpdate();
+        }
+
+        // Case progress milestones (client-visible timeline).
+        if (count("case_milestones", "case_id", caseId) == 0) {
+            insertMilestone(caseId, lawyerId, "Intake & Engagement", "Retainer signed; conflict check cleared.", "COMPLETED", 0, "now() - interval '60 days'", "now() - interval '58 days'");
+            insertMilestone(caseId, lawyerId, "Investigation & Evidence", "Lease, correspondence and exhibits collected and anchored.", "COMPLETED", 1, "now() - interval '30 days'", "now() - interval '28 days'");
+            insertMilestone(caseId, lawyerId, "Discovery", "Document exchange with opposing counsel in progress.", "IN_PROGRESS", 2, "now() + interval '20 days'", null);
+            insertMilestone(caseId, lawyerId, "Pre-Trial Motions", "Injunction and summary-judgment motions.", "PENDING", 3, "now() + interval '40 days'", null);
+            insertMilestone(caseId, lawyerId, "Hearing / Trial", "Preliminary injunction hearing then trial.", "PENDING", 4, "now() + interval '60 days'", null);
+            insertMilestone(caseId, lawyerId, "Resolution", "Settlement or judgment and case closure.", "PENDING", 5, "now() + interval '90 days'", null);
+        }
+
+        // Deadlines & statute-of-limitations tracker (colour-coded urgency).
+        if (count("case_deadlines", "case_id", caseId) == 0) {
+            insertDeadline(caseId, lawyerId, "Statute of Limitations — Breach of Contract", "4-year SoL from date of breach.", "STATUTE", "now() + interval '400 days'");
+            insertDeadline(caseId, lawyerId, "Discovery cutoff", "All written discovery to be completed.", "DISCOVERY", "now() + interval '25 days'");
+            insertDeadline(caseId, lawyerId, "Expert witness disclosure", "Disclose data-security expert and report.", "FILING", "now() + interval '5 days'");
+        }
+
+        // Client satisfaction feedback (Managing Partner sees aggregates).
+        if (count("feedback_responses", "case_id", caseId) == 0) {
+            insertFeedback(clientId, caseId, 5, "James kept me informed throughout — excellent communication.", "HEARING");
+            insertFeedback(clientId, caseId, 4, "Smooth process. Would have liked slightly faster document turnaround.", "GENERAL");
+        }
+
+        log.info("✅ Feature demo data seeded on Chen v. Meridian (settlement, billing, milestones, deadlines, feedback).");
+    }
+
+    private long count(String table, String column, UUID value) {
+        Object n = em.createNativeQuery("SELECT count(*) FROM " + table + " WHERE " + column + " = :v")
+                .setParameter("v", value).getSingleResult();
+        return ((Number) n).longValue();
+    }
+
+    private void insertSettlement(UUID caseId, UUID by, String title, long valueCents, String terms, String analysis) {
+        em.createNativeQuery("INSERT INTO settlement_offers (case_id, title, monetary_value_cents, currency, non_monetary_terms, analysis, status, created_by, created_at) " +
+                "VALUES (:c, :t, :v, 'USD', :terms, :a, 'PROPOSED', :by, now())")
+                .setParameter("c", caseId).setParameter("t", title).setParameter("v", valueCents)
+                .setParameter("terms", terms).setParameter("a", analysis).setParameter("by", by)
+                .executeUpdate();
+    }
+
+    private void insertTimeEntry(UUID caseId, UUID userId, String desc, int minutes, int rateCents, boolean invoiced, int daysAgo) {
+        em.createNativeQuery("INSERT INTO time_entries (case_id, user_id, description, minutes, rate_cents, entry_date, invoiced, created_at) " +
+                "VALUES (:c, :u, :d, :m, :r, now() - make_interval(days => :days), :inv, now())")
+                .setParameter("c", caseId).setParameter("u", userId).setParameter("d", desc)
+                .setParameter("m", minutes).setParameter("r", rateCents).setParameter("days", daysAgo)
+                .setParameter("inv", invoiced).executeUpdate();
+    }
+
+    private void insertMilestone(UUID caseId, UUID by, String title, String desc, String status, int sort, String targetExpr, String completedExpr) {
+        em.createNativeQuery("INSERT INTO case_milestones (case_id, title, description, status, target_date, completed_at, sort_order, created_by, created_at) " +
+                "VALUES (:c, :t, :d, :s, " + targetExpr + ", " + (completedExpr != null ? completedExpr : "NULL") + ", :sort, :by, now())")
+                .setParameter("c", caseId).setParameter("t", title).setParameter("d", desc)
+                .setParameter("s", status).setParameter("sort", sort).setParameter("by", by)
+                .executeUpdate();
+    }
+
+    private void insertDeadline(UUID caseId, UUID by, String title, String desc, String type, String dateExpr) {
+        em.createNativeQuery("INSERT INTO case_deadlines (case_id, title, description, deadline_type, deadline_date, completed, created_by, created_at) " +
+                "VALUES (:c, :t, :d, :type, " + dateExpr + ", false, :by, now())")
+                .setParameter("c", caseId).setParameter("t", title).setParameter("d", desc)
+                .setParameter("type", type).setParameter("by", by).executeUpdate();
+    }
+
+    private void insertFeedback(UUID clientId, UUID caseId, int rating, String comment, String context) {
+        em.createNativeQuery("INSERT INTO feedback_responses (client_id, case_id, rating, comment, context, created_at) " +
+                "VALUES (:cl, :c, :r, :cm, :ctx, now())")
+                .setParameter("cl", clientId).setParameter("c", caseId).setParameter("r", rating)
+                .setParameter("cm", comment).setParameter("ctx", context).executeUpdate();
     }
 }
