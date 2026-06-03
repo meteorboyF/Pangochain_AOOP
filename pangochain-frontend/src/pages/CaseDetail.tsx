@@ -3,12 +3,13 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { CourtBundleModal } from '../components/CourtBundleModal'
 import { AnnotationModal } from '../components/AnnotationModal'
 import { SignatureWorkflowModal } from '../components/SignatureWorkflowModal'
+import { RedactionModal } from '../components/RedactionModal'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
@@ -80,6 +81,7 @@ export default function CaseDetail() {
   const [showBundle, setShowBundle] = useState(false)
   const [annotateTarget, setAnnotateTarget] = useState<DocItem | null>(null)
   const [signTarget, setSignTarget] = useState<DocItem | null>(null)
+  const [redactTarget, setRedactTarget] = useState<DocItem | null>(null)
 
   // Hearing form state
   const [showHearingForm, setShowHearingForm] = useState(false)
@@ -303,6 +305,13 @@ export default function CaseDetail() {
                       <PenTool className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      onClick={() => setRedactTarget(doc)}
+                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
+                      title="Redact"
+                    >
+                      <Eraser className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => setDownloadTarget(doc)}
                       className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                       title="Secure Download"
@@ -483,6 +492,17 @@ export default function CaseDetail() {
           caseId={id!}
           fileName={signTarget.fileName}
           onClose={() => setSignTarget(null)}
+        />
+      )}
+      {redactTarget && (
+        <RedactionModal
+          docId={redactTarget.id}
+          caseId={id!}
+          fileName={redactTarget.fileName}
+          category={redactTarget.category}
+          documentHashSha256={redactTarget.documentHashSha256}
+          onClose={() => setRedactTarget(null)}
+          onRedacted={() => { setRedactTarget(null); loadData() }}
         />
       )}
     </div>
