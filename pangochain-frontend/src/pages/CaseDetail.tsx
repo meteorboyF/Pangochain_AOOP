@@ -3,11 +3,12 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { CourtBundleModal } from '../components/CourtBundleModal'
 import { AnnotationModal } from '../components/AnnotationModal'
+import { SignatureWorkflowModal } from '../components/SignatureWorkflowModal'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
@@ -78,6 +79,7 @@ export default function CaseDetail() {
   const [teamDocId, setTeamDocId] = useState<string | null>(null)
   const [showBundle, setShowBundle] = useState(false)
   const [annotateTarget, setAnnotateTarget] = useState<DocItem | null>(null)
+  const [signTarget, setSignTarget] = useState<DocItem | null>(null)
 
   // Hearing form state
   const [showHearingForm, setShowHearingForm] = useState(false)
@@ -294,6 +296,13 @@ export default function CaseDetail() {
                       <MessageCircle className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      onClick={() => setSignTarget(doc)}
+                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
+                      title="Signature workflow"
+                    >
+                      <PenTool className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => setDownloadTarget(doc)}
                       className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                       title="Secure Download"
@@ -466,6 +475,14 @@ export default function CaseDetail() {
           fileName={annotateTarget.fileName}
           versionHash={annotateTarget.documentHashSha256}
           onClose={() => setAnnotateTarget(null)}
+        />
+      )}
+      {signTarget && (
+        <SignatureWorkflowModal
+          docId={signTarget.id}
+          caseId={id!}
+          fileName={signTarget.fileName}
+          onClose={() => setSignTarget(null)}
         />
       )}
     </div>
