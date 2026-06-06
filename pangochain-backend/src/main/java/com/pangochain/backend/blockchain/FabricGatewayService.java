@@ -31,7 +31,6 @@ import java.util.concurrent.*;
 @ConditionalOnProperty(name = "fabric.enabled", havingValue = "true")
 @RequiredArgsConstructor
 @Slf4j
-@ConditionalOnProperty(name = "fabric.enabled", havingValue = "true")
 public class FabricGatewayService {
 
     private final Network fabricNetwork;
