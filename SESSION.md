@@ -29,8 +29,34 @@ Working through `PangoChain_Feature_Proposal.md` one feature at a time. Rule: ed
    NotificationBell (floating + mobile header) with browser Notifications API.
 
 **Migrations now through 012.** All committed + pushed to main.
-**NEXT:** Sprint 2 (AI doc classification, audit anomaly detection, billing, chain-of-custody visualiser,
-expense/invoice portal, GDPR dashboard, client satisfaction). Then Sprint 3, then Backlog (AI/RAG, data room, WebRTC — need external infra).
+
+## Session 2026-06-03 — Sprint 2 (verified done) + Sprint 3 (ALL 8 DONE)
+**Sprint 2** was already complete on entry (migrations 013–017): AI doc classification, audit anomaly
+detection (security alerts), billing & time tracking, chain-of-custody visualiser, expense/invoice
+portal, GDPR/privacy dashboard, client satisfaction feedback.
+
+**Sprint 3 (ALL 8 DONE this session)** — one feature per commit, each gated on `tsc` + both test suites:
+1. **Smart Contract Template Engine** (mig 018) — versioned NDA/Retainer/Settlement templates; guided
+   form → client-side `{{var}}` render → AES upload → TEMPLATE_GENERATED anchor (param hash). `/templates`.
+2. **Compliance Report Generator** — added Apache PDFBox + reusable self-paginating `PdfBuilder`;
+   `/api/reports` GDPR Inventory / Access Log / Breach Readiness PDFs from audit_log; AdminPanel panel.
+3. **Multi-Party Signature Workflow** (mig 021) — ordered ECDSA ceremony; signers sign
+   SHA-256(docHash|workflowId|signerId); completion anchor + Signing Certificate PDF. Per-doc modal.
+4. **Court-Ready PDF Bundle** — client decrypts locally (shared `lib/decryptDoc`), server assembles
+   cover+TOC+bodies+Blockchain Integrity Appendix (DB-sourced hashes/tx). `POST /api/bundles`.
+5. **Client-Side Redaction** (mig 022) — in-browser text redaction → fresh-key re-encrypt → new CID;
+   `document_redactions` parent→child pair + RECORD_REDACTION anchor.
+6. **Settlement Offer Comparison** (mig 019) — lawyer adds offers; client accept/reject (verified vs
+   case_clients) → RECORD_SETTLEMENT_RESPONSE + notify lawyer. CaseDetail Settlement tab + client My Case.
+7. **Collaborative Annotation** (mig 020) — STOMP `/topic/documents/{id}/annotations`; threaded margin
+   comments + resolve; subscribe authorized via new `DocumentService.hasDocumentAccess`. Per-doc modal.
+8. **Case Outcome Archive** — client JSZip bundle of decrypted docs + summary + server On-Chain
+   Permanence Certificate PDF; optional passphrase AES-GCM encryption. Client My Case "Download Archive".
+
+**Migrations now through 022.** Tests: backend **67** JUnit, frontend **69** Vitest, tsc clean.
+**NEXT:** Only the **Backlog** remains — RAG Legal AI, AI Client Chatbot, Predictive Outcome, Cross-Firm
+Data Room, Secure Video Consultation. All need external infra (LLM/RAG, Python ML sidecar, WebRTC,
+cross-firm federation) not available in this environment — deferred by design.
 
 ## How to run
 - **Backend:** `cd pangochain-backend && ./mvnw spring-boot:run` (port 8080). Needs local Postgres (`pangochain`/`pangochain_secret`). Fabric/IPFS optional — app uses DB fallback if down.

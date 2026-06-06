@@ -6,6 +6,15 @@ Follow these steps **in order** after cloning the repository. The whole process 
 
 ## Prerequisites
 
+### Clickable teammate setup
+
+For a fresh teammate machine, use the click-to-run setup helper first:
+
+- **Windows:** double-click `SETUP_WINDOWS.bat`.
+- **macOS:** double-click `SETUP_MAC.command`.
+
+These helpers install/check Java, Node.js, Docker tooling, frontend packages, and Docker images where possible. Docker Desktop still has to be opened manually the first time on both Windows and macOS. See `TEAMMATE_SETUP.md` for the short teammate-facing instructions.
+
 Install these tools before starting. Tick each one off as you go.
 
 | Tool | Version | Download |
@@ -30,16 +39,52 @@ cd Pangochain_AOOP
 
 ## Step 2 — Start the Database & IPFS (Docker)
 
+### One-terminal startup (recommended)
+
+From the repository root, run:
+
+```bash
+bash scripts/dev.sh
+```
+
+This starts PostgreSQL, both IPFS nodes, the Fabric network/chaincode when needed, the Spring Boot
+backend, and the Vite frontend. It also follows the backend/frontend logs in the same terminal.
+Press `Ctrl+C` to stop watching logs; the services keep running in the background.
+
+Useful follow-up commands:
+
+```bash
+bash scripts/dev.sh status    # show tracked PIDs and ports
+bash scripts/dev.sh logs      # follow backend/frontend logs again
+bash scripts/dev.sh restart   # restart backend/frontend cleanly
+bash scripts/dev.sh stop      # stop backend/frontend started by the script
+```
+
+The script fixes the common stale-PID annoyance: if a saved backend/frontend PID no longer exists,
+it removes the stale PID file; if the backend is already healthy on port 8080, it reuses it instead
+of trying to launch a duplicate process.
+
+To skip Fabric for a lightweight DB/IPFS-only development run:
+
+```bash
+PANGOCHAIN_WITH_FABRIC=0 bash scripts/dev.sh
+```
+
+### Manual startup
+
 This starts PostgreSQL (port 5432) and IPFS (port 5001). You need Docker Desktop running first.
 
 ```bash
-docker-compose up postgres ipfs -d
+docker compose up postgres ipfs -d
 ```
+
+If your Docker installation only has the legacy Compose binary, use `docker-compose` in place of
+`docker compose`.
 
 Wait about 15 seconds, then verify both containers are healthy:
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 You should see `(healthy)` next to both `pangochain-postgres` and `pangochain-ipfs`.
@@ -115,16 +160,22 @@ Go to **http://localhost:3000** in your browser.
 
 ## Stopping Everything
 
-To stop the frontend and backend, press `Ctrl+C` in each terminal.
+If you used the one-terminal launcher:
+
+```bash
+bash scripts/dev.sh stop
+```
+
+If you started services manually, stop the frontend and backend with `Ctrl+C` in each terminal.
 
 To stop Docker containers:
 ```bash
-docker-compose down
+docker compose down
 ```
 
 To stop Docker **and wipe the database** (fresh start):
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ---
@@ -194,7 +245,14 @@ The backend works with defaults. Override via environment variables if needed:
 ## Common Issues & Fixes
 
 ### ❌ `Port 8080 already in use`
-Another instance of the backend is running. Kill it:
+First ask the one-terminal launcher what it knows:
+
+```bash
+bash scripts/dev.sh status
+bash scripts/dev.sh stop
+```
+
+If the process was started outside the launcher, another backend instance is running. Kill it:
 - **Windows:** `netstat -ano | findstr :8080` → note the PID → `taskkill /PID <pid> /F`
 - **Mac/Linux:** `lsof -ti:8080 | xargs kill -9`
 
@@ -204,8 +262,8 @@ A local PostgreSQL service is running. Either stop it or change the port in `doc
 ### ❌ Backend fails with `Failed to initialize pool`
 Docker is not running, or the `postgres` container isn't healthy yet. Run:
 ```bash
-docker-compose up postgres ipfs -d
-docker-compose ps   # wait until both show "(healthy)"
+docker compose up postgres ipfs -d
+docker compose ps   # wait until both show "(healthy)"
 ```
 Then restart the backend.
 

@@ -4,7 +4,8 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X,
+  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X, FileSignature,
+  Bot, TrendingUp, DoorOpen, Video, MessagesSquare,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -37,6 +38,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', end: true },
     { to: '/cases', icon: <FolderOpen className="w-4 h-4" />, label: 'Cases' },
     { to: '/documents', icon: <FileText className="w-4 h-4" />, label: 'Documents' },
+    { to: '/templates', icon: <FileSignature className="w-4 h-4" />, label: 'Templates' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
     { to: '/hearings', icon: <Gavel className="w-4 h-4" />, label: 'Hearings' },
     { to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail' },
@@ -48,6 +50,18 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/client/case', icon: <Scale className="w-4 h-4" />, label: 'My Case' },
     { to: '/client/privacy', icon: <ShieldCheck className="w-4 h-4" />, label: 'Privacy & Data' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
+  ]
+
+  // Planned (Backlog) features — scaffolding pages, role-scoped.
+  const plannedLegal: NavItem[] = [
+    { to: '/assistant', icon: <Bot className="w-4 h-4" />, label: 'AI Assistant' },
+    { to: '/insights', icon: <TrendingUp className="w-4 h-4" />, label: 'Case Insights' },
+    { to: '/data-rooms', icon: <DoorOpen className="w-4 h-4" />, label: 'Data Rooms' },
+    { to: '/consultations', icon: <Video className="w-4 h-4" />, label: 'Video Consults' },
+  ]
+  const plannedClient: NavItem[] = [
+    { to: '/client/assistant', icon: <MessagesSquare className="w-4 h-4" />, label: 'AI Assistant' },
+    { to: '/consultations', icon: <Video className="w-4 h-4" />, label: 'Video Consults' },
   ]
 
   const adminItems: NavItem[] = [
@@ -66,6 +80,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   const showMfa = user.role === 'MANAGING_PARTNER' || user.role === 'IT_ADMIN' || user.role === 'PARTNER_SENIOR' || user.role === 'PARTNER_JUNIOR'
 
   const navItems = isClient(user.role) ? clientItems : legalItems
+  const plannedItems = isClient(user.role) ? plannedClient : plannedLegal
 
   const handleLogout = () => {
     clearAuth()
@@ -123,6 +138,26 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
             )}
           </NavLink>
         ))}
+
+        {plannedItems.length > 0 && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Coming Soon</p>
+            </div>
+            {plannedItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={onClose}
+                className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+              >
+                {item.icon}
+                <span className="flex-1">{item.label}</span>
+                <span className="ml-auto text-[8px] font-bold uppercase bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Soon</span>
+              </NavLink>
+            ))}
+          </>
+        )}
 
         {showRegulator && (
           <>

@@ -14,6 +14,12 @@ import NewCase from './pages/NewCase'
 import DistributeAccess from './pages/DistributeAccess'
 import CaseJourney from './pages/CaseJourney'
 import Documents from './pages/Documents'
+import TemplateEngine from './pages/TemplateEngine'
+import AiAssistant from './pages/AiAssistant'
+import CaseInsights from './pages/CaseInsights'
+import DataRooms from './pages/DataRooms'
+import VideoConsultations from './pages/VideoConsultations'
+import ClientAssistant from './pages/client/ClientAssistant'
 import AuditTrail from './pages/AuditTrail'
 import Chat from './pages/Chat'
 import Profile from './pages/Profile'
@@ -84,6 +90,15 @@ export default function App() {
 
           <Route path="/documents" element={<Documents />} />
           <Route path="/documents/:id" element={<Documents />} />
+
+          <Route path="/templates" element={<TemplateEngine />} />
+
+          {/* Planned (Backlog) features — scaffolding pages, routes reserved */}
+          <Route path="/assistant" element={<AiAssistant />} />
+          <Route path="/insights" element={<CaseInsights />} />
+          <Route path="/data-rooms" element={<DataRooms />} />
+          <Route path="/consultations" element={<VideoConsultations />} />
+          <Route path="/client/assistant" element={<ClientAssistant />} />
 
           <Route path="/audit" element={<AuditTrail />} />
           <Route path="/audit/ledger" element={<AuditTrail />} />

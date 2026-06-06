@@ -178,6 +178,27 @@ public class DocumentService {
         return ipfsService.cat(doc.getIpfsCid());
     }
 
+    /**
+     * Lightweight DB-layer access check: the owner always has access; otherwise an active
+     * (non-revoked, non-expired) access entry is required. Used by collaborative annotation
+     * (REST + STOMP subscribe authorization) where a full Fabric round-trip per check is overkill.
+     */
+    @Transactional(readOnly = true)
+    public boolean hasDocumentAccess(UUID docId, UUID userId) {
+        Document doc = documentRepository.findById(docId).orElse(null);
+        if (doc == null) return false;
+        if (doc.getOwner() != null && doc.getOwner().getId().equals(userId)) return true;
+        return accessRepository.findActiveEntry(docId, userId).isPresent();
+    }
+
+    /** Resolve the case a document belongs to (used to scope annotations to a case team). */
+    @Transactional(readOnly = true)
+    public UUID caseIdOf(UUID docId) {
+        return documentRepository.findById(docId)
+                .map(d -> d.getLegalCase() != null ? d.getLegalCase().getId() : null)
+                .orElse(null);
+    }
+
     @Transactional
     public void completeKeyRotation(UUID docId, User requester) {
         Document doc = documentRepository.findById(docId)

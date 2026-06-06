@@ -3,14 +3,19 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
+import { CourtBundleModal } from '../components/CourtBundleModal'
+import { AnnotationModal } from '../components/AnnotationModal'
+import { SignatureWorkflowModal } from '../components/SignatureWorkflowModal'
+import { RedactionModal } from '../components/RedactionModal'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
 import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
 import { BillingPanel } from '../components/BillingPanel'
+import { SettlementOffersPanel } from '../components/SettlementOffersPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -60,7 +65,7 @@ interface Hearing {
   notes?: string
 }
 
-type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing'
+type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing' | 'settlement'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -73,6 +78,10 @@ export default function CaseDetail() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('documents')
   const [teamDocId, setTeamDocId] = useState<string | null>(null)
+  const [showBundle, setShowBundle] = useState(false)
+  const [annotateTarget, setAnnotateTarget] = useState<DocItem | null>(null)
+  const [signTarget, setSignTarget] = useState<DocItem | null>(null)
+  const [redactTarget, setRedactTarget] = useState<DocItem | null>(null)
 
   // Hearing form state
   const [showHearingForm, setShowHearingForm] = useState(false)
@@ -146,6 +155,7 @@ export default function CaseDetail() {
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
     { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
     { id: 'billing', label: 'Billing', icon: <Receipt className="w-4 h-4" /> },
+    { id: 'settlement', label: 'Settlement', icon: <Scale className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
   ]
 
@@ -176,6 +186,9 @@ export default function CaseDetail() {
           <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
             <Share2 className="w-4 h-4" /> Distribute Access
           </Link>
+          <button onClick={() => setShowBundle(true)} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <FileStack className="w-4 h-4" /> Court Bundle
+          </button>
           <button onClick={() => setShowUpload(true)} className="btn-primary">
             <Plus className="w-4 h-4" /> Upload Document
           </button>
@@ -276,6 +289,27 @@ export default function CaseDetail() {
                       title="Manage team access"
                     >
                       <Users className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setAnnotateTarget(doc)}
+                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
+                      title="Annotate"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setSignTarget(doc)}
+                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
+                      title="Signature workflow"
+                    >
+                      <PenTool className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setRedactTarget(doc)}
+                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
+                      title="Redact"
+                    >
+                      <Eraser className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setDownloadTarget(doc)}
@@ -412,6 +446,10 @@ export default function CaseDetail() {
         </div>
       )}
 
+      {activeTab === 'settlement' && (
+        <SettlementOffersPanel caseId={id!} canManage />
+      )}
+
       {/* ── Tab: Timeline ─────────────────────────────────────────────────────── */}
       {activeTab === 'timeline' && (
         <CaseTimeline caseId={id!} />
@@ -431,6 +469,40 @@ export default function CaseDetail() {
           fileName={downloadTarget.fileName}
           expectedHash={downloadTarget.documentHashSha256}
           onClose={() => setDownloadTarget(null)}
+        />
+      )}
+      {showBundle && (
+        <CourtBundleModal
+          caseId={id!}
+          documents={documents}
+          onClose={() => setShowBundle(false)}
+        />
+      )}
+      {annotateTarget && (
+        <AnnotationModal
+          docId={annotateTarget.id}
+          fileName={annotateTarget.fileName}
+          versionHash={annotateTarget.documentHashSha256}
+          onClose={() => setAnnotateTarget(null)}
+        />
+      )}
+      {signTarget && (
+        <SignatureWorkflowModal
+          docId={signTarget.id}
+          caseId={id!}
+          fileName={signTarget.fileName}
+          onClose={() => setSignTarget(null)}
+        />
+      )}
+      {redactTarget && (
+        <RedactionModal
+          docId={redactTarget.id}
+          caseId={id!}
+          fileName={redactTarget.fileName}
+          category={redactTarget.category}
+          documentHashSha256={redactTarget.documentHashSha256}
+          onClose={() => setRedactTarget(null)}
+          onRedacted={() => { setRedactTarget(null); loadData() }}
         />
       )}
     </div>

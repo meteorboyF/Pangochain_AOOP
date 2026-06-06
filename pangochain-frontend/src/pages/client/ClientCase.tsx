@@ -3,12 +3,14 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Scale, Gavel, FileText, Calendar, Users, Clock,
   CheckCircle, AlertCircle, Loader2, Lock, ChevronRight,
-  Activity, Shield,
+  Activity, Shield, Archive,
 } from 'lucide-react'
 import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
 import { MilestoneTimeline } from '../../components/MilestoneTimeline'
 import { BillingPanel } from '../../components/BillingPanel'
+import { SettlementOffersPanel } from '../../components/SettlementOffersPanel'
+import { CaseArchiveModal } from '../../components/CaseArchiveModal'
 
 interface Hearing {
   id: string
@@ -63,6 +65,7 @@ interface CaseInfo {
 
 export default function ClientCase() {
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null)
+  const [showArchive, setShowArchive] = useState(false)
 
   // Three independent queries — each tolerates its own failure (mirrors the old allSettled).
   const hearingsQuery = useQuery({
@@ -106,11 +109,20 @@ export default function ClientCase() {
     return <div className="flex justify-center py-32"><Loader2 className="w-7 h-7 animate-spin text-[#1d6464]" /></div>
   }
 
+  const selectedCase = cases.find((c) => c.id === selectedCaseId)
+
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
-      <div>
-        <h1 className="font-heading text-2xl font-bold text-text-primary">My Case</h1>
-        <p className="text-text-muted text-sm mt-0.5">Hearings, timeline, and blockchain audit trail</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-text-primary">My Case</h1>
+          <p className="text-text-muted text-sm mt-0.5">Hearings, timeline, and blockchain audit trail</p>
+        </div>
+        {selectedCaseId && (
+          <button onClick={() => setShowArchive(true)} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10 text-sm shrink-0">
+            <Archive className="w-4 h-4" /> Download Archive
+          </button>
+        )}
       </div>
 
       {/* Case selector if client has multiple cases */}
@@ -158,6 +170,11 @@ export default function ClientCase() {
         <div className="card">
           <MilestoneTimeline caseId={selectedCaseId} canEdit={false} />
         </div>
+      )}
+
+      {/* ── Settlement offers — compare side by side, accept or reject ────────────── */}
+      {selectedCaseId && (
+        <SettlementOffersPanel caseId={selectedCaseId} canRespond />
       )}
 
       {/* ── Billing transparency (read-only itemised time + invoices) ────────────── */}
@@ -318,6 +335,14 @@ export default function ClientCase() {
           </div>
         )}
       </div>
+
+      {showArchive && selectedCaseId && (
+        <CaseArchiveModal
+          caseId={selectedCaseId}
+          caseTitle={selectedCase?.title ?? 'Case'}
+          onClose={() => setShowArchive(false)}
+        />
+      )}
     </div>
   )
 }
