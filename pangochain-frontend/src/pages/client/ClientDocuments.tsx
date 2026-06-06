@@ -1,12 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   FileText, Upload, Download, Lock, Shield, AlertCircle,
-  Loader2, Eye, Trash2, CheckCircle, AlertTriangle, Search, Filter,
+  Loader2, PenTool, AlertTriangle, Search, Sparkles,
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
-import { encryptDocument, eciesWrapKey, bytesToBase64 } from '../../lib/crypto'
+import { queryKeys } from '../../lib/queryKeys'
+import { encryptDocument, eciesWrapKey } from '../../lib/crypto'
 import { SecureDownloadModal } from '../../components/SecureDownloadModal'
+import { SignDocumentModal } from '../../components/SignDocumentModal'
+import { ListSkeleton } from '../../components/ui/Skeleton'
 import toast from 'react-hot-toast'
 
 interface DocumentDto {
@@ -34,13 +38,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ClientDocuments() {
   const { user } = useAuthStore()
-  const [documents, setDocuments] = useState<DocumentDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [activeCategory, setActiveCategory] = useState('ALL')
   const [search, setSearch] = useState('')
   const [uploadModalOpen, setUploadModalOpen] = useState(false)
   const [downloadDoc, setDownloadDoc] = useState<DocumentDto | null>(null)
+  const [signDoc, setSignDoc] = useState<DocumentDto | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadStage, setUploadStage] = useState('')
 
@@ -49,19 +51,34 @@ export default function ClientDocuments() {
   const [uploadCategory, setUploadCategory] = useState('GENERAL')
   const [uploadConfidential, setUploadConfidential] = useState(false)
   const [uploadNote, setUploadNote] = useState('')
+  const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
 
-  useEffect(() => { loadDocs() }, [])
-
-  async function loadDocs() {
-    try {
-      const { data } = await api.get('/documents')
-      setDocuments(data ?? [])
-    } catch (e: any) {
-      setError(e.response?.data?.detail ?? 'Failed to load documents')
-    } finally {
-      setLoading(false)
+  // AI auto-tagging: on file select, read a plaintext-side preview (text files only) and ask the
+  // classifier to suggest a category. Ciphertext is never sent — only filename + this preview.
+  const onPickFile = async (file: File | null) => {
+    setUploadFile(file)
+    setSuggestion(null)
+    if (!file) return
+    let previewText = ''
+    if (/^text\/|json|csv|xml/.test(file.type) || /\.(txt|md|json|csv|xml|log)$/i.test(file.name)) {
+      try { previewText = await file.slice(0, 4096).text() } catch { /* ignore */ }
     }
+    try {
+      const { data } = await api.post('/documents/classify', { fileName: file.name, previewText })
+      setSuggestion(data)
+      if (data?.category) setUploadCategory(data.category)
+    } catch { /* classification is advisory */ }
   }
+
+  const { data: documents = [], isLoading: loading, isError, refetch } = useQuery({
+    queryKey: queryKeys.myDocuments(),
+    queryFn: async () => {
+      const { data } = await api.get('/documents')
+      // /documents returns a Spring Data Page ({ content: [...] }); tolerate a bare array too.
+      return (Array.isArray(data) ? data : data?.content ?? []) as DocumentDto[]
+    },
+  })
+  const error = isError ? 'Failed to load documents' : ''
 
   const handleUpload = async () => {
     if (!uploadFile || !user) return
@@ -95,7 +112,7 @@ export default function ClientDocuments() {
       setUploadModalOpen(false)
       setUploadFile(null)
       setUploadNote('')
-      loadDocs()
+      refetch()
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? e.message ?? 'Upload failed')
     } finally {
@@ -152,7 +169,7 @@ export default function ClientDocuments() {
         />
       </div>
 
-      {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
+      {loading && <ListSkeleton />}
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
           <AlertCircle className="w-4 h-4" /> {error}
@@ -203,6 +220,13 @@ export default function ClientDocuments() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => setSignDoc(doc)}
+                    className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                    title="Sign document (ECDSA P-256)"
+                  >
+                    <PenTool className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => setDownloadDoc(doc)}
                     className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
                     title="Decrypt and download"
@@ -235,7 +259,7 @@ export default function ClientDocuments() {
               <input
                 type="file"
                 className="input"
-                onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
               />
             </div>
 
@@ -244,6 +268,18 @@ export default function ClientDocuments() {
               <select className="input" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
                 {CATEGORIES.filter((c) => c !== 'ALL').map((c) => <option key={c}>{c}</option>)}
               </select>
+              {suggestion && (
+                <div className="mt-1.5 flex items-center gap-2 text-xs text-[#1d6464] bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-lg px-2.5 py-1.5">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span>
+                    Suggested: <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
+                    {uploadCategory !== suggestion.category && (
+                      <button type="button" onClick={() => setUploadCategory(suggestion.category)} className="ml-1 underline">apply</button>
+                    )}
+                    <span className="block text-text-muted">{suggestion.rationale}</span>
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -306,6 +342,15 @@ export default function ClientDocuments() {
           fileName={downloadDoc.fileName}
           expectedHash={downloadDoc.documentHashSha256}
           onClose={() => setDownloadDoc(null)}
+        />
+      )}
+
+      {/* Sign Document Modal */}
+      {signDoc && (
+        <SignDocumentModal
+          docId={signDoc.id}
+          fileName={signDoc.fileName}
+          onClose={() => setSignDoc(null)}
         />
       )}
     </div>

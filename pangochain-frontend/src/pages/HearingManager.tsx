@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Gavel, Calendar, Plus, Trash2, Bell, Loader2, AlertCircle,
-  MapPin, Scale, Clock, Users, ChevronDown, Send,
+  Scale, ChevronDown, Send,
 } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
 
 interface CaseDto { id: string; title: string; status: string }
@@ -26,9 +28,7 @@ const HEARING_TYPES = [
 ]
 
 export default function HearingManager() {
-  const [hearings, setHearings] = useState<Hearing[]>([])
-  const [cases, setCases] = useState<CaseDto[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -47,28 +47,26 @@ export default function HearingManager() {
   const [reminderBody, setReminderBody] = useState('')
   const [sendingReminder, setSendingReminder] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [hRes, cRes] = await Promise.allSettled([
-          api.get('/hearings/upcoming'),
-          api.get('/cases', { params: { size: 100 } }),
-        ])
-        if (hRes.status === 'fulfilled') setHearings(hRes.value.data ?? [])
-        if (cRes.status === 'fulfilled') setCases(cRes.value.data?.content ?? [])
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const hearingsQuery = useQuery({
+    queryKey: queryKeys.hearingsUpcoming(),
+    queryFn: async () => (await api.get('/hearings/upcoming')).data ?? [],
+  })
+  const casesQuery = useQuery({
+    queryKey: [...queryKeys.cases(), 'all-100'],
+    queryFn: async () => (await api.get('/cases', { params: { size: 100 } })).data?.content ?? [],
+  })
+  const hearings: Hearing[] = hearingsQuery.data ?? []
+  const cases: CaseDto[] = casesQuery.data ?? []
+  const loading = hearingsQuery.isLoading || casesQuery.isLoading
+  const error = hearingsQuery.isError ? 'Failed to load hearings' : ''
+  const refreshHearings = () => queryClient.invalidateQueries({ queryKey: queryKeys.hearingsUpcoming() })
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!caseId || !title || !hearingDate) return
     setSubmitting(true)
     try {
-      const { data } = await api.post('/hearings', {
+      await api.post('/hearings', {
         caseId,
         title,
         hearingDate: new Date(hearingDate).toISOString(),
@@ -78,7 +76,7 @@ export default function HearingManager() {
         notes: notes || null,
       })
       toast.success('Hearing scheduled')
-      setHearings((prev) => [data, ...prev])
+      refreshHearings()
       setShowForm(false)
       setTitle(''); setHearingDate(''); setLocation(''); setCourtName(''); setNotes('')
     } catch (e: any) {
@@ -90,7 +88,7 @@ export default function HearingManager() {
 
   const handleDelete = async (id: string) => {
     await api.delete(`/hearings/${id}`).catch(() => {})
-    setHearings((prev) => prev.filter((h) => h.id !== id))
+    refreshHearings()
     toast.success('Hearing removed')
   }
 
@@ -193,6 +191,11 @@ export default function HearingManager() {
       )}
 
       {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
+      {error && !loading && (
+        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        </div>
+      )}
 
       {/* ── Upcoming ──────────────────────────────────────────────────────────── */}
       {!loading && (

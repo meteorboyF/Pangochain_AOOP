@@ -6,6 +6,9 @@ import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { ParticlesBackground } from '../components/ParticlesBackground'
 import { DEMO_USER } from '../lib/mockData'
+import { ensureUserKeys } from '../lib/provisionKeys'
+
+type LoginStage = 'password' | 'mfa_code' | 'mfa_setup_required'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -14,15 +17,39 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [totpCode, setTotpCode] = useState('')
+  const [recoveryCode, setRecoveryCode] = useState('')
+  const [useRecovery, setUseRecovery] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [mfaStep, setMfaStep] = useState(false)
+  const [loginStage, setLoginStage] = useState<LoginStage>('password')
+  const [challengeToken, setChallengeToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const mfaStep = loginStage === 'mfa_code'
 
   const handleDemo = () => {
     setAuth('demo-access-token', 'demo-refresh-token', DEMO_USER)
     toast.success('Welcome to the demo, Sarah!')
     navigate('/dashboard')
+  }
+
+  const storeAndRedirect = async (data: any) => {
+    setAuth(data.accessToken, data.refreshToken, {
+      id: data.userId,
+      email: data.email,
+      fullName: data.fullName,
+      role: data.role,
+      firmId: data.firmId,
+      mfaEnabled: data.mfaEnabled,
+    })
+    // First-login key provisioning — makes the account E2E-capable on this device.
+    // Never block login on failure; provisioning retries on the next login.
+    try {
+      const provisioned = await ensureUserKeys(data.userId, password)
+      if (provisioned) toast.success('Security keys generated for this device')
+    } catch { /* non-fatal */ }
+    toast.success(`Welcome back, ${data.fullName.split(' ')[0]}!`)
+    navigate(data.role.startsWith('CLIENT') ? '/client/portal' : '/dashboard')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,31 +66,46 @@ export default function Login() {
     }
 
     try {
-      const { data } = await api.post('/auth/login', {
-        email,
-        password,
-        totpCode: mfaStep ? totpCode : undefined,
-      })
-
-      if (data.mfaRequired && !mfaStep) {
-        setMfaStep(true)
-        setLoading(false)
+      if (loginStage === 'mfa_code') {
+        // Stage 2: submit TOTP code — or a single-use recovery code — against the challenge token
+        if (useRecovery) {
+          const { data } = await api.post('/auth/mfa/recovery', { challengeToken, recoveryCode })
+          toast('Recovery code used — please set up MFA again from your profile', { icon: '🔑' })
+          await storeAndRedirect(data)
+          return
+        }
+        const { data } = await api.post('/auth/mfa/challenge', { challengeToken, totpCode })
+        await storeAndRedirect(data)
         return
       }
 
-      setAuth(data.accessToken, data.refreshToken, {
-        id: data.userId,
-        email: data.email,
-        fullName: data.fullName,
-        role: data.role,
-        firmId: data.firmId,
-        mfaEnabled: data.mfaEnabled,
-      })
+      // Stage 1: password login
+      const { data } = await api.post('/auth/login', { email, password })
 
-      toast.success(`Welcome back, ${data.fullName.split(' ')[0]}!`)
-      navigate(data.role.startsWith('CLIENT') ? '/client/portal' : '/dashboard')
+      if (data.requiresMfaCode) {
+        // HTTP 202 — challenge token issued, need TOTP code
+        setChallengeToken(data.challengeToken)
+        setLoginStage('mfa_code')
+        setTotpCode('')
+        return
+      }
+
+      await storeAndRedirect(data)
     } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Invalid credentials')
+      const status = err.response?.status
+      const body = err.response?.data
+
+      if (status === 403 && body?.requiresMfaSetup) {
+        setLoginStage('mfa_setup_required')
+        return
+      }
+      if (status === 401 && loginStage === 'mfa_code') {
+        setError(useRecovery ? 'Invalid or already-used recovery code' : 'Invalid code — try again')
+        setTotpCode('')
+        setRecoveryCode('')
+        return
+      }
+      setError(body?.error ?? body?.detail ?? body?.message ?? 'Invalid credentials')
     } finally {
       setLoading(false)
     }
@@ -106,8 +148,8 @@ export default function Login() {
       </div>
 
       {/* ── Right panel ─────────────────────────────────────────────────── */}
-      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface overflow-hidden">
-        <ParticlesBackground variant="app" />
+      {/* translucent so the global fixed particle layer shows through behind the form */}
+      <div className="flex-1 relative flex items-center justify-center p-8 bg-surface/70 overflow-hidden">
 
         <div className="relative z-10 w-full max-w-sm">
           {/* Mobile logo */}
@@ -116,16 +158,41 @@ export default function Login() {
           </div>
 
           <h1 className="font-heading text-2xl font-bold text-text-primary mb-1">
-            {mfaStep ? 'Two-Factor Authentication' : 'Welcome back'}
+            {loginStage === 'mfa_code' ? 'Two-Factor Authentication'
+              : loginStage === 'mfa_setup_required' ? 'MFA Required'
+              : 'Welcome back'}
           </h1>
           <p className="text-text-muted text-sm mb-6">
-            {mfaStep
+            {loginStage === 'mfa_code'
               ? 'Enter the 6-digit code from your authenticator app.'
+              : loginStage === 'mfa_setup_required'
+              ? 'Your role requires multi-factor authentication before you can log in.'
               : 'Sign in to your secure workspace.'}
           </p>
 
+          {loginStage === 'mfa_setup_required' ? (
+            <div className="space-y-4">
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                For security, Managing Partners and IT Admins must enroll in Google Authenticator before accessing the system.
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/mfa/setup')}
+                className="btn-primary w-full justify-center py-2.5"
+              >
+                Set up MFA now
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginStage('password')}
+                className="w-full text-sm text-text-muted hover:text-text-primary text-center"
+              >
+                Back to login
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!mfaStep ? (
+            {loginStage === 'password' ? (
               <>
                 <div>
                   <label className="label">Email address</label>
@@ -162,6 +229,26 @@ export default function Login() {
                   </div>
                 </div>
               </>
+            ) : useRecovery ? (
+              <div>
+                <label className="label">Recovery Code</label>
+                <input
+                  type="text"
+                  className="input text-center text-lg tracking-widest font-mono"
+                  value={recoveryCode}
+                  onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().slice(0, 16))}
+                  placeholder="XXXXX-XXXXX"
+                  autoFocus
+                  autoComplete="one-time-code"
+                />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(false); setError(''); setRecoveryCode('') }}
+                  className="mt-2 text-xs text-[#1d6464] hover:underline"
+                >
+                  Use authenticator code instead
+                </button>
+              </div>
             ) : (
               <div>
                 <label className="label">Authenticator Code</label>
@@ -169,11 +256,21 @@ export default function Login() {
                   type="text"
                   className="input text-center text-2xl tracking-widest"
                   value={totpCode}
-                  onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                    setTotpCode(v)
+                  }}
                   placeholder="000000"
                   maxLength={6}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  onClick={() => { setUseRecovery(true); setError(''); setTotpCode('') }}
+                  className="mt-2 text-xs text-[#1d6464] hover:underline"
+                >
+                  Lost your device? Use a recovery code
+                </button>
               </div>
             )}
 
@@ -188,6 +285,7 @@ export default function Login() {
               {mfaStep ? 'Verify Code' : 'Sign In'}
             </button>
           </form>
+          )}
 
           <div className="mt-6 pt-5 border-t border-border">
             <button

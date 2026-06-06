@@ -1,7 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
-import { FolderOpen, Plus, Search, Clock, FileText, Filter, Loader2, AlertCircle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { FolderOpen, Plus, Search, Clock, FileText, Filter, AlertCircle } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
+import { StatusBadge } from '../components/ui/StatusBadge'
+import { CardGridSkeleton } from '../components/ui/Skeleton'
 
 interface CaseDto {
   id: string
@@ -22,40 +26,32 @@ interface Page<T> {
   number: number
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:   'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED:   'bg-gray-100 text-gray-600 border border-gray-200',
-  ARCHIVED: 'bg-amber-50 text-amber-700 border border-amber-200',
-}
-
 export default function Cases() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'CLOSED'>('ALL')
-  const [page, setPage] = useState<Page<CaseDto> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // Debounce the search term so typing doesn't fire a request per keystroke; the
+  // debounced value becomes part of the query key, so React Query handles caching,
+  // dedup and refetch automatically.
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
+  const { data: page, isLoading, isError } = useQuery({
+    queryKey: queryKeys.cases({ status: statusFilter, q: debouncedSearch }),
+    queryFn: async () => {
       const params: Record<string, string> = { page: '0', size: '30' }
       if (statusFilter !== 'ALL') params.status = statusFilter
-      if (search.trim()) params.q = search.trim()
+      if (debouncedSearch) params.q = debouncedSearch
       const { data } = await api.get<Page<CaseDto>>('/cases', { params })
-      setPage(data)
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Failed to load cases')
-    } finally {
-      setLoading(false)
-    }
-  }, [search, statusFilter])
+      return data
+    },
+    placeholderData: (prev) => prev, // keep showing prior results while refetching on filter change
+  })
 
-  useEffect(() => {
-    const t = setTimeout(load, search ? 300 : 0)
-    return () => clearTimeout(t)
-  }, [load, search])
-
+  const loading = isLoading
+  const error = isError ? 'Failed to load cases' : ''
   const cases = page?.content ?? []
   const total = page?.totalElements ?? 0
   const active = cases.filter((c) => c.status === 'ACTIVE').length
@@ -104,11 +100,7 @@ export default function Cases() {
       </div>
 
       {/* States */}
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
-        </div>
-      )}
+      {loading && <CardGridSkeleton />}
 
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
@@ -137,9 +129,7 @@ export default function Cases() {
                 <div className="w-10 h-10 rounded-xl bg-[#1d6464]/10 flex items-center justify-center group-hover:bg-[#1d6464] transition-colors">
                   <FolderOpen className="w-5 h-5 text-[#1d6464] group-hover:text-white transition-colors" />
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[c.status]}`}>
-                  {c.status}
-                </span>
+                <StatusBadge status={c.status} />
               </div>
               <h3 className="font-heading font-semibold text-text-primary text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#1d6464] transition-colors">
                 {c.title}

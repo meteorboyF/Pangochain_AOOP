@@ -1,8 +1,20 @@
-import { useEffect, useState } from 'react'
-import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Loader2 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
+import { StatusBadge } from '../components/ui/StatusBadge'
+
+interface NextHearing {
+  id: string
+  title: string
+  hearingDate: string
+  location: string | null
+  courtName: string | null
+  hearingType: string
+  caseTitle: string
+}
 
 interface Stats {
   activeCases: number
@@ -30,11 +42,6 @@ interface AuditEntry {
   metadataJson: string
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:   'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED:   'bg-gray-100 text-gray-600 border border-gray-200',
-  ARCHIVED: 'bg-amber-50 text-amber-700 border border-amber-200',
-}
 
 const AUDIT_COLORS: Record<string, string> = {
   DOC_REGISTERED:  'bg-blue-50 text-blue-700',
@@ -71,30 +78,49 @@ function StatCard({ icon, label, value, to, trend }: {
   )
 }
 
+function HearingCountdown({ date }: { date: string }) {
+  const now = new Date()
+  const hearing = new Date(date)
+  const diffMs = hearing.getTime() - now.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+
+  if (diffMs < 0) return <span className="text-error font-bold">Past due</span>
+  if (diffDays === 0) return <span className="text-amber-600 font-bold text-lg">Today — in {diffHours}h</span>
+  if (diffDays === 1) return <span className="text-amber-500 font-bold text-lg">Tomorrow</span>
+  return <span className="text-[#1d6464] font-bold text-2xl">{diffDays} days</span>
+}
+
 export default function Dashboard() {
   const { user } = useAuthStore()
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [cases, setCases] = useState<RecentCase[]>([])
-  const [audit, setAudit] = useState<AuditEntry[]>([])
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [statsRes, casesRes, auditRes] = await Promise.allSettled([
-          api.get<Stats>('/dashboard/stats'),
-          api.get('/cases', { params: { size: 5 } }),
-          api.get('/audit', { params: { size: 4 } }),
-        ])
-        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
-        if (casesRes.status === 'fulfilled') setCases(casesRes.value.data.content ?? [])
-        if (auditRes.status === 'fulfilled') setAudit(auditRes.value.data.content ?? [])
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  // Four independent queries — each tolerates its own failure (mirrors the old
+  // Promise.allSettled behaviour), so one endpoint being down never blanks the page.
+  const statsQuery = useQuery({
+    queryKey: queryKeys.dashboardStats(),
+    queryFn: async () => (await api.get<Stats>('/dashboard/stats')).data,
+  })
+  const casesQuery = useQuery({
+    queryKey: [...queryKeys.cases(), 'recent'],
+    queryFn: async () => (await api.get('/cases', { params: { size: 5 } })).data.content ?? [],
+  })
+  const auditQuery = useQuery({
+    queryKey: [...queryKeys.audit(), 'recent'],
+    queryFn: async () => (await api.get('/audit', { params: { size: 4 } })).data.content ?? [],
+  })
+  const lawyerQuery = useQuery({
+    queryKey: queryKeys.dashboardLawyer(),
+    queryFn: async () => (await api.get('/dashboard/lawyer')).data,
+  })
+
+  const stats: Stats | null = statsQuery.data ?? null
+  const cases: RecentCase[] = casesQuery.data ?? []
+  const audit: AuditEntry[] = auditQuery.data ?? []
+  const nextHearing: NextHearing | null | undefined =
+    lawyerQuery.isSuccess ? (lawyerQuery.data?.nextHearing ?? null)
+    : lawyerQuery.isError ? null : undefined
+  // Show the page once the primary (stats) query settles; secondary panels fill in as they resolve.
+  const loading = statsQuery.isLoading
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -188,9 +214,7 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ml-3 flex-shrink-0 ${STATUS_COLORS[c.status] ?? ''}`}>
-                    {c.status}
-                  </span>
+                  <span className="ml-3 flex-shrink-0"><StatusBadge status={c.status} /></span>
                 </Link>
               ))}
             </div>
@@ -199,6 +223,33 @@ export default function Dashboard() {
 
         {/* Right column */}
         <div className="space-y-5">
+          {/* Next Hearing */}
+          {nextHearing !== undefined && (
+            <div className="card border border-[#1d6464]/20">
+              <div className="flex items-center gap-2 mb-3">
+                <Gavel className="w-4 h-4 text-[#1d6464]" />
+                <h2 className="font-heading font-semibold text-text-primary text-sm">Next Hearing</h2>
+              </div>
+              {nextHearing === null ? (
+                <p className="text-text-muted text-sm text-center py-2">No upcoming hearings</p>
+              ) : (
+                <div className="space-y-2">
+                  <HearingCountdown date={nextHearing.hearingDate} />
+                  <p className="font-medium text-text-primary text-sm truncate">{nextHearing.title}</p>
+                  <p className="text-text-muted text-xs truncate">{nextHearing.caseTitle}</p>
+                  <div className="flex items-center gap-1.5 text-xs text-text-muted pt-1">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(nextHearing.hearingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  {nextHearing.courtName && (
+                    <p className="text-xs text-text-muted truncate">{nextHearing.courtName}</p>
+                  )}
+                  <Link to="/hearings" className="text-xs text-[#1d6464] hover:underline font-medium">View all hearings →</Link>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Security Status */}
           <div className="card">
             <h2 className="font-heading font-semibold text-text-primary mb-4">Security Status</h2>
@@ -250,6 +301,9 @@ export default function Dashboard() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-xs text-text-secondary truncate">{a.resourceId}</p>
+                      {a.fabricTxId && (
+                        <code className="text-[9px] text-[#1d6464] font-mono">{a.fabricTxId.slice(0, 8)}…</code>
+                      )}
                       <p className="text-[10px] text-text-muted">{new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>

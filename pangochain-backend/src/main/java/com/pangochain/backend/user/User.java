@@ -2,14 +2,19 @@ package com.pangochain.backend.user;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class User implements org.springframework.security.core.userdetails.UserDetails {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -31,16 +36,24 @@ public class User implements org.springframework.security.core.userdetails.UserD
     @Column(nullable = false)
     private UserRole role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    // EAGER: the authenticated principal is loaded once per request in the JWT filter and
+    // its firm (name/id/mspId) is needed across many controllers. With open-in-view=false the
+    // session is closed before controllers run, so a LAZY firm would throw
+    // LazyInitializationException. The firm row is tiny, so eager loading is cheap and correct.
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "firm_id")
     private Firm firm;
 
     @Column(name = "fabric_identity_id")
     private String fabricIdentityId;
 
-    // ECIES P-256 public key in PEM format — sent from browser on registration
+    // ECIES P-256 public key in JWK format — for document key wrapping
     @Column(name = "public_key_ecies", columnDefinition = "TEXT")
     private String publicKeyEcies;
+
+    // ECDSA P-256 public key in JWK format — for document signature verification
+    @Column(name = "signing_public_key", columnDefinition = "TEXT")
+    private String signingPublicKey;
 
     @Column(name = "mfa_secret")
     private String mfaSecret;
@@ -88,38 +101,27 @@ public class User implements org.springframework.security.core.userdetails.UserD
         return isPartnerOrAbove() || role == UserRole.IT_ADMIN;
     }
 
+    // ── UserDetails ────────────────────────────────────────────────────────────
     @Override
-    public java.util.Collection<? extends org.springframework.security.core.GrantedAuthority> getAuthorities() {
-        return java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + role.name()));
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }
 
     @Override
-    public String getPassword() {
-        return passwordHash;
-    }
+    public String getUsername() { return email; }
 
     @Override
-    public String getUsername() {
-        return email;
-    }
+    public String getPassword() { return passwordHash; }
 
     @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    public boolean isAccountNonExpired() { return true; }
 
     @Override
-    public boolean isAccountNonLocked() {
-        return status != AccountStatus.SUSPENDED;
-    }
+    public boolean isAccountNonLocked() { return status != AccountStatus.SUSPENDED; }
 
     @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    public boolean isCredentialsNonExpired() { return true; }
 
     @Override
-    public boolean isEnabled() {
-        return status == AccountStatus.ACTIVE;
-    }
+    public boolean isEnabled() { return status == AccountStatus.ACTIVE; }
 }

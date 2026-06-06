@@ -26,6 +26,16 @@ public class Case {
     @Column(name = "case_type")
     private String caseType;
 
+    /** Structured party names — used by the conflict-of-interest checker. */
+    @Column(name = "client_name")
+    private String clientName;
+
+    @Column(name = "opposing_party")
+    private String opposingParty;
+
+    @Column(name = "related_parties", columnDefinition = "TEXT")
+    private String relatedParties;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "firm_id", nullable = false)
     private Firm firm;

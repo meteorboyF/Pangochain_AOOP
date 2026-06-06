@@ -1,8 +1,20 @@
 OrdererOrgs:
   - Name: Orderer
-    Domain: orderer.pangochain.com
+    Domain: pangochain.com
+    EnableNodeOUs: true
     Specs:
-      - Hostname: orderer
+      - Hostname: orderer1
+        SANS:
+          - localhost
+          - orderer1.pangochain.com
+      - Hostname: orderer2
+        SANS:
+          - localhost
+          - orderer2.pangochain.com
+      - Hostname: orderer3
+        SANS:
+          - localhost
+          - orderer3.pangochain.com
 
 PeerOrgs:
   - Name: FirmA

@@ -4,9 +4,15 @@ networks:
   fabric_test:
     name: fabric_test
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
 
 volumes:
-  orderer.pangochain.com:
+  orderer1.pangochain.com:
+  orderer2.pangochain.com:
+  orderer3.pangochain.com:
   peer0.firma.pangochain.com:
   peer0.firmb.pangochain.com:
   peer0.regulator.pangochain.com:
@@ -22,7 +28,8 @@ services:
     ports:
       - "5984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.30
 
   couchdb.firmb:
     image: couchdb:3.3
@@ -33,7 +40,8 @@ services:
     ports:
       - "6984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.31
 
   couchdb.regulator:
     image: couchdb:3.3
@@ -44,12 +52,13 @@ services:
     ports:
       - "7984:5984"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.32
 
-  # ─── Orderer ────────────────────────────────────────────────────────────────
-  orderer.pangochain.com:
+  # ─── Orderer 1 (Raft leader candidate) ─────────────────────────────────────
+  orderer1.pangochain.com:
     image: hyperledger/fabric-orderer:2.4
-    container_name: orderer.pangochain.com
+    container_name: orderer1.pangochain.com
     environment:
       FABRIC_LOGGING_SPEC: INFO
       ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
@@ -67,18 +76,97 @@ services:
       ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /var/hyperledger/orderer/tls/server.crt
       ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /var/hyperledger/orderer/tls/server.key
       ORDERER_GENERAL_CLUSTER_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
+      ORDERER_CONSENSUS_WALDIR: /var/hyperledger/production/orderer/etcdraft/wal
+      ORDERER_CONSENSUS_SNAPDIR: /var/hyperledger/production/orderer/etcdraft/snapshot
       ORDERER_METRICS_PROVIDER: prometheus
       ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:17050
     volumes:
-      - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/msp:/var/hyperledger/orderer/msp
-      - ./crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls:/var/hyperledger/orderer/tls
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls:/var/hyperledger/orderer/tls
       - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
-      - orderer.pangochain.com:/var/hyperledger/production/orderer
+      - orderer1.pangochain.com:/var/hyperledger/production/orderer
     ports:
       - "7050:7050"
       - "17050:17050"
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.2
+        aliases:
+          - orderer1.pangochain.com
+
+  # ─── Orderer 2 ───────────────────────────────────────────────────────────────
+  orderer2.pangochain.com:
+    image: hyperledger/fabric-orderer:2.4
+    container_name: orderer2.pangochain.com
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: 8050
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/orderer/msp
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: file
+      ORDERER_GENERAL_BOOTSTRAPFILE: /var/hyperledger/orderer/orderer.genesis.block
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
+      ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_CLUSTER_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
+      ORDERER_CONSENSUS_WALDIR: /var/hyperledger/production/orderer/etcdraft/wal
+      ORDERER_CONSENSUS_SNAPDIR: /var/hyperledger/production/orderer/etcdraft/snapshot
+      ORDERER_METRICS_PROVIDER: prometheus
+      ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:18050
+    volumes:
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer2.pangochain.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer2.pangochain.com/tls:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - orderer2.pangochain.com:/var/hyperledger/production/orderer
+    ports:
+      - "8050:8050"
+      - "18050:18050"
+    networks:
+      fabric_test:
+        ipv4_address: 172.20.0.6
+        aliases:
+          - orderer2.pangochain.com
+
+  # ─── Orderer 3 ───────────────────────────────────────────────────────────────
+  orderer3.pangochain.com:
+    image: hyperledger/fabric-orderer:2.4
+    container_name: orderer3.pangochain.com
+    environment:
+      FABRIC_LOGGING_SPEC: INFO
+      ORDERER_GENERAL_LISTENADDRESS: 0.0.0.0
+      ORDERER_GENERAL_LISTENPORT: 9050
+      ORDERER_GENERAL_LOCALMSPID: OrdererMSP
+      ORDERER_GENERAL_LOCALMSPDIR: /var/hyperledger/orderer/msp
+      ORDERER_GENERAL_BOOTSTRAPMETHOD: file
+      ORDERER_GENERAL_BOOTSTRAPFILE: /var/hyperledger/orderer/orderer.genesis.block
+      ORDERER_GENERAL_TLS_ENABLED: "true"
+      ORDERER_GENERAL_TLS_PRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_TLS_CERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_TLS_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
+      ORDERER_GENERAL_CLUSTER_CLIENTCERTIFICATE: /var/hyperledger/orderer/tls/server.crt
+      ORDERER_GENERAL_CLUSTER_CLIENTPRIVATEKEY: /var/hyperledger/orderer/tls/server.key
+      ORDERER_GENERAL_CLUSTER_ROOTCAS: "[/var/hyperledger/orderer/tls/ca.crt]"
+      ORDERER_CONSENSUS_WALDIR: /var/hyperledger/production/orderer/etcdraft/wal
+      ORDERER_CONSENSUS_SNAPDIR: /var/hyperledger/production/orderer/etcdraft/snapshot
+      ORDERER_METRICS_PROVIDER: prometheus
+      ORDERER_OPERATIONS_LISTENADDRESS: 0.0.0.0:19050
+    volumes:
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer3.pangochain.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/pangochain.com/orderers/orderer3.pangochain.com/tls:/var/hyperledger/orderer/tls
+      - ./channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+      - orderer3.pangochain.com:/var/hyperledger/production/orderer
+    ports:
+      - "9050:9050"
+      - "19050:19050"
+    networks:
+      fabric_test:
+        ipv4_address: 172.20.0.7
+        aliases:
+          - orderer3.pangochain.com
 
   # ─── FirmA Peer ─────────────────────────────────────────────────────────────
   peer0.firma.pangochain.com:
@@ -118,9 +206,12 @@ services:
       - "17051:17051"
     depends_on:
       - couchdb.firma
-      - orderer.pangochain.com
+      - orderer1.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.3
+        aliases:
+          - peer0.firma.pangochain.com
 
   # ─── FirmB Peer ─────────────────────────────────────────────────────────────
   peer0.firmb.pangochain.com:
@@ -160,9 +251,12 @@ services:
       - "17052:17052"
     depends_on:
       - couchdb.firmb
-      - orderer.pangochain.com
+      - orderer1.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.4
+        aliases:
+          - peer0.firmb.pangochain.com
 
   # ─── Regulator Peer ─────────────────────────────────────────────────────────
   peer0.regulator.pangochain.com:
@@ -202,9 +296,12 @@ services:
       - "17053:17053"
     depends_on:
       - couchdb.regulator
-      - orderer.pangochain.com
+      - orderer1.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.5
+        aliases:
+          - peer0.regulator.pangochain.com
 
   # ─── Fabric CAs ─────────────────────────────────────────────────────────────
   ca.firma.pangochain.com:
@@ -221,7 +318,8 @@ services:
       - "7054:7054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.20
 
   ca.firmb.pangochain.com:
     image: hyperledger/fabric-ca:1.5
@@ -237,7 +335,8 @@ services:
       - "8054:8054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.21
 
   ca.regulator.pangochain.com:
     image: hyperledger/fabric-ca:1.5
@@ -253,7 +352,8 @@ services:
       - "9054:9054"
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.22
 
   # ─── CLI tool container ──────────────────────────────────────────────────────
   cli:
@@ -280,10 +380,22 @@ services:
       - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto
       - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
       - ../pangochain-chaincode:/opt/gopath/src/github.com/chaincode
+    extra_hosts:
+      - "orderer1.pangochain.com:172.20.0.2"
+      - "orderer2.pangochain.com:172.20.0.6"
+      - "orderer3.pangochain.com:172.20.0.7"
+      - "peer0.firma.pangochain.com:172.20.0.3"
+      - "peer0.firmb.pangochain.com:172.20.0.4"
+      - "peer0.regulator.pangochain.com:172.20.0.5"
     depends_on:
-      - orderer.pangochain.com
+      - orderer1.pangochain.com
+      - orderer2.pangochain.com
+      - orderer3.pangochain.com
       - peer0.firma.pangochain.com
       - peer0.firmb.pangochain.com
       - peer0.regulator.pangochain.com
     networks:
-      - fabric_test
+      fabric_test:
+        ipv4_address: 172.20.0.10
+        aliases:
+          - fabric-cli

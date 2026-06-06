@@ -1,8 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
-import { FileText, Search, Download, Shield, Clock, Eye, Filter, Loader2, AlertCircle, Plus } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, Filter, AlertCircle, Plus } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
+import { SignDocumentModal } from '../components/SignDocumentModal'
+import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
+import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
+import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
+
+type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
+
+const CATEGORIES: DocCategory[] = ['ALL', 'GENERAL', 'CONTRACT', 'EVIDENCE', 'PLEADING', 'CORRESPONDENCE']
 
 interface DocumentDto {
   id: string
@@ -15,6 +25,7 @@ interface DocumentDto {
   version: number
   status: string
   createdAt: string
+  category?: string
 }
 
 interface Page<T> { content: T[]; totalElements: number }
@@ -30,32 +41,32 @@ function fileIcon(name: string) {
 
 export default function Documents() {
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState<Page<DocumentDto> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [category, setCategory] = useState<DocCategory>('ALL')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showUpload, setShowUpload] = useState(false)
   const [downloadTarget, setDownloadTarget] = useState<DocumentDto | null>(null)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const params: Record<string, string> = { page: '0', size: '50' }
-      if (search.trim()) params.q = search.trim()
-      const { data } = await api.get<Page<DocumentDto>>('/documents', { params })
-      setPage(data)
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Failed to load documents')
-    } finally {
-      setLoading(false)
-    }
-  }, [search])
+  const [historyTarget, setHistoryTarget] = useState<DocumentDto | null>(null)
+  const [signTarget, setSignTarget] = useState<DocumentDto | null>(null)
+  const [custodyTarget, setCustodyTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
-    const t = setTimeout(load, search ? 300 : 0)
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
     return () => clearTimeout(t)
-  }, [load, search])
+  }, [search])
 
+  const { data: page, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: [...queryKeys.documents('all', category === 'ALL' ? undefined : category), debouncedSearch],
+    queryFn: async () => {
+      const params: Record<string, string> = { page: '0', size: '50' }
+      if (debouncedSearch) params.q = debouncedSearch
+      if (category !== 'ALL') params.category = category
+      const { data } = await api.get<Page<DocumentDto>>('/documents', { params })
+      return data
+    },
+    placeholderData: (prev) => prev,
+  })
+
+  const error = isError ? 'Failed to load documents' : ''
   const docs = page?.content ?? []
 
   return (
@@ -78,23 +89,36 @@ export default function Documents() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-        <input
-          className="input pl-9"
-          placeholder="Search documents…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Search + Category Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative max-w-md flex-1">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input
+            className="input pl-9"
+            placeholder="Search documents…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
+                category === cat
+                  ? 'bg-[#1d6464] text-white border-[#1d6464]'
+                  : 'bg-white text-text-secondary border-border hover:border-[#1d6464]/40'
+              }`}
+            >
+              {cat === 'ALL' ? <><Filter className="w-3 h-3 inline mr-1" />All</> : cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* States */}
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
-        </div>
-      )}
+      {loading && <ListSkeleton />}
 
       {error && !loading && (
         <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
@@ -164,10 +188,25 @@ export default function Documents() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        onClick={() => setSignTarget(doc)}
                         className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="View"
+                        title="Sign document"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <PenTool className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setHistoryTarget(doc)}
+                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                        title="Version history"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setCustodyTarget(doc)}
+                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
+                        title="Chain of custody"
+                      >
+                        <Network className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setDownloadTarget(doc)}
@@ -189,7 +228,7 @@ export default function Documents() {
         <DocumentUploadDropzone
           caseId=""
           onClose={() => setShowUpload(false)}
-          onUploaded={() => { setShowUpload(false); load() }}
+          onUploaded={() => { setShowUpload(false); refetch() }}
         />
       )}
       {downloadTarget && (
@@ -197,6 +236,28 @@ export default function Documents() {
           docId={downloadTarget.id}
           fileName={downloadTarget.fileName}
           onClose={() => setDownloadTarget(null)}
+        />
+      )}
+      {historyTarget && (
+        <VersionHistoryPanel
+          docId={historyTarget.id}
+          fileName={historyTarget.fileName}
+          onClose={() => setHistoryTarget(null)}
+          onChanged={() => refetch()}
+        />
+      )}
+      {signTarget && (
+        <SignDocumentModal
+          docId={signTarget.id}
+          fileName={signTarget.fileName}
+          onClose={() => setSignTarget(null)}
+        />
+      )}
+      {custodyTarget && (
+        <ChainOfCustodyModal
+          docId={custodyTarget.id}
+          fileName={custodyTarget.fileName}
+          onClose={() => setCustodyTarget(null)}
         />
       )}
     </div>

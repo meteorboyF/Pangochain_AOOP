@@ -5,6 +5,7 @@ import com.pangochain.backend.cases.CaseMember;
 import com.pangochain.backend.cases.CaseRepository;
 import com.pangochain.backend.caseevent.CaseEvent;
 import com.pangochain.backend.caseevent.CaseEventRepository;
+import com.pangochain.backend.chat.ChatService;
 import com.pangochain.backend.crypto.Pbkdf2Service;
 import com.pangochain.backend.hearing.Hearing;
 import com.pangochain.backend.hearing.HearingRepository;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -36,6 +38,7 @@ public class DataSeeder implements ApplicationRunner {
     private final ReminderRepository reminderRepository;
     private final CaseEventRepository caseEventRepository;
     private final Pbkdf2Service pbkdf2Service;
+    private final ChatService chatService;
 
     @PersistenceContext
     private EntityManager em;
@@ -43,11 +46,17 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (userRepository.existsByEmail("admin@pangolawfirm.com")) {
-            log.info("Seed data already present — skipping DataSeeder");
-            return;
+        boolean baseAlreadySeeded = userRepository.existsByEmail("admin@pangolawfirm.com");
+        if (!baseAlreadySeeded) {
+            seedBaseData();
+        } else {
+            log.info("Base seed already present — running additive team/chat seed only");
         }
+        // Idempotent: associates A–D, their case membership, and starter chat messages.
+        seedTeamAndChat();
+    }
 
+    private void seedBaseData() {
         log.info("Seeding demo data…");
 
         Firm firmA = firmRepository.findAll().stream()
@@ -267,6 +276,60 @@ public class DataSeeder implements ApplicationRunner {
                 .status(status)
                 .build();
         return userRepository.save(u);
+    }
+
+    /**
+     * Additive seed (runs every startup, idempotent): four associates A–D under the senior
+     * associate for the delegation story, added to the Chen v. Meridian case team, plus a
+     * couple of starter chat messages so the case and firm channels aren't empty.
+     */
+    private void seedTeamAndChat() {
+        Firm firmA = firmRepository.findAll().stream()
+                .filter(f -> "FirmAMSP".equals(f.getMspId())).findFirst().orElse(null);
+        if (firmA == null) return;
+        User lawyer = userRepository.findByEmail("lawyer@pangolawfirm.com").orElse(null);
+        if (lawyer == null) return; // base seed not present yet
+
+        User a = ensureUser("a@pangolawfirm.com", "Assoc123!", "Aaron Avers (Associate A)", UserRole.ASSOCIATE_JUNIOR, firmA);
+        User b = ensureUser("b@pangolawfirm.com", "Assoc123!", "Bianca Bose (Associate B)", UserRole.ASSOCIATE_JUNIOR, firmA);
+        User c = ensureUser("c@pangolawfirm.com", "Assoc123!", "Carlos Cruz (Associate C)", UserRole.ASSOCIATE_JUNIOR, firmA);
+        User d = ensureUser("d@pangolawfirm.com", "Assoc123!", "Dana Diaz (Associate D)", UserRole.ASSOCIATE_JUNIOR, firmA);
+
+        Case case1 = caseRepository.findAll().stream()
+                .filter(x -> x.getTitle() != null && x.getTitle().startsWith("Chen v. Meridian"))
+                .findFirst().orElse(null);
+        if (case1 != null) {
+            for (User u : java.util.List.of(a, b, c, d)) {
+                saveMemberIfAbsent(case1.getId(), u.getId(), "Associate", lawyer.getId());
+            }
+            UUID conv = chatService.ensureCaseConversationId(case1);
+            if (chatService.isEmpty(conv)) {
+                chatService.post(conv, lawyer, "Team — kicking off Chen v. Meridian. I'll distribute the document set shortly.");
+                chatService.post(conv, a, "On it. I'll take the lease exhibits.");
+                chatService.post(conv, b, "I'll start the correspondence review.");
+            }
+        }
+        UUID firmConv = chatService.ensureFirmConversationId(firmA.getId());
+        if (chatService.isEmpty(firmConv)) {
+            User admin = userRepository.findByEmail("admin@pangolawfirm.com").orElse(lawyer);
+            chatService.post(firmConv, admin, "Welcome to the firm channel — use this for firm-wide coordination.");
+            chatService.post(firmConv, lawyer, "Thanks. Chen v. Meridian team is staffed and moving.");
+        }
+        log.info("✅ Team/chat seed complete — associates a–d@pangolawfirm.com / Assoc123!");
+    }
+
+    private User ensureUser(String email, String password, String fullName, UserRole role, Firm firm) {
+        return userRepository.findByEmail(email)
+                .orElseGet(() -> createUser(email, password, fullName, role, firm, AccountStatus.ACTIVE));
+    }
+
+    private void saveMemberIfAbsent(java.util.UUID caseId, java.util.UUID userId, String roleInCase, java.util.UUID addedBy) {
+        em.createNativeQuery(
+                "INSERT INTO case_members (case_id, user_id, role_in_case, added_by, added_at) " +
+                "VALUES (:c, :u, :r, :a, now()) ON CONFLICT DO NOTHING")
+                .setParameter("c", caseId).setParameter("u", userId)
+                .setParameter("r", roleInCase).setParameter("a", addedBy)
+                .executeUpdate();
     }
 
     private void saveMember(java.util.UUID caseId, java.util.UUID userId, String roleInCase, java.util.UUID addedBy) {

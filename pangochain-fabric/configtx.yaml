@@ -3,7 +3,7 @@ Organizations:
   - &OrdererOrg
     Name: OrdererOrg
     ID: OrdererMSP
-    MSPDir: crypto-config/ordererOrganizations/orderer.pangochain.com/msp
+    MSPDir: crypto-config/ordererOrganizations/pangochain.com/msp
     Policies:
       Readers:
         Type: Signature
@@ -110,7 +110,9 @@ Application: &ApplicationDefaults
 Orderer: &OrdererDefaults
   OrdererType: etcdraft
   Addresses:
-    - orderer.pangochain.com:7050
+    - orderer1.pangochain.com:7050
+    - orderer2.pangochain.com:8050
+    - orderer3.pangochain.com:9050
   BatchTimeout: 2s
   BatchSize:
     MaxMessageCount: 500
@@ -118,10 +120,18 @@ Orderer: &OrdererDefaults
     PreferredMaxBytes: 2 MB
   EtcdRaft:
     Consenters:
-      - Host: orderer.pangochain.com
+      - Host: orderer1.pangochain.com
         Port: 7050
-        ClientTLSCert: crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
-        ServerTLSCert: crypto-config/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/server.crt
+        ClientTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls/server.crt
+      - Host: orderer2.pangochain.com
+        Port: 8050
+        ClientTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer2.pangochain.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer2.pangochain.com/tls/server.crt
+      - Host: orderer3.pangochain.com
+        Port: 9050
+        ClientTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer3.pangochain.com/tls/server.crt
+        ServerTLSCert: crypto-config/ordererOrganizations/pangochain.com/orderers/orderer3.pangochain.com/tls/server.crt
   Organizations:
   Policies:
     Readers:

@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, CheckCircle, Ban, Loader2, AlertCircle, Shield } from 'lucide-react'
 import api from '../lib/api'
+import { queryKeys } from '../lib/queryKeys'
 import toast from 'react-hot-toast'
+import { StatusBadge } from '../components/ui/StatusBadge'
+import { SecurityAlertsPanel } from '../components/SecurityAlertsPanel'
+import { DeletionRequestsAdminPanel } from '../components/DeletionRequestsAdminPanel'
 
 interface UserSummary {
   id: string
@@ -15,64 +19,27 @@ interface UserSummary {
 
 interface Page<T> { content: T[]; totalElements: number }
 
-const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:           'bg-emerald-50 text-emerald-700',
-  PENDING_APPROVAL: 'bg-amber-50 text-amber-700',
-  SUSPENDED:        'bg-red-50 text-red-700',
-  DEACTIVATED:      'bg-gray-100 text-gray-600',
-}
-
 export default function AdminPanel() {
-  const [page, setPage] = useState<Page<UserSummary> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [acting, setActing] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const { data } = await api.get<Page<UserSummary>>('/admin/users')
-        setPage(data)
-      } catch (err: any) {
-        setError(err.response?.data?.detail ?? 'Failed to load users')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [])
+  const { data: page, isLoading: loading, isError } = useQuery({
+    queryKey: queryKeys.adminUsers(0),
+    queryFn: async () => (await api.get<Page<UserSummary>>('/admin/users')).data,
+  })
+  const error = isError ? 'Failed to load users' : ''
 
-  const activate = async (id: string, email: string) => {
-    setActing(id)
-    try {
-      await api.post(`/admin/users/${id}/activate`)
-      setPage((prev) => prev ? {
-        ...prev,
-        content: prev.content.map((u) => u.id === id ? { ...u, status: 'ACTIVE' } : u)
-      } : prev)
-      toast.success(`${email} activated`)
-    } catch {
-      toast.error('Failed to activate user')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  const suspend = async (id: string, email: string) => {
-    setActing(id)
-    try {
-      await api.post(`/admin/users/${id}/suspend`)
-      setPage((prev) => prev ? {
-        ...prev,
-        content: prev.content.map((u) => u.id === id ? { ...u, status: 'SUSPENDED' } : u)
-      } : prev)
-      toast.success(`${email} suspended`)
-    } catch {
-      toast.error('Failed to suspend user')
-    } finally {
-      setActing(null)
-    }
-  }
+  const actMutation = useMutation({
+    mutationFn: (vars: { id: string; action: 'activate' | 'suspend'; email: string }) =>
+      api.post(`/admin/users/${vars.id}/${vars.action}`),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers(0) })
+      toast.success(`${vars.email} ${vars.action}d`)
+    },
+    onError: (_e, vars) => toast.error(`Failed to ${vars.action} user`),
+  })
+  const acting = actMutation.isPending ? actMutation.variables?.id : null
+  const activate = (id: string, email: string) => actMutation.mutate({ id, action: 'activate', email })
+  const suspend = (id: string, email: string) => actMutation.mutate({ id, action: 'suspend', email })
 
   const users = page?.content ?? []
 
@@ -86,6 +53,11 @@ export default function AdminPanel() {
         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1d6464]/10 text-[#1d6464] text-xs font-semibold">
           <Shield className="w-3.5 h-3.5" /> Managing Partner / IT Admin only
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SecurityAlertsPanel />
+        <DeletionRequestsAdminPanel />
       </div>
 
       {loading && <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
@@ -123,9 +95,7 @@ export default function AdminPanel() {
                     <span className="text-text-secondary text-xs">{u.firmName ?? '—'}</span>
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[u.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {u.status.replace(/_/g, ' ')}
-                    </span>
+                    <StatusBadge status={u.status} />
                   </td>
                   <td className="px-4 py-3.5 hidden md:table-cell">
                     <span className={`text-xs font-medium ${u.mfaEnabled ? 'text-success' : 'text-text-muted'}`}>

@@ -3,11 +3,14 @@ import { useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell,
+  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
+import { MilestoneTimeline } from '../components/MilestoneTimeline'
+import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
+import { BillingPanel } from '../components/BillingPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
 
@@ -57,7 +60,7 @@ interface Hearing {
   notes?: string
 }
 
-type Tab = 'documents' | 'hearings' | 'team' | 'timeline'
+type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing'
 
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
@@ -141,6 +144,8 @@ export default function CaseDetail() {
     { id: 'documents', label: 'Documents', icon: <FileText className="w-4 h-4" />, count: documents.length },
     { id: 'hearings', label: 'Hearings', icon: <Gavel className="w-4 h-4" />, count: hearings.length },
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
+    { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
+    { id: 'billing', label: 'Billing', icon: <Receipt className="w-4 h-4" /> },
     { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
   ]
 
@@ -164,9 +169,17 @@ export default function CaseDetail() {
             {legalCase.firmName && ` · ${legalCase.firmName}`}
           </p>
         </div>
-        <button onClick={() => setShowUpload(true)} className="btn-primary shrink-0">
-          <Plus className="w-4 h-4" /> Upload Document
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to={`/cases/${id}/journey`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <GitBranch className="w-4 h-4" /> Journey
+          </Link>
+          <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
+            <Share2 className="w-4 h-4" /> Distribute Access
+          </Link>
+          <button onClick={() => setShowUpload(true)} className="btn-primary">
+            <Plus className="w-4 h-4" /> Upload Document
+          </button>
+        </div>
       </div>
 
       {/* Description */}
@@ -381,6 +394,21 @@ export default function CaseDetail() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Tab: Progress (milestones + deadlines) ────────────────────────────── */}
+      {activeTab === 'progress' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="card"><MilestoneTimeline caseId={id!} canEdit /></div>
+          <div className="card"><CaseDeadlinesPanel caseId={id!} canEdit /></div>
+        </div>
+      )}
+
+      {/* ── Tab: Billing ──────────────────────────────────────────────────────── */}
+      {activeTab === 'billing' && (
+        <div className="card">
+          <BillingPanel caseId={id!} canEdit />
         </div>
       )}
 

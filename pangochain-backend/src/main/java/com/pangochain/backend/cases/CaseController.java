@@ -1,5 +1,8 @@
 package com.pangochain.backend.cases;
 
+import com.pangochain.backend.cases.conflict.ConflictService;
+import com.pangochain.backend.cases.conflict.ConflictService.ConflictCheckRequest;
+import com.pangochain.backend.cases.conflict.ConflictService.ConflictCheckResult;
 import com.pangochain.backend.cases.dto.CaseCreateRequest;
 import com.pangochain.backend.cases.dto.CaseDto;
 import com.pangochain.backend.user.User;
@@ -10,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,11 +29,13 @@ import java.util.UUID;
 public class CaseController {
 
     private final CaseService caseService;
+    private final ConflictService conflictService;
     private final UserRepository userRepository;
 
     @PersistenceContext
     private EntityManager em;
 
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
     @PostMapping
     public ResponseEntity<CaseDto> create(
             @Valid @RequestBody CaseCreateRequest req,
@@ -38,6 +44,16 @@ public class CaseController {
         return ResponseEntity.ok(caseService.create(req, creator));
     }
 
+    /** POST /api/cases/conflict-check — fuzzy-match prospective party names against existing matters. */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
+    @PostMapping("/conflict-check")
+    public ResponseEntity<ConflictCheckResult> conflictCheck(
+            @RequestBody ConflictCheckRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        return ResponseEntity.ok(conflictService.check(req, resolveUser(principal)));
+    }
+
+    @PreAuthorize("isAuthenticated()")
     @GetMapping
     public ResponseEntity<Page<CaseDto>> list(
             @RequestParam(required = false) String status,
@@ -60,11 +76,37 @@ public class CaseController {
                 caseService.listByFirm(user.getFirm().getId(), caseStatus, q, page, size));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/{id}")
     public ResponseEntity<CaseDto> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(caseService.getById(id));
     }
 
+    /** GET /api/cases/{id}/members — case team (for access distribution + delegation UI). */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/members")
+    @SuppressWarnings("unchecked")
+    public ResponseEntity<List<Map<String, Object>>> members(@PathVariable UUID id) {
+        List<Object[]> rows = em.createNativeQuery(
+                "SELECT u.id, u.full_name, u.email, u.role, cm.role_in_case, " +
+                "(u.public_key_ecies IS NOT NULL) AS has_key " +
+                "FROM case_members cm JOIN users u ON u.id = cm.user_id WHERE cm.case_id = :cid " +
+                "ORDER BY u.full_name")
+                .setParameter("cid", id).getResultList();
+        List<Map<String, Object>> out = rows.stream().map(r -> {
+            Map<String, Object> m = new java.util.HashMap<>();
+            m.put("userId", r[0].toString());
+            m.put("fullName", r[1]);
+            m.put("email", r[2]);
+            m.put("role", r[3]);
+            m.put("roleInCase", r[4] != null ? r[4] : "");
+            m.put("hasPublicKey", r[5]);
+            return m;
+        }).toList();
+        return ResponseEntity.ok(out);
+    }
+
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR')")
     @PostMapping("/{id}/close")
     public ResponseEntity<CaseDto> close(
             @PathVariable UUID id,
@@ -74,6 +116,7 @@ public class CaseController {
     }
 
     /** Link a client user to a case (lawyer/partner only) */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
     @PostMapping("/{id}/clients")
     @Transactional
     public ResponseEntity<Map<String, String>> addClient(
@@ -89,6 +132,7 @@ public class CaseController {
     }
 
     /** Get all cases a client is associated with */
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/my-cases")
     @SuppressWarnings("unchecked")
     public ResponseEntity<List<CaseDto>> myCases(@AuthenticationPrincipal UserDetails principal) {
@@ -100,6 +144,14 @@ public class CaseController {
                 .map(cid -> caseService.getById(cid))
                 .toList();
         return ResponseEntity.ok(result);
+    }
+
+    /** GET /api/cases/{id}/timeline — GetHistoryForKey on Fabric for case events. */
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/{id}/timeline")
+    public ResponseEntity<String> timeline(@PathVariable UUID id) {
+        String history = caseService.getTimeline(id);
+        return ResponseEntity.ok(history);
     }
 
     private User resolveUser(UserDetails principal) {

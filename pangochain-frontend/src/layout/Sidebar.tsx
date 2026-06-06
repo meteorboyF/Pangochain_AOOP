@@ -1,24 +1,35 @@
 import { NavLink, useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, Calendar,
+  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X,
 } from 'lucide-react'
 import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
+import api from '../lib/api'
 
 interface NavItem {
   to: string
   icon: React.ReactNode
   label: string
   end?: boolean
+  badge?: number
 }
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const { user, clearAuth } = useAuthStore()
   const navigate = useNavigate()
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!user) return
+    api.get('/dashboard/stats')
+      .then((r) => setUnreadCount(r.data?.unreadMessages ?? 0))
+      .catch(() => {})
+  }, [user])
 
   if (!user) return null
 
@@ -26,7 +37,7 @@ export function Sidebar() {
     { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', end: true },
     { to: '/cases', icon: <FolderOpen className="w-4 h-4" />, label: 'Cases' },
     { to: '/documents', icon: <FileText className="w-4 h-4" />, label: 'Documents' },
-    { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages' },
+    { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
     { to: '/hearings', icon: <Gavel className="w-4 h-4" />, label: 'Hearings' },
     { to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail' },
   ]
@@ -35,7 +46,8 @@ export function Sidebar() {
     { to: '/client/portal', icon: <Home className="w-4 h-4" />, label: 'My Portal', end: true },
     { to: '/client/documents', icon: <Shield className="w-4 h-4" />, label: 'Document Vault' },
     { to: '/client/case', icon: <Scale className="w-4 h-4" />, label: 'My Case' },
-    { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages' },
+    { to: '/client/privacy', icon: <ShieldCheck className="w-4 h-4" />, label: 'Privacy & Data' },
+    { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', badge: unreadCount },
   ]
 
   const adminItems: NavItem[] = [
@@ -50,6 +62,9 @@ export function Sidebar() {
     user.role === 'IT_ADMIN' ||
     user.role === 'REGULATOR'
 
+  const showRegulator = user.role === 'REGULATOR'
+  const showMfa = user.role === 'MANAGING_PARTNER' || user.role === 'IT_ADMIN' || user.role === 'PARTNER_SENIOR' || user.role === 'PARTNER_JUNIOR'
+
   const navItems = isClient(user.role) ? clientItems : legalItems
 
   const handleLogout = () => {
@@ -58,14 +73,13 @@ export function Sidebar() {
     navigate('/login')
   }
 
-  return (
+  const sidebarContent = (
     <aside className="w-60 flex-shrink-0 bg-white/95 backdrop-blur-sm border-r border-border flex flex-col h-screen sticky top-0 z-20">
-      {/* Logo */}
+      {/* Logo — pangolin mark only (wordmark intentionally omitted) */}
       <div className="h-16 flex items-center px-5 border-b border-border">
-        <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" onError={(e) => {
+        <img src="/logo-mark.png" alt="PangoChain" className="h-11 w-auto" onError={(e) => {
           (e.target as HTMLImageElement).style.display = 'none'
         }} />
-        <span className="font-heading font-bold text-[#1d6464] text-lg ml-1">PangoChain</span>
       </div>
 
       {/* User info */}
@@ -95,16 +109,44 @@ export function Sidebar() {
             key={item.to}
             to={item.to}
             end={item.end}
+            onClick={onClose}
             className={({ isActive }) =>
               clsx('sidebar-link', isActive && 'active')
             }
           >
             {item.icon}
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {(item.badge ?? 0) > 0 && (
+              <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-[#1d6464] text-white text-[10px] font-bold px-1">
+                {item.badge! > 99 ? '99+' : item.badge}
+              </span>
+            )}
           </NavLink>
         ))}
 
-        {showAdmin && (
+        {showRegulator && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Regulatory View</p>
+            </div>
+            <NavLink
+              to="/regulator"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Search className="w-4 h-4" />
+              Cross-Firm Audit
+            </NavLink>
+            <NavLink
+              to="/ledger"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Activity className="w-4 h-4" />
+              Ledger Explorer
+            </NavLink>
+          </>
+        )}
+
+        {showAdmin && !showRegulator && (
           <>
             <div className="pt-3 pb-1 px-3">
               <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Administration</p>
@@ -121,6 +163,21 @@ export function Sidebar() {
                 {item.label}
               </NavLink>
             ))}
+          </>
+        )}
+
+        {showMfa && (
+          <>
+            <div className="pt-3 pb-1 px-3">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Security</p>
+            </div>
+            <NavLink
+              to="/profile/mfa"
+              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+            >
+              <Shield className="w-4 h-4" />
+              {user.mfaEnabled ? 'MFA Enabled ✓' : 'Enable MFA'}
+            </NavLink>
           </>
         )}
       </nav>
@@ -145,5 +202,32 @@ export function Sidebar() {
         <p className="text-[9px] text-text-muted font-mono">Hyperledger Fabric 2.4 · AES-256-GCM</p>
       </div>
     </aside>
+  )
+
+  return (
+    <>
+      {/* Desktop — always visible */}
+      <div className="hidden lg:flex">{sidebarContent}</div>
+
+      {/* Mobile — overlay drawer */}
+      {mobileOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+            onClick={onClose}
+          />
+          <div className="fixed inset-y-0 left-0 z-40 lg:hidden flex">
+            {sidebarContent}
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-[-40px] w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-text-muted shadow-md"
+              aria-label="Close menu"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </>
+      )}
+    </>
   )
 }

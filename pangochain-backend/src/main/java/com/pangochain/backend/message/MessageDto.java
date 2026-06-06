@@ -12,7 +12,9 @@ public class MessageDto {
     private UUID id;
     private UUID senderId;
     private String senderEmail;
+    private String senderName;
     private UUID recipientId;
+    private String recipientEmail;
     private UUID caseId;
     private String encryptedPayload;
     private String wrappedKeyToken;

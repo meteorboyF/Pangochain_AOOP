@@ -19,7 +19,11 @@
     <packaging>jar</packaging>
 
     <properties>
+<<<<<<< HEAD
         <java.version>21</java.version>
+=======
+        <java.version>17</java.version>
+>>>>>>> origin/main
         <jjwt.version>0.12.5</jjwt.version>
         <fabric-gateway.version>1.4.0</fabric-gateway.version>
         <lombok.version>1.18.46</lombok.version>
@@ -107,6 +111,30 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- WebSocket + STOMP for real-time team chat -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- Resilience4j circuit breaker + retry for Fabric calls (AOP-driven) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.2.0</version>
+        </dependency>
+
+        <!-- TOTP (RFC 6238) for MFA -->
+        <dependency>
+            <groupId>com.warrenstrange</groupId>
+            <artifactId>googleauth</artifactId>
+            <version>1.5.0</version>
         </dependency>
 
         <!-- Actuator -->

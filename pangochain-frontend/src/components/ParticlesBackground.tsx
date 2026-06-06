@@ -38,15 +38,17 @@ const CONFIGS: Record<Variant, Config> = {
     colors: ['#1d6464', '#2a8f8f', '#1E3A5F'],
   },
   app: {
-    count: 40,
-    speed: 0.2,
-    linkDist: 130,
-    repulseDist: 80,
-    repulseForce: 2,
-    dotOpacity: 0.18,
-    linkOpacity: 0.07,
-    dotSizeMax: 2.2,
-    colors: ['#1d6464', '#1E3A5F'],
+    // Site-wide app background — shows through the transparent layout gutters.
+    // Visible but calm so it never competes with content sitting in opaque cards.
+    count: 70,
+    speed: 0.6,
+    linkDist: 140,
+    repulseDist: 110,
+    repulseForce: 2.5,
+    dotOpacity: 0.45,
+    linkOpacity: 0.2,
+    dotSizeMax: 2.6,
+    colors: ['#1d6464', '#2a8f8f', '#0E7490', '#1E3A5F', '#3ab5b5'],
   },
 }
 
@@ -89,13 +91,16 @@ export function ParticlesBackground({ variant = 'vivid', className = '' }: Parti
     const ro = new ResizeObserver(resize)
     ro.observe(canvas)
 
+    // Listen on the parent element so the canvas can be pointer-events: none
+    // while still tracking mouse position for the repulse effect.
+    const container = canvas.parentElement ?? document.body
     const onMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect()
       mouse.current = { x: e.clientX - rect.left, y: e.clientY - rect.top }
     }
     const onLeave = () => { mouse.current = { x: -9999, y: -9999 } }
-    canvas.addEventListener('mousemove', onMove)
-    canvas.addEventListener('mouseleave', onLeave)
+    container.addEventListener('mousemove', onMove)
+    container.addEventListener('mouseleave', onLeave)
 
     // Build particles
     const particles: Particle[] = Array.from({ length: cfg.count }, () => ({
@@ -198,16 +203,23 @@ export function ParticlesBackground({ variant = 'vivid', className = '' }: Parti
     return () => {
       cancelAnimationFrame(rafRef.current)
       ro.disconnect()
-      canvas.removeEventListener('mousemove', onMove)
-      canvas.removeEventListener('mouseleave', onLeave)
+      container.removeEventListener('mousemove', onMove)
+      container.removeEventListener('mouseleave', onLeave)
     }
   }, [variant])
+
+  // prefers-reduced-motion: render nothing if user has motion sensitivity enabled
+  if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return null
+  }
 
   return (
     <canvas
       ref={canvasRef}
-      className={`absolute inset-0 w-full h-full pointer-events-auto ${className}`}
+      className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
       style={{ zIndex: 0 }}
     />
   )
 }
+
+export default ParticlesBackground

@@ -5,9 +5,9 @@ import api from '../lib/api'
 import { useAuthStore, roleLabel, type UserRole, LEGAL_ROLES, CLIENT_ROLES } from '../store/authStore'
 import {
   generateEciesKeypair, storeWrappedPrivateKey,
+  generateEcdsaKeypair, storeWrappedEcdsaKey,
 } from '../lib/crypto'
 import toast from 'react-hot-toast'
-import { ParticlesBackground } from '../components/ParticlesBackground'
 
 type Step = 'account' | 'keypair' | 'role' | 'review'
 
@@ -31,7 +31,9 @@ export default function Register() {
   // Keypair state
   const [keypairStatus, setKeypairStatus] = useState<'idle' | 'generating' | 'done'>('idle')
   const [generatedPubKeyJwk, setGeneratedPubKeyJwk] = useState<string>('')
+  const [generatedSigningPubKeyJwk, setGeneratedSigningPubKeyJwk] = useState<string>('')
   const [encryptedPrivKey, setEncryptedPrivKey] = useState<{ enc: string; salt: string; iv: string } | null>(null)
+  const [encryptedSigningKey, setEncryptedSigningKey] = useState<{ enc: string; salt: string; iv: string } | null>(null)
 
   const generateKeypair = async () => {
     if (!password) {
@@ -41,13 +43,15 @@ export default function Register() {
     setKeypairStatus('generating')
     setError('')
     try {
-      const result = await generateEciesKeypair(password)
-      setGeneratedPubKeyJwk(JSON.stringify(result.publicKeyJwk))
-      setEncryptedPrivKey({
-        enc: result.privateKeyEncryptedB64,
-        salt: result.saltB64,
-        iv: result.ivB64,
-      })
+      // Generate both ECIES (encryption) and ECDSA (signing) keypairs
+      const [ecies, ecdsa] = await Promise.all([
+        generateEciesKeypair(password),
+        generateEcdsaKeypair(password),
+      ])
+      setGeneratedPubKeyJwk(JSON.stringify(ecies.publicKeyJwk))
+      setEncryptedPrivKey({ enc: ecies.privateKeyEncryptedB64, salt: ecies.saltB64, iv: ecies.ivB64 })
+      setGeneratedSigningPubKeyJwk(JSON.stringify(ecdsa.publicKeyJwk))
+      setEncryptedSigningKey({ enc: ecdsa.privateKeyEncryptedB64, salt: ecdsa.saltB64, iv: ecdsa.ivB64 })
       setKeypairStatus('done')
     } catch (e) {
       setError('Key generation failed. Please try again.')
@@ -56,8 +60,8 @@ export default function Register() {
   }
 
   const handleSubmit = async () => {
-    if (!encryptedPrivKey) {
-      setError('Please generate your encryption keypair first.')
+    if (!encryptedPrivKey || !encryptedSigningKey) {
+      setError('Please generate your security keypairs first.')
       return
     }
     setLoading(true)
@@ -70,13 +74,19 @@ export default function Register() {
         fullName,
         role,
         publicKeyJwk: generatedPubKeyJwk,
+        signingPublicKeyJwk: generatedSigningPubKeyJwk,
       })
 
-      // Store encrypted private key in localStorage (client-only)
+      // Store both encrypted private keys in localStorage (client-only)
       storeWrappedPrivateKey(data.userId, {
         encryptedB64: encryptedPrivKey.enc,
         saltB64: encryptedPrivKey.salt,
         ivB64: encryptedPrivKey.iv,
+      })
+      storeWrappedEcdsaKey(data.userId, {
+        encryptedB64: encryptedSigningKey.enc,
+        saltB64: encryptedSigningKey.salt,
+        ivB64: encryptedSigningKey.iv,
       })
 
       setAuth(data.accessToken, data.refreshToken, {
@@ -101,8 +111,7 @@ export default function Register() {
   const stepIdx = steps.indexOf(step)
 
   return (
-    <div className="min-h-screen bg-surface relative flex items-center justify-center p-6 overflow-hidden">
-      <ParticlesBackground variant="auth" />
+    <div className="min-h-screen bg-surface/90 relative flex items-center justify-center p-6 overflow-hidden">
       <div className="relative z-10 w-full max-w-lg">
         {/* Header */}
         <div className="flex items-center gap-2 mb-8 justify-center">

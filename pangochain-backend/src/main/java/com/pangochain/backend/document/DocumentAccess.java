@@ -44,6 +44,12 @@ public class DocumentAccess {
     @Column(name = "wrapped_key_token", nullable = false, columnDefinition = "TEXT")
     private String wrappedKeyToken;
 
+    // True when key rotation has rendered this token untrustworthy.
+    // Old token is preserved for audit purposes but must not be used for decryption.
+    @Column(name = "token_obsolete", nullable = false)
+    @Builder.Default
+    private boolean tokenObsolete = false;
+
     @PrePersist
     void prePersist() { grantedAt = Instant.now(); }
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react'
-import { Upload, X, FileText, Lock, CheckCircle, AlertCircle, Loader2, Shield } from 'lucide-react'
+import { Upload, X, FileText, Lock, CheckCircle, AlertCircle, Loader2, Shield, Sparkles } from 'lucide-react'
 import { encryptDocument, eciesWrapKey, bytesToBase64 } from '../lib/crypto'
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
@@ -9,23 +9,45 @@ interface Props {
   caseId: string
   onClose: () => void
   onUploaded: () => void
+  /** When set, this upload is registered as the next version of an existing document. */
+  previousVersionId?: string
 }
 
 type Stage = 'idle' | 'encrypting' | 'wrapping' | 'uploading' | 'done' | 'error'
 
-export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
+export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVersionId }: Props) {
   const { user } = useAuthStore()
   const [file, setFile] = useState<File | null>(null)
+  const [category, setCategory] = useState('GENERAL')
+  const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const CATEGORIES = ['GENERAL', 'EVIDENCE', 'CONTRACT', 'CORRESPONDENCE', 'CONFESSION', 'MEDICAL', 'FINANCIAL']
+
+  // AI auto-tagging on file select — sends filename + a plaintext-side preview (text files only).
+  const pickFile = async (picked: File | null) => {
+    setFile(picked)
+    setSuggestion(null)
+    if (!picked) return
+    let previewText = ''
+    if (/^text\/|json|csv|xml/.test(picked.type) || /\.(txt|md|json|csv|xml|log)$/i.test(picked.name)) {
+      try { previewText = await picked.slice(0, 4096).text() } catch { /* ignore */ }
+    }
+    try {
+      const { data } = await api.post('/documents/classify', { fileName: picked.name, previewText })
+      setSuggestion(data)
+      if (data?.category) setCategory(data.category)
+    } catch { /* advisory */ }
+  }
+
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
     const dropped = e.dataTransfer.files[0]
-    if (dropped) setFile(dropped)
+    if (dropped) pickFile(dropped)
   }, [])
 
   const handleUpload = async () => {
@@ -69,6 +91,8 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
         ivBase64: encrypted.ivB64,
         documentHashSha256: encrypted.hashB64,
         wrappedKeyTokenForOwner: wrappedKeyToken,
+        previousVersionId: previousVersionId ?? null,
+        category,
       })
 
       setStage('done')
@@ -96,7 +120,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">Secure Upload</h2>
+            <h2 className="font-heading font-semibold text-text-primary">{previousVersionId ? 'Upload New Version' : 'Secure Upload'}</h2>
           </div>
           <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-4 h-4 text-text-muted" />
@@ -124,7 +148,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
               <Upload className="w-8 h-8 text-text-muted mx-auto mb-2" />
               <p className="font-medium text-text-primary text-sm">Drop file here or click to browse</p>
               <p className="text-text-muted text-xs mt-1">PDF, DOCX, XLSX, ZIP — up to 50 MB</p>
-              <input ref={fileRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <input ref={fileRef} type="file" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
             </div>
           ) : (
             <div className="border border-border rounded-xl p-4 flex items-center gap-3">
@@ -136,9 +160,31 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded }: Props) {
                 <p className="text-text-muted text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
               </div>
               {stage === 'idle' && (
-                <button onClick={() => setFile(null)} className="p-1 text-text-muted hover:text-error transition-colors">
+                <button onClick={() => { setFile(null); setSuggestion(null) }} className="p-1 text-text-muted hover:text-error transition-colors">
                   <X className="w-4 h-4" />
                 </button>
+              )}
+            </div>
+          )}
+
+          {/* Category + AI auto-tagging suggestion */}
+          {file && stage === 'idle' && (
+            <div>
+              <label className="label">Category</label>
+              <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
+              </select>
+              {suggestion && (
+                <div className="mt-1.5 flex items-start gap-2 text-xs text-[#1d6464] bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-lg px-2.5 py-1.5">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>
+                    AI suggests <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
+                    {category !== suggestion.category && (
+                      <button type="button" onClick={() => setCategory(suggestion.category)} className="ml-1 underline">apply</button>
+                    )}
+                    <span className="block text-text-muted">{suggestion.rationale}</span>
+                  </span>
+                </div>
               )}
             </div>
           )}

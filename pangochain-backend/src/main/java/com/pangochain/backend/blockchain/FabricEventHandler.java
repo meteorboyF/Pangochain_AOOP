@@ -3,11 +3,14 @@ package com.pangochain.backend.blockchain;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
+import com.pangochain.backend.document.DocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 /**
  * Listens to chaincode events published by FabricGatewayService and
@@ -20,6 +23,7 @@ public class FabricEventHandler {
 
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final DocumentRepository documentRepository;
 
     @Async
     @EventListener
@@ -45,7 +49,19 @@ public class FabricEventHandler {
 
         log.info("KEY_ROTATION_REQUIRED for doc={} revokedSubject={}", docId, revokedSubject);
 
-        // Log to audit trail — actual re-encryption is handled client-side
+        // Mark document as requiring key rotation so the owner's browser is prompted.
+        // Note: actual re-encryption of the AES-256-GCM ciphertext must be performed by the
+        // document owner's browser (the server never holds the plaintext document key).
+        try {
+            documentRepository.findById(UUID.fromString(docId)).ifPresent(doc -> {
+                doc.setKeyRotationPending(true);
+                documentRepository.save(doc);
+                log.info("KEY_ROTATION_REQUIRED: flagged doc={} in DB", docId);
+            });
+        } catch (Exception e) {
+            log.error("Failed to set key_rotation_pending for doc={}: {}", docId, e.getMessage());
+        }
+
         auditService.log("KEY_ROTATION_TRIGGERED", "SYSTEM", revokerOrg,
                 "DOCUMENT", docId, event.getTransactionId(),
                 String.format("{\"revokedSubject\":\"%s\"}", revokedSubject), null);

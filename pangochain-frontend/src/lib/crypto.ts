@@ -12,6 +12,8 @@
 const subtle = window.crypto.subtle
 
 // ─── PBKDF2 ───────────────────────────────────────────────────────────────────
+// Parameters per NIST SP 800-132 (2023): SHA-256, 600,000 iterations, 256-bit random salt per user.
+const PBKDF2_ITERATIONS = 600_000 as const
 
 export async function derivePbkdf2Key(password: string, saltBase64: string): Promise<CryptoKey> {
   const enc = new TextEncoder()
@@ -22,7 +24,7 @@ export async function derivePbkdf2Key(password: string, saltBase64: string): Pro
   )
 
   return subtle.deriveKey(
-    { name: 'PBKDF2', hash: 'SHA-256', salt: salt.buffer as ArrayBuffer, iterations: 600_000 },
+    { name: 'PBKDF2', hash: 'SHA-256', salt, iterations: PBKDF2_ITERATIONS },
     baseKey,
     { name: 'AES-GCM', length: 256 },
     false,
@@ -81,7 +83,7 @@ export async function unwrapPrivateKey(
   const iv = base64ToBytes(ivB64)
   const ciphertext = base64ToBytes(encryptedB64)
 
-  const rawPrivateKey = await subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, ciphertext.buffer as ArrayBuffer)
+  const rawPrivateKey = await subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, ciphertext)
 
   return subtle.importKey('pkcs8', rawPrivateKey, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveKey'])
 }
@@ -123,8 +125,8 @@ export async function decryptDocument(
   const iv = base64ToBytes(ivB64)
   const ciphertext = base64ToBytes(ciphertextB64)
 
-  const key = await subtle.importKey('raw', rawKey.buffer as ArrayBuffer, { name: 'AES-GCM', length: 256 }, false, ['decrypt'])
-  return subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, key, ciphertext.buffer as ArrayBuffer)
+  const key = await subtle.importKey('raw', rawKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt'])
+  return subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
 }
 
 // ─── ECIES Key Wrapping (ECDH + AES-GCM) ────────────────────────────────────
@@ -155,7 +157,7 @@ export async function eciesWrapKey(recipientPublicKeyJwk: JsonWebKey, keyB64: st
 
   const iv = crypto.getRandomValues(new Uint8Array(12))
   const docKeyBytes = base64ToBytes(keyB64)
-  const wrapped = await subtle.encrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, docKeyBytes.buffer as ArrayBuffer)
+  const wrapped = await subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, docKeyBytes)
 
   // Export ephemeral public key in raw (uncompressed) form — 65 bytes
   const ephPubRaw = new Uint8Array(await subtle.exportKey('raw', ephemeral.publicKey))
@@ -194,8 +196,88 @@ export async function eciesUnwrapKey(
     ['decrypt'],
   )
 
-  const rawKey = await subtle.decrypt({ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer }, wrappingKey, wrapped.buffer as ArrayBuffer)
+  const rawKey = await subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, wrapped)
   return bytesToBase64(new Uint8Array(rawKey))
+}
+
+// ─── ECDSA P-256 Keypair (signing) ───────────────────────────────────────────
+
+export interface EcdsaKeyPair {
+  publicKeyJwk: JsonWebKey
+  privateKeyEncryptedB64: string
+  saltB64: string
+  ivB64: string
+}
+
+export async function generateEcdsaKeypair(password: string): Promise<EcdsaKeyPair> {
+  const keyPair = await subtle.generateKey(
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    true,
+    ['sign', 'verify'],
+  )
+
+  const publicKeyJwk = await subtle.exportKey('jwk', keyPair.publicKey)
+  const privateKeyRaw = await subtle.exportKey('pkcs8', keyPair.privateKey)
+
+  const saltBytes = crypto.getRandomValues(new Uint8Array(32))
+  const saltB64 = bytesToBase64(saltBytes)
+  const wrappingKey = await derivePbkdf2Key(password, saltB64)
+
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const ciphertext = await subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, privateKeyRaw)
+
+  return {
+    publicKeyJwk,
+    privateKeyEncryptedB64: bytesToBase64(new Uint8Array(ciphertext)),
+    saltB64,
+    ivB64: bytesToBase64(iv),
+  }
+}
+
+export async function unwrapEcdsaPrivateKey(
+  password: string,
+  saltB64: string,
+  ivB64: string,
+  encryptedB64: string,
+): Promise<CryptoKey> {
+  const wrappingKey = await derivePbkdf2Key(password, saltB64)
+  const iv = base64ToBytes(ivB64)
+  const ciphertext = base64ToBytes(encryptedB64)
+  const rawPrivateKey = await subtle.decrypt(
+    { name: 'AES-GCM', iv },
+    wrappingKey,
+    ciphertext,
+  )
+  return subtle.importKey('pkcs8', rawPrivateKey, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign'])
+}
+
+export async function signDocumentHash(hashB64: string, privateKey: CryptoKey): Promise<string> {
+  const hashBytes = base64ToBytes(hashB64)
+  const signature = await subtle.sign(
+    { name: 'ECDSA', hash: { name: 'SHA-256' } },
+    privateKey,
+    hashBytes,
+  )
+  return bytesToBase64(new Uint8Array(signature))
+}
+
+const ECDSA_KEY_PREFIX = 'pangochain_signing_key_'
+
+export function storeWrappedEcdsaKey(userId: string, data: {
+  encryptedB64: string
+  saltB64: string
+  ivB64: string
+}) {
+  localStorage.setItem(ECDSA_KEY_PREFIX + userId, JSON.stringify(data))
+}
+
+export function loadWrappedEcdsaKey(userId: string): {
+  encryptedB64: string
+  saltB64: string
+  ivB64: string
+} | null {
+  const raw = localStorage.getItem(ECDSA_KEY_PREFIX + userId)
+  return raw ? JSON.parse(raw) : null
 }
 
 // ─── Integrity Verification ──────────────────────────────────────────────────
@@ -241,8 +323,11 @@ export function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-export function base64ToBytes(b64: string): Uint8Array {
-  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))
+export function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length) as Uint8Array<ArrayBuffer>
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return bytes
 }
 
 export function bufferToHex(buffer: ArrayBuffer): string {

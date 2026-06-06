@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Prevent Git Bash on Windows from mangling /container/paths into C:/Program Files/Git/...
+export MSYS_NO_PATHCONV=1
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
 
@@ -19,8 +22,10 @@ cd "$NETWORK_DIR"
 
 # ─── 1. Tear down previous state ──────────────────────────────────────────────
 log "Cleaning previous network state..."
-docker-compose -f docker-compose.fabric.yml down -v --remove-orphans 2>/dev/null || true
-rm -rf crypto-config channel-artifacts
+docker compose -f docker-compose.fabric.yml down -v --remove-orphans 2>/dev/null || true
+# crypto-config is created by a root-running Docker container — remove via Docker to avoid permission errors
+docker run --rm -v "${NETWORK_DIR}:/workspace" alpine sh -c "rm -rf /workspace/crypto-config /workspace/channel-artifacts" 2>/dev/null || true
+rm -rf crypto-config channel-artifacts 2>/dev/null || true
 
 # ─── 2. Generate crypto + channel artifacts via container ─────────────────────
 log "Generating crypto material and channel artifacts (inside fabric-tools container)..."
@@ -36,18 +41,20 @@ log "Artifacts generated."
 
 # ─── 3. Start Docker network services ─────────────────────────────────────────
 log "Starting Fabric network containers..."
-docker-compose -f docker-compose.fabric.yml up -d
+docker compose -f docker-compose.fabric.yml up -d
 
 log "Waiting 20s for peers and orderer to be ready..."
 sleep 20
 
+log "Host entries for Fabric nodes baked into fabric-cli via extra_hosts (static IPs 172.20.0.2-5)."
+
 # ─── 4. Create and join channel ───────────────────────────────────────────────
-ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/orderer.pangochain.com/orderers/orderer.pangochain.com/tls/ca.crt"
+ORDERER_TLS="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/pangochain.com/orderers/orderer1.pangochain.com/tls/ca.crt"
 CRYPTO_BASE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto"
 
 log "Creating legal-channel..."
 docker exec fabric-cli peer channel create \
-  -o orderer.pangochain.com:7050 \
+  -o orderer1.pangochain.com:7050 \
   -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/legal-channel.tx \
   --tls --cafile "$ORDERER_TLS" \
@@ -81,7 +88,7 @@ log "All peers joined legal-channel."
 log "Updating anchor peers..."
 
 docker exec fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/FirmAMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 
@@ -91,7 +98,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/peers/peer0.firmb.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/firmb.pangochain.com/users/Admin@firmb.pangochain.com/msp" \
   fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/FirmBMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 
@@ -101,7 +108,7 @@ docker exec \
   -e CORE_PEER_TLS_ROOTCERT_FILE="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/peers/peer0.regulator.pangochain.com/tls/ca.crt" \
   -e CORE_PEER_MSPCONFIGPATH="${CRYPTO_BASE}/peerOrganizations/regulator.pangochain.com/users/Admin@regulator.pangochain.com/msp" \
   fabric-cli peer channel update \
-  -o orderer.pangochain.com:7050 -c legal-channel \
+  -o orderer1.pangochain.com:7050 -c legal-channel \
   -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/RegulatorMSPanchors.tx \
   --tls --cafile "$ORDERER_TLS"
 

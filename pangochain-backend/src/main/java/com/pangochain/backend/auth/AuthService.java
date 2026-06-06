@@ -7,6 +7,7 @@ import com.pangochain.backend.auth.dto.RefreshRequest;
 import com.pangochain.backend.auth.dto.RegisterRequest;
 import com.pangochain.backend.crypto.Pbkdf2Service;
 import com.pangochain.backend.user.*;
+import com.warrenstrange.googleauth.GoogleAuthenticator;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -28,6 +30,12 @@ public class AuthService {
     private final Pbkdf2Service pbkdf2Service;
     private final JwtTokenProvider jwtTokenProvider;
     private final AuditService auditService;
+    private final RecoveryCodeService recoveryCodeService;
+
+    private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
+
+    private static final List<UserRole> MFA_REQUIRED_ROLES =
+            List.of(UserRole.MANAGING_PARTNER, UserRole.IT_ADMIN);
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
@@ -57,6 +65,7 @@ public class AuthService {
                 .role(req.role())
                 .firm(firm)
                 .publicKeyEcies(req.publicKeyJwk())
+                .signingPublicKey(req.signingPublicKeyJwk())
                 .status(initialStatus)
                 .build();
 
@@ -86,13 +95,15 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        // MFA check for PARTNER+ and IT_ADMIN
-        if (user.isMfaEnabled() && (req.totpCode() == null || req.totpCode().isBlank())) {
-            // Return partial response signalling MFA required
-            return new AuthResponse(null, null, user.getId(), user.getEmail(),
-                    user.getFullName(), user.getRole(),
-                    user.getFirm() != null ? user.getFirm().getId().toString() : null,
-                    true, true);
+        // MFA enforcement: required for MANAGING_PARTNER and IT_ADMIN; honoured for anyone else who enrolled
+        if (MFA_REQUIRED_ROLES.contains(user.getRole())) {
+            if (!user.isMfaEnabled()) {
+                String setupToken = jwtTokenProvider.generateMfaSetupToken(user.getId(), user.getEmail());
+                throw new MfaSetupRequiredException(setupToken);
+            }
+            validateMfaCode(user, req.totpCode());
+        } else if (user.isMfaEnabled()) {
+            validateMfaCode(user, req.totpCode());
         }
 
         user.setLastLoginAt(Instant.now());
@@ -125,6 +136,88 @@ public class AuthService {
 
         } catch (JwtException e) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
+    }
+
+    /**
+     * Called from POST /api/auth/mfa/challenge — validates challenge token + TOTP, issues full JWT.
+     */
+    @Transactional
+    public AuthResponse completeMfaChallenge(String challengeToken, String totpCode) {
+        try {
+            if (!jwtTokenProvider.isMfaChallengeToken(challengeToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid challenge token");
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired challenge token");
+        }
+
+        UUID userId = jwtTokenProvider.extractUserId(challengeToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        validateMfaCode(user, totpCode);
+
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
+        auditService.log("USER_LOGIN", user.getId(), "USER", user.getId().toString(), null, "mfa-challenge");
+
+        String accessToken  = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name());
+        return buildResponse(user, accessToken, refreshToken, false);
+    }
+
+    /**
+     * Login fallback via a single-use recovery code. Validates the challenge token, consumes the
+     * code, then RESETS MFA (clears the secret, disables MFA) so the user is forced to re-enrol on
+     * their next login — a used recovery path must never silently leave the old TOTP secret active.
+     */
+    @Transactional
+    public AuthResponse completeRecoveryChallenge(String challengeToken, String recoveryCode) {
+        try {
+            if (!jwtTokenProvider.isMfaChallengeToken(challengeToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid challenge token");
+            }
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired challenge token");
+        }
+
+        UUID userId = jwtTokenProvider.extractUserId(challengeToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+        if (!recoveryCodeService.consume(userId, recoveryCode)) {
+            auditService.log("RECOVERY_CODE_FAILED", userId, "USER", userId.toString(), null, null);
+            throw new InvalidMfaCodeException("Invalid or already-used recovery code");
+        }
+
+        // Force re-enrolment: drop the TOTP secret and disable MFA for this account.
+        user.setMfaEnabled(false);
+        user.setMfaSecret(null);
+        user.setLastLoginAt(Instant.now());
+        userRepository.save(user);
+
+        auditService.log("RECOVERY_CODE_USED", userId, "USER", userId.toString(), null,
+                "{\"mfaReset\":true,\"remaining\":" + recoveryCodeService.remaining(userId) + "}");
+        log.warn("Recovery code used for user={} — MFA reset, re-enrolment required", user.getEmail());
+
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
+        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name());
+        return buildResponse(user, accessToken, refreshToken, false);
+    }
+
+    private void validateMfaCode(User user, String totpCode) {
+        if (totpCode == null || totpCode.isBlank()) {
+            String challengeToken = jwtTokenProvider.generateMfaChallengeToken(
+                    user.getId(), user.getEmail(), user.getRole().name());
+            throw new MfaChallengeRequiredException(challengeToken);
+        }
+        try {
+            if (!gAuth.authorize(user.getMfaSecret(), Integer.parseInt(totpCode.trim()))) {
+                throw new InvalidMfaCodeException("Invalid or expired MFA code");
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidMfaCodeException("Invalid MFA code format");
         }
     }
 

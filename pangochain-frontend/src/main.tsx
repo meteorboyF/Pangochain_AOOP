@@ -9,8 +9,11 @@ import './index.css'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5,
-      retry: 1,
+      staleTime: 30_000,            // treat data as fresh for 30s (stale-while-revalidate)
+      gcTime: 5 * 60 * 1000,        // keep in cache 5 min after unmount
+      retry: 2,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10_000),
+      refetchOnWindowFocus: false,  // legal data isn't volatile enough to justify focus refetch
     },
   },
 })

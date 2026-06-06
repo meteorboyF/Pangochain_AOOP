@@ -21,11 +21,7 @@ services:
     networks:
       - pangochain-net
 
-  # ─── IPFS (Kubo) ─────────────────────────────────────────────────────────────
-  # Private swarm key: run `bash scripts/generate-swarm-key.sh` once, then share
-  # pangochain-ipfs/swarm.key with your team via a secrets manager (never git).
-  # Without the key the node joins the public IPFS network (files still encrypted
-  # but visible by CID — acceptable for dev, not for production).
+  # ─── IPFS (Kubo) — 2-node private swarm ─────────────────────────────────────
   ipfs:
     image: ipfs/kubo:v0.27.0
     container_name: pangochain-ipfs
@@ -37,10 +33,26 @@ services:
       - "4001:4001"   # Swarm
     volumes:
       - ipfs_data:/data/ipfs
-      # Uncomment after running scripts/generate-swarm-key.sh:
-      # - ./pangochain-ipfs/swarm.key:/data/ipfs/swarm.key:ro
     networks:
       - pangochain-net
+    restart: unless-stopped
+
+  ipfs2:
+    image: ipfs/kubo:v0.27.0
+    container_name: pangochain-ipfs2
+    environment:
+      IPFS_PROFILE: server
+    ports:
+      - "5002:5001"   # API (secondary)
+      - "8082:8080"   # Gateway (secondary)
+      - "4002:4001"   # Swarm (secondary)
+    volumes:
+      - ipfs2_data:/data/ipfs
+    networks:
+      - pangochain-net
+    depends_on:
+      - ipfs
+    restart: unless-stopped
 
   # ─── Spring Boot Backend (optional — can run with ./mvnw instead) ─────────────
   pangochain-backend:
@@ -81,6 +93,7 @@ services:
 volumes:
   postgres_data:
   ipfs_data:
+  ipfs2_data:
 
 networks:
   pangochain-net:

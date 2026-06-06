@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -50,6 +51,7 @@ public class MessageService {
         return toDto(msg, sender.getEmail());
     }
 
+    @Transactional(readOnly = true)
     public Page<MessageDto> inbox(User user, int page, int size) {
         return messageRepository.findConversations(user.getId(), PageRequest.of(page, size))
                 .map(m -> {
@@ -68,12 +70,47 @@ public class MessageService {
         return messageRepository.countByRecipientIdAndReadAtIsNull(user.getId());
     }
 
+    @Transactional(readOnly = true)
+    public List<MessageDto> conversationSummaries(User user) {
+        return messageRepository.findConversationSummaries(user.getId())
+                .stream()
+                .map(m -> {
+                    String senderEmail = userRepository.findById(m.getSenderId())
+                            .map(User::getEmail).orElse("unknown");
+                    return toDto(m, senderEmail);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MessageDto> thread(User caller, UUID otherUserId) {
+        return messageRepository.findThread(caller.getId(), otherUserId)
+                .stream()
+                .map(m -> {
+                    String senderEmail = userRepository.findById(m.getSenderId())
+                            .map(User::getEmail).orElse("unknown");
+                    return toDto(m, senderEmail);
+                })
+                .toList();
+    }
+
+    @Transactional
+    public int markOneRead(UUID messageId, User recipient) {
+        return messageRepository.markOneRead(messageId, Instant.now());
+    }
+
     private MessageDto toDto(Message m, String senderEmail) {
+        String senderName = userRepository.findById(m.getSenderId())
+                .map(User::getFullName).orElse(senderEmail);
+        String recipientEmail = userRepository.findById(m.getRecipientId())
+                .map(User::getEmail).orElse("unknown");
         return MessageDto.builder()
                 .id(m.getId())
                 .senderId(m.getSenderId())
                 .senderEmail(senderEmail)
+                .senderName(senderName)
                 .recipientId(m.getRecipientId())
+                .recipientEmail(recipientEmail)
                 .caseId(m.getCaseId())
                 .encryptedPayload(m.getEncryptedPayload())
                 .wrappedKeyToken(m.getWrappedKeyToken())

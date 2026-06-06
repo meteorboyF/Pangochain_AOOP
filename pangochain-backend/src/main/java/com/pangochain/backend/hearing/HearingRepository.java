@@ -10,9 +10,14 @@ import java.util.UUID;
 
 public interface HearingRepository extends JpaRepository<Hearing, UUID> {
 
+    // JOIN FETCH legalCase + createdBy so HearingDto.from can read them after the
+    // session closes (open-in-view=false). Avoids LazyInitializationException + N+1.
+    @Query("SELECT h FROM Hearing h JOIN FETCH h.legalCase LEFT JOIN FETCH h.createdBy " +
+           "WHERE h.legalCase.id = :caseId ORDER BY h.hearingDate ASC")
     List<Hearing> findByLegalCaseIdOrderByHearingDateAsc(UUID caseId);
 
-    @Query("SELECT h FROM Hearing h WHERE h.legalCase.firm.id = :firmId AND h.hearingDate > :now ORDER BY h.hearingDate ASC")
+    @Query("SELECT h FROM Hearing h JOIN FETCH h.legalCase LEFT JOIN FETCH h.createdBy " +
+           "WHERE h.legalCase.firm.id = :firmId AND h.hearingDate > :now ORDER BY h.hearingDate ASC")
     List<Hearing> findUpcomingByFirm(UUID firmId, Instant now);
 
     @Query(value = "SELECT h.* FROM hearings h JOIN cases c ON h.case_id = c.id JOIN case_clients cc ON cc.case_id = c.id WHERE cc.client_id = :clientId AND h.hearing_date > :now ORDER BY h.hearing_date ASC", nativeQuery = true)

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.pangochain.backend.cases.dto.CaseCreateRequest;
 import com.pangochain.backend.cases.dto.CaseDto;
 import com.pangochain.backend.document.DocumentRepository;
@@ -43,6 +44,9 @@ public class CaseService {
                 .title(req.getTitle())
                 .description(req.getDescription())
                 .caseType(req.getCaseType())
+                .clientName(req.getClientName())
+                .opposingParty(req.getOpposingParty())
+                .relatedParties(req.getRelatedParties())
                 .firm(creator.getFirm())
                 .createdBy(creator)
                 .status(CaseStatus.ACTIVE)
@@ -73,6 +77,7 @@ public class CaseService {
         return toDto(legalCase, 0L);
     }
 
+    @Transactional(readOnly = true)
     public Page<CaseDto> listByFirm(UUID firmId, CaseStatus status, String q, int page, int size) {
         if (firmId == null) {
             throw new IllegalArgumentException("firmId cannot be null");
@@ -91,6 +96,7 @@ public class CaseService {
                         com.pangochain.backend.document.DocStatus.ACTIVE)));
     }
 
+    @Transactional(readOnly = true)
     public CaseDto getById(UUID caseId) {
         Case c = caseRepository.findById(caseId)
                 .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));
@@ -117,6 +123,9 @@ public class CaseService {
                 .title(c.getTitle())
                 .description(c.getDescription())
                 .caseType(c.getCaseType())
+                .clientName(c.getClientName())
+                .opposingParty(c.getOpposingParty())
+                .relatedParties(c.getRelatedParties())
                 .firmId(c.getFirm() != null ? c.getFirm().getId() : null)
                 .firmName(c.getFirm() != null ? c.getFirm().getName() : null)
                 .createdByEmail(c.getCreatedBy().getEmail())
@@ -126,6 +135,19 @@ public class CaseService {
                 .createdAt(c.getCreatedAt())
                 .closedAt(c.getClosedAt())
                 .build();
+    }
+
+    public String getTimeline(UUID caseId) {
+        caseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));
+        if (fabricGatewayService == null) return "[]";
+        try {
+            String caseKey = "CASE:" + caseId;
+            return fabricGatewayService.evaluateTransaction("GetDocumentHistory", caseKey);
+        } catch (FabricException e) {
+            log.warn("Could not fetch Fabric timeline for case={}: {}", caseId, e.getMessage());
+            return "[]";
+        }
     }
 
     private String toJson(Object obj) {

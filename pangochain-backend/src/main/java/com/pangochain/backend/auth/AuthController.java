@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +37,7 @@ public class AuthController {
         return ResponseEntity.ok(authService.refresh(request));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(@AuthenticationPrincipal User user) {
         // Stateless JWT — client simply discards tokens.
@@ -43,6 +45,7 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> me(@AuthenticationPrincipal User user) {
         return ResponseEntity.ok(Map.of(
