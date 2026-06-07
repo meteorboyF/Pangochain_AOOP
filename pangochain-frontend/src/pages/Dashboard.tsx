@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar, FileSignature, DoorOpen, Bot, Search } from 'lucide-react'
+import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar, FileSignature, DoorOpen, Bot, Search, ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel, canViewGlobalAudit } from '../store/authStore'
 import api from '../lib/api'
@@ -44,15 +44,14 @@ interface AuditEntry {
   metadataJson: string
 }
 
-
 const AUDIT_COLORS: Record<string, string> = {
-  DOC_REGISTERED:  'bg-blue-50 text-blue-700',
-  ACCESS_GRANTED:  'bg-emerald-50 text-emerald-700',
-  ACCESS_REVOKED:  'bg-red-50 text-red-700',
-  DOC_VIEWED:      'bg-purple-50 text-purple-700',
-  CASE_REGISTERED: 'bg-teal-50 text-teal-700',
-  USER_REGISTERED: 'bg-indigo-50 text-indigo-700',
-  USER_LOGIN:      'bg-gray-50 text-gray-600',
+  DOC_REGISTERED:  'bg-slate-100 text-slate-700',
+  ACCESS_GRANTED:  'bg-amber-50 text-amber-800 ring-1 ring-amber-200/60',
+  ACCESS_REVOKED:  'bg-red-50 text-red-600 ring-1 ring-red-100',
+  DOC_VIEWED:      'bg-stone-100 text-stone-700',
+  CASE_REGISTERED: 'bg-zinc-100 text-zinc-700',
+  USER_REGISTERED: 'bg-neutral-100 text-neutral-700',
+  USER_LOGIN:      'bg-gray-50 text-gray-500',
 }
 
 function getGreeting() {
@@ -62,23 +61,80 @@ function getGreeting() {
   return 'evening'
 }
 
-function StatCard({ icon, label, value, to, trend }: {
-  icon: React.ReactNode; label: string; value: string | number; to: string; trend?: string
+const STAT_CONFIGS = [
+  {
+    key: 'activeCases',
+    label: 'Active Cases',
+    icon: FolderOpen,
+    to: '/cases',
+    gradient: 'from-slate-800 to-slate-950',
+    ring: 'ring-slate-700/30',
+    glow: 'shadow-slate-900/20',
+  },
+  {
+    key: 'totalDocuments',
+    label: 'Documents',
+    icon: FileText,
+    to: '/documents',
+    gradient: 'from-amber-500 to-amber-800',
+    ring: 'ring-amber-600/30',
+    glow: 'shadow-amber-900/20',
+  },
+  {
+    key: 'unreadMessages',
+    label: 'Unread Messages',
+    icon: MessageSquare,
+    to: '/messages',
+    gradient: 'from-stone-600 to-stone-900',
+    ring: 'ring-stone-700/30',
+    glow: 'shadow-stone-900/20',
+  },
+  {
+    key: 'auditEvents',
+    label: 'Audit Events',
+    icon: Activity,
+    to: '/audit',
+    gradient: 'from-zinc-600 to-zinc-900',
+    ring: 'ring-zinc-700/30',
+    glow: 'shadow-zinc-900/20',
+    adminOnly: true,
+  },
+]
+
+function StatCard({ icon: Icon, label, value, to, gradient, ring, glow }: {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  to: string
+  gradient: string
+  ring: string
+  glow: string
 }) {
   return (
     <Tooltip content={`Open ${label.toLowerCase()} and continue work from there.`} side="bottom" className="w-full">
-      <Link to={to} className="card group flex items-center gap-4 transition-all hover:-translate-y-1 hover:border-cyan-200 hover:shadow-card-hover">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-900 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-cyan-950/10">
-          {icon}
+      <Link to={to} className="card group flex items-center gap-4 transition-all duration-200 hover:-translate-y-1 hover:border-amber-200/60 hover:shadow-[0_4px_20px_-6px_rgba(15,23,42,0.18)]">
+        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white flex-shrink-0 shadow-lg ${glow} ring-1 ${ring}`}>
+          <Icon className="w-5 h-5" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-text-muted text-sm">{label}</p>
-          <p className="font-heading font-bold text-2xl text-text-primary">{value}</p>
-          {trend && <p className="text-xs text-success flex items-center gap-0.5 mt-0.5"><TrendingUp className="w-3 h-3" />{trend}</p>}
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</p>
+          <p className="font-heading font-bold text-2xl text-slate-900 mt-0.5">{value}</p>
         </div>
-        <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0 transition-transform group-hover:translate-x-1 group-hover:text-cyan-700" />
+        <ArrowUpRight className="w-4 h-4 text-slate-300 flex-shrink-0 transition-all duration-150 group-hover:text-amber-500 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
       </Link>
     </Tooltip>
+  )
+}
+
+function SkeletonStatCard() {
+  return (
+    <div className="card flex items-center gap-4 animate-pulse">
+      <div className="w-11 h-11 rounded-xl bg-slate-100 flex-shrink-0" />
+      <div className="flex-1">
+        <div className="h-2.5 bg-slate-100 rounded w-20 mb-2" />
+        <div className="h-6 bg-slate-100 rounded w-12" />
+      </div>
+    </div>
   )
 }
 
@@ -89,18 +145,16 @@ function HearingCountdown({ date }: { date: string }) {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
 
-  if (diffMs < 0) return <span className="text-error font-bold">Past due</span>
+  if (diffMs < 0) return <span className="text-red-500 font-bold text-lg">Past due</span>
   if (diffDays === 0) return <span className="text-amber-600 font-bold text-lg">Today — in {diffHours}h</span>
   if (diffDays === 1) return <span className="text-amber-500 font-bold text-lg">Tomorrow</span>
-  return <span className="text-[#1d6464] font-bold text-2xl">{diffDays} days</span>
+  return <span className="font-heading font-extrabold text-3xl text-slate-900">{diffDays}<span className="text-base font-medium text-slate-400 ml-1">days</span></span>
 }
 
 export default function Dashboard() {
   const { user } = useAuthStore()
   const showGlobalAudit = user ? canViewGlobalAudit(user.role) : false
 
-  // Four independent queries — each tolerates its own failure (mirrors the old
-  // Promise.allSettled behaviour), so one endpoint being down never blanks the page.
   const statsQuery = useQuery({
     queryKey: queryKeys.dashboardStats(),
     queryFn: async () => (await api.get<Stats>('/dashboard/stats')).data,
@@ -125,16 +179,19 @@ export default function Dashboard() {
   const nextHearing: NextHearing | null | undefined =
     lawyerQuery.isSuccess ? (lawyerQuery.data?.nextHearing ?? null)
     : lawyerQuery.isError ? null : undefined
-  // Show the page once the primary (stats) query settles; secondary panels fill in as they resolve.
   const loading = statsQuery.isLoading
+
+  const visibleStats = STAT_CONFIGS.filter(s => !s.adminOnly || showGlobalAudit)
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Page hero */}
       <PageHero
         eyebrow="Today in PangoChain"
         title={`Good ${getGreeting()}, ${user?.fullName.split(' ')[0]}`}
-        description={`${roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} at ${user?.firmId ?? 'PangoChain'} - review matters, documents, hearings, and secure legal workflows from one command center.`}
+        description={`${roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} at ${user?.firmId ?? 'PangoChain'} — review matters, documents, hearings, and secure legal workflows from one command center.`}
         icon={Gavel}
+        image="/legal/lady-justice.png"
         actions={(
           <>
             <Link to="/cases/new" className="btn-primary">
@@ -148,92 +205,95 @@ export default function Dashboard() {
       >
         <QuickActionGrid
           actions={[
-            { label: 'Register a case', description: 'Create a new matter with blockchain-ready document controls.', to: '/cases/new', icon: FolderOpen, tone: 'cyan' },
-            { label: 'Upload evidence', description: 'Encrypt a document, pin it to IPFS, and register its hash on Fabric.', to: '/documents', icon: FileText, tone: 'emerald' },
-            { label: 'Prepare templates', description: 'Open reusable legal templates for faster drafting.', to: '/templates', icon: FileSignature, tone: 'amber' },
-            { label: 'Ask assistant', description: 'Use the assistant workspace for guided legal workflow support.', to: '/assistant', icon: Bot, tone: 'violet' },
+            { label: 'Register a case', description: 'Create a new matter with blockchain-ready document controls.', to: '/cases/new', icon: FolderOpen, tone: 'black' },
+            { label: 'Upload evidence', description: 'Encrypt a document, pin it to IPFS, and register its hash on Fabric.', to: '/documents', icon: FileText, tone: 'gold' },
+            { label: 'Prepare templates', description: 'Open reusable legal templates for faster drafting.', to: '/templates', icon: FileSignature, tone: 'stone' },
+            { label: 'Ask assistant', description: 'Use the assistant workspace for guided legal workflow support.', to: '/assistant', icon: Bot, tone: 'silver' },
           ]}
         />
       </PageHero>
 
-      {/* Stats */}
+      {/* Stats row */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="card flex items-center gap-4 animate-pulse">
-              <div className="w-12 h-12 rounded-xl bg-surface-muted" />
-              <div className="flex-1">
-                <div className="h-3 bg-surface-muted rounded w-24 mb-2" />
-                <div className="h-6 bg-surface-muted rounded w-16" />
-              </div>
-            </div>
-          ))}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${showGlobalAudit ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
+          {visibleStats.map((_, i) => <SkeletonStatCard key={i} />)}
         </div>
       ) : (
         <div className={`grid grid-cols-1 sm:grid-cols-2 ${showGlobalAudit ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
-          <StatCard icon={<FolderOpen className="w-5 h-5" />} label="Active Cases"
-            value={stats?.activeCases ?? 0} to="/cases" />
-          <StatCard icon={<FileText className="w-5 h-5" />} label="Documents"
-            value={stats?.totalDocuments ?? 0} to="/documents" />
-          <StatCard icon={<MessageSquare className="w-5 h-5" />} label="Unread Messages"
-            value={stats?.unreadMessages ?? 0} to="/messages" />
-          {showGlobalAudit && (
-            <StatCard icon={<Activity className="w-5 h-5" />} label="Audit Events"
-              value={(stats?.auditEvents ?? 0).toLocaleString()} to="/audit" />
-          )}
+          {visibleStats.map((cfg) => (
+            <StatCard
+              key={cfg.key}
+              icon={cfg.icon}
+              label={cfg.label}
+              value={cfg.key === 'auditEvents'
+                ? (stats?.auditEvents ?? 0).toLocaleString()
+                : (stats?.[cfg.key as keyof Stats] ?? 0)}
+              to={cfg.to}
+              gradient={cfg.gradient}
+              ring={cfg.ring}
+              glow={cfg.glow}
+            />
+          ))}
         </div>
       )}
 
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Cases */}
-        <div className="lg:col-span-2 card overflow-hidden">
-          <div className="flex items-center justify-between mb-5">
+
+        {/* Recent Cases — takes 2/3 */}
+        <div className="lg:col-span-2 card overflow-hidden !p-0">
+          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
             <div>
-              <h2 className="font-heading font-semibold text-text-primary">Recent Cases</h2>
-              <p className="text-xs text-slate-500 mt-1">Open a matter to manage files, access, deadlines, and audit history.</p>
+              <h2 className="font-heading font-semibold text-slate-900">Recent Cases</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Manage files, access controls, and audit history for each matter.</p>
             </div>
-            <Link to="/cases" className="text-sm text-[#1d6464] hover:underline font-medium">View all →</Link>
+            <Link to="/cases" className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-900 transition-colors">
+              View all <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
+
           {loading ? (
-            <div className="space-y-3">
+            <div className="px-6 py-4 space-y-3">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex items-center gap-3 py-2 animate-pulse">
-                  <div className="w-9 h-9 rounded-lg bg-surface-muted shrink-0" />
+                <div key={i} className="flex items-center gap-3 animate-pulse">
+                  <div className="w-9 h-9 rounded-lg bg-slate-100 shrink-0" />
                   <div className="flex-1">
-                    <div className="h-3 bg-surface-muted rounded w-3/4 mb-1.5" />
-                    <div className="h-2.5 bg-surface-muted rounded w-1/2" />
+                    <div className="h-3 bg-slate-100 rounded w-3/4 mb-1.5" />
+                    <div className="h-2.5 bg-slate-100 rounded w-1/2" />
                   </div>
                 </div>
               ))}
             </div>
           ) : cases.length === 0 ? (
-            <div className="text-center py-8">
-              <FolderOpen className="w-8 h-8 text-text-muted mx-auto mb-2" />
-              <p className="text-text-muted text-sm">No cases yet</p>
-              <Link to="/cases/new" className="btn-primary mt-3 text-sm inline-flex">
+            <div className="text-center py-12 px-6">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center mx-auto mb-3">
+                <FolderOpen className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="font-medium text-slate-700 mb-1">No cases yet</p>
+              <p className="text-xs text-slate-400 mb-4">Create your first matter to get started.</p>
+              <Link to="/cases/new" className="btn-primary text-sm inline-flex">
                 <Plus className="w-3.5 h-3.5" /> Create First Case
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-slate-50">
               {cases.map((c) => (
                 <Link key={c.id} to={`/cases/${c.id}`}
-                  className="flex items-center justify-between py-3.5 hover:bg-surface-muted rounded-lg px-3 -mx-3 transition-colors group">
+                  className="flex items-center justify-between px-6 py-3.5 hover:bg-amber-50/40 transition-colors group">
                   <div className="flex items-start gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-[#1d6464]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <FolderOpen className="w-4 h-4 text-[#1d6464]" />
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5 group-hover:bg-amber-100 transition-colors">
+                      <FolderOpen className="w-4 h-4 text-slate-600 group-hover:text-amber-700 transition-colors" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-text-primary text-sm group-hover:text-[#1d6464] transition-colors truncate">
+                      <p className="font-medium text-slate-800 text-sm group-hover:text-amber-900 transition-colors truncate">
                         {c.title}
                       </p>
-                      <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1.5">
+                      <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
                         {c.caseType && <span>{c.caseType}</span>}
-                        <span>·</span>
+                        <span className="opacity-50">·</span>
                         <Clock className="w-3 h-3" />
                         <span>{new Date(c.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        <span>·</span>
+                        <span className="opacity-50">·</span>
                         <span>{c.documentCount} docs</span>
                       </p>
                     </div>
@@ -246,29 +306,34 @@ export default function Dashboard() {
         </div>
 
         {/* Right column */}
-        <div className="space-y-5">
+        <div className="space-y-4">
+
           {/* Next Hearing */}
           {nextHearing !== undefined && (
-            <div className="card border border-[#1d6464]/20">
+            <div className="card border-l-4 border-l-amber-400 !border-amber-100">
               <div className="flex items-center gap-2 mb-3">
-                <Gavel className="w-4 h-4 text-[#1d6464]" />
-                <h2 className="font-heading font-semibold text-text-primary text-sm">Next Hearing</h2>
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <Gavel className="w-3.5 h-3.5 text-amber-700" />
+                </div>
+                <h2 className="font-heading font-semibold text-slate-800 text-sm">Next Hearing</h2>
               </div>
               {nextHearing === null ? (
-                <p className="text-text-muted text-sm text-center py-2">No upcoming hearings</p>
+                <p className="text-slate-400 text-sm text-center py-3">No upcoming hearings</p>
               ) : (
                 <div className="space-y-2">
                   <HearingCountdown date={nextHearing.hearingDate} />
-                  <p className="font-medium text-text-primary text-sm truncate">{nextHearing.title}</p>
-                  <p className="text-text-muted text-xs truncate">{nextHearing.caseTitle}</p>
-                  <div className="flex items-center gap-1.5 text-xs text-text-muted pt-1">
+                  <p className="font-semibold text-slate-800 text-sm truncate mt-1">{nextHearing.title}</p>
+                  <p className="text-slate-400 text-xs truncate">{nextHearing.caseTitle}</p>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-1">
                     <Calendar className="w-3 h-3" />
                     {new Date(nextHearing.hearingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                   {nextHearing.courtName && (
-                    <p className="text-xs text-text-muted truncate">{nextHearing.courtName}</p>
+                    <p className="text-xs text-slate-400 truncate">{nextHearing.courtName}</p>
                   )}
-                  <Link to="/hearings" className="text-xs text-[#1d6464] hover:underline font-medium">View all hearings →</Link>
+                  <Link to="/hearings" className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-semibold mt-1 transition-colors">
+                    All hearings <ChevronRight className="w-3 h-3" />
+                  </Link>
                 </div>
               )}
             </div>
@@ -276,9 +341,13 @@ export default function Dashboard() {
 
           {/* Security Status */}
           <div className="card">
-            <h2 className="font-heading font-semibold text-text-primary mb-1">Security Status</h2>
-            <p className="mb-4 text-xs text-slate-500">Hover each control in the app for what it protects.</p>
-            <div className="space-y-3.5">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                <Shield className="w-3.5 h-3.5 text-slate-700" />
+              </div>
+              <h2 className="font-heading font-semibold text-slate-800 text-sm">Security Status</h2>
+            </div>
+            <div className="space-y-3">
               {[
                 { label: 'Document Encryption', active: true },
                 { label: 'Blockchain ACL', active: true },
@@ -286,10 +355,10 @@ export default function Dashboard() {
                 { label: 'Audit Integrity', active: true },
                 { label: 'MFA', active: user?.mfaEnabled ?? false },
               ].map(({ label, active }) => (
-                <div key={label} className="flex items-center justify-between text-sm">
-                  <span className="text-text-secondary">{label}</span>
-                  <span className={`flex items-center gap-1.5 font-medium ${active ? 'text-success' : 'text-amber-500'}`}>
-                    <span className={`w-2 h-2 rounded-full ${active ? 'bg-success animate-pulse' : 'bg-amber-400'}`} />
+                <div key={label} className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500">{label}</span>
+                  <span className={`flex items-center gap-1.5 text-xs font-semibold ${active ? 'text-slate-800' : 'text-amber-600'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.6)]' : 'bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.5)]'}`} />
                     {active ? 'Active' : 'Recommended'}
                   </span>
                 </div>
@@ -298,55 +367,72 @@ export default function Dashboard() {
           </div>
 
           {/* Blockchain card */}
-          <div className="card bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.35),transparent_35%),linear-gradient(135deg,#0f172a,#0f3d3d)] text-white">
-            <Shield className="w-6 h-6 mb-3 text-cyan-200" />
-            <p className="font-heading font-semibold text-sm mb-1">Blockchain-Verified</p>
-            <p className="text-xs text-white/60 leading-relaxed">
-              Every document access, upload and permission change is immutably recorded on Hyperledger Fabric.
-            </p>
-            <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50 font-mono">
-              Channel: legal-channel · {showGlobalAudit ? `${(stats?.auditEvents ?? 0).toLocaleString()} events` : 'admin audit restricted'}
+          <div className="card !p-0 overflow-hidden">
+            <div className="bg-[radial-gradient(circle_at_top_right,rgba(212,175,55,0.22),transparent_60%),linear-gradient(135deg,#0c0c0d,#1a1a1c)] p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center ring-1 ring-white/10">
+                  <Shield className="w-3.5 h-3.5 text-amber-300" />
+                </div>
+                <p className="font-heading font-semibold text-white text-sm">Blockchain-Verified</p>
+              </div>
+              <p className="text-xs text-white/55 leading-relaxed">
+                Every document access, upload and permission change is immutably recorded on Hyperledger Fabric.
+              </p>
+              <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center gap-2 text-[10px] text-white/35 font-mono">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.7)]" />
+                legal-channel · {showGlobalAudit ? `${(stats?.auditEvents ?? 0).toLocaleString()} events` : 'audit restricted'}
+              </div>
             </div>
           </div>
 
+          {/* Feature Finder */}
           <div className="card">
-            <div className="flex items-center gap-2 mb-3">
-              <DoorOpen className="h-4 w-4 text-cyan-700" />
-              <h2 className="font-heading font-semibold text-text-primary text-sm">Feature Finder</h2>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                <DoorOpen className="w-3.5 h-3.5 text-slate-600" />
+              </div>
+              <h2 className="font-heading font-semibold text-slate-800 text-sm">Feature Finder</h2>
             </div>
-            <p className="text-xs leading-5 text-slate-600">
-              Use the sidebar search to find features by purpose: type "client", "video", "keys", "cases", or "documents".
+            <p className="text-xs leading-5 text-slate-500">
+              Use sidebar search to find features by purpose — try "client", "video", "keys", "cases", or "templates".
             </p>
           </div>
 
           {/* Recent Audit */}
           {showGlobalAudit && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-heading font-semibold text-text-primary">Recent Activity</h2>
-              <Link to="/audit" className="text-xs text-[#1d6464] hover:underline">View log →</Link>
-            </div>
-            {audit.length === 0 ? (
-              <p className="text-text-muted text-xs text-center py-4">No activity yet</p>
-            ) : (
-              <div className="space-y-2.5">
-                {audit.map((a) => (
-                  <div key={a.id} className="flex items-start gap-2">
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0 ${AUDIT_COLORS[a.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {a.eventType.replace(/_/g, ' ')}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs text-text-secondary truncate">{a.resourceId}</p>
-                      {a.fabricTxId && (
-                        <code className="text-[9px] text-[#1d6464] font-mono">{a.fabricTxId.slice(0, 8)}…</code>
-                      )}
-                      <p className="text-[10px] text-text-muted">{new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
+            <div className="card">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center">
+                    <Activity className="w-3.5 h-3.5 text-slate-600" />
                   </div>
-                ))}
+                  <h2 className="font-heading font-semibold text-slate-800 text-sm">Recent Activity</h2>
+                </div>
+                <Link to="/audit" className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-semibold transition-colors">
+                  View log <ArrowUpRight className="w-3 h-3" />
+                </Link>
               </div>
-            )}
-          </div>
+              {audit.length === 0 ? (
+                <p className="text-slate-400 text-xs text-center py-4">No activity yet</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {audit.map((a) => (
+                    <div key={a.id} className="flex items-start gap-2.5">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0 ${AUDIT_COLORS[a.eventType] ?? 'bg-gray-100 text-gray-500'}`}>
+                        {a.eventType.replace(/_/g, ' ')}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-xs text-slate-600 truncate">{a.resourceId}</p>
+                        {a.fabricTxId && (
+                          <code className="text-[9px] text-amber-700 font-mono">{a.fabricTxId.slice(0, 8)}…</code>
+                        )}
+                        <p className="text-[10px] text-slate-400">{new Date(a.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
