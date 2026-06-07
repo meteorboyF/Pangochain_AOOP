@@ -57,7 +57,6 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', description: 'Securely talk with your legal team.', badge: unreadCount },
   ]
 
-  // Planned (Backlog) features — scaffolding pages, role-scoped.
   const plannedLegal: NavItem[] = [
     { to: '/assistant', icon: <Bot className="w-4 h-4" />, label: 'AI Assistant', description: 'Ask case-aware questions and get drafting or research support.' },
     { to: '/insights', icon: <TrendingUp className="w-4 h-4" />, label: 'Case Insights', description: 'See workload, risk, deadlines, and matter intelligence.' },
@@ -103,7 +102,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
         onClick={onClose}
         className={({ isActive }) => clsx('sidebar-link group/nav w-full', isActive && 'active')}
       >
-        <span className="shrink-0">{item.icon}</span>
+        <span className="shrink-0 opacity-80 group-[.active]/nav:opacity-100">{item.icon}</span>
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {(item.badge ?? 0) > 0 && (
           <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-slate-950">
@@ -121,81 +120,104 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     navigate('/login')
   }
 
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="pt-4 pb-1.5 px-3">
+      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.16em]">{children}</p>
+    </div>
+  )
+
   const sidebarContent = (
-    <aside className="w-72 flex-shrink-0 border-r border-white/70 bg-white/90 backdrop-blur-xl flex flex-col h-screen sticky top-0 z-20 shadow-xl shadow-slate-900/5">
-      {/* Logo — pangolin mark only (wordmark intentionally omitted) */}
-      <div className="h-16 flex items-center px-5 border-b border-border">
-        <img src="/logo-mark.png" alt="PangoChain" className="h-11 w-auto" onError={(e) => {
-          (e.target as HTMLImageElement).style.display = 'none'
-        }} />
-        <div className="ml-3 min-w-0">
-          <p className="font-heading text-sm font-bold text-slate-950">PangoChain</p>
-          <p className="text-[11px] font-medium text-cyan-700">Legal data command</p>
+    <aside className="w-64 flex-shrink-0 border-r border-white/[0.07] bg-[#0e0e0f] flex flex-col h-screen sticky top-0 z-20">
+
+      {/* Logo */}
+      <div className="relative h-[68px] overflow-hidden border-b border-white/[0.08] px-5 flex-shrink-0">
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.97),rgba(20,18,16,0.90)),url('/legal/providentia-engraving.png')] bg-cover bg-[center_38%]" />
+        {/* Gold separator line */}
+        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
+        <div className="relative flex h-full items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/95 shadow-lg shadow-black/50 ring-1 ring-white/20">
+            <img src="/logo-mark.png" alt="PangoChain" className="h-7 w-auto" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none'
+            }} />
+          </div>
+          <div>
+            <p className="font-heading text-[13px] font-bold text-white tracking-tight">PangoChain</p>
+            <p className="text-[10px] font-semibold text-amber-400/70 tracking-wide">Legal command</p>
+          </div>
         </div>
       </div>
 
       {/* User info */}
-      <div className="px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-slate-900 flex items-center justify-center text-white font-bold text-sm shadow-md">
-            {user.fullName.charAt(0).toUpperCase()}
+      <div className="px-4 py-3.5 border-b border-white/[0.07]">
+        <div className="flex items-center gap-3">
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-stone-800 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-black/40 ring-1 ring-amber-400/25">
+              {user.fullName.charAt(0).toUpperCase()}
+            </div>
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-[1.5px] border-[#0e0e0f]" />
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-text-primary truncate">{user.fullName}</p>
-            <p className="text-xs text-text-muted truncate">{roleLabel(user.role)}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-white/90 truncate leading-tight">{user.fullName}</p>
+            <p className="text-[11px] text-slate-500 truncate">{roleLabel(user.role)}</p>
           </div>
-          <ChevronRight className="w-4 h-4 text-text-muted ml-auto flex-shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
         </div>
       </div>
 
-      <div className="px-3 py-3 border-b border-border">
+      {/* Search */}
+      <div className="px-3 py-2.5 border-b border-white/[0.07]">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
           <input
-            className="input h-10 pl-9 text-xs"
+            className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.05] pl-8 pr-3 text-xs text-slate-300 placeholder-slate-600
+                       focus:border-amber-400/30 focus:bg-white/[0.08] focus:outline-none transition-all"
             placeholder="Find a feature..."
             value={navSearch}
             onChange={(e) => setNavSearch(e.target.value)}
           />
+          {navSearch && (
+            <button
+              onClick={() => setNavSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300 transition-colors"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto scrollbar-thin py-3 px-3 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5">
         {isClient(user.role) && (
-          <div className="pb-2 mb-1">
-            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider px-3 mb-1">Client Portal</p>
-          </div>
+          <SectionLabel>Client Portal</SectionLabel>
         )}
 
         {filteredNavItems.map((item) => renderNavItem(item))}
 
         {filteredPlannedItems.length > 0 && (
           <>
-            <div className="pt-3 pb-1 px-3">
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Coming Soon</p>
-            </div>
-            {filteredPlannedItems.map((item) => renderNavItem(item, <span className="ml-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-700">Soon</span>))}
+            <SectionLabel>Coming Soon</SectionLabel>
+            {filteredPlannedItems.map((item) => renderNavItem(item,
+              <span className="ml-auto rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-400/70">Soon</span>
+            ))}
           </>
         )}
 
         {showRegulator && (
           <>
-            <div className="pt-3 pb-1 px-3">
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Regulatory View</p>
-            </div>
+            <SectionLabel>Regulatory</SectionLabel>
             <NavLink
               to="/regulator"
               className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-4 h-4 opacity-80" />
               Cross-Firm Audit
             </NavLink>
             <NavLink
               to="/ledger"
               className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
             >
-              <Activity className="w-4 h-4" />
+              <Activity className="w-4 h-4 opacity-80" />
               Ledger Explorer
             </NavLink>
           </>
@@ -203,41 +225,40 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
         {showAdmin && !showRegulator && (
           <>
-            <div className="pt-3 pb-1 px-3">
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Administration</p>
-            </div>
+            <SectionLabel>Administration</SectionLabel>
             {filteredAdminItems.map((item) => renderNavItem(item))}
           </>
         )}
 
         {showMfa && (
           <>
-            <div className="pt-3 pb-1 px-3">
-              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Security</p>
-            </div>
+            <SectionLabel>Security</SectionLabel>
             <NavLink
               to="/profile/mfa"
               className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4 opacity-80" />
               {user.mfaEnabled ? 'MFA Enabled ✓' : 'Enable MFA'}
             </NavLink>
           </>
         )}
       </nav>
 
-      {/* Footer */}
-      <div className="p-3 border-t border-border space-y-0.5">
+      {/* Footer actions */}
+      <div className="p-2 border-t border-white/[0.07] space-y-0.5">
         {renderNavItem({ to: '/profile', icon: <Settings className="w-4 h-4" />, label: 'Profile & Keys', description: 'Manage your account, keys, and personal security settings.' })}
-        <button onClick={handleLogout} className="sidebar-link w-full text-left !text-error hover:!text-error hover:!bg-red-50">
+        <button onClick={handleLogout} className="sidebar-link w-full text-left !text-red-400/80 hover:!text-red-300 hover:!bg-red-400/10">
           <LogOut className="w-4 h-4" />
           Sign Out
         </button>
       </div>
 
-      {/* Footer branding */}
-      <div className="px-5 py-2 border-t border-border">
-        <p className="text-[9px] text-text-muted font-mono">Hyperledger Fabric 2.4 · AES-256-GCM</p>
+      {/* Tech footer */}
+      <div className="px-5 py-3 border-t border-white/[0.07]">
+        <div className="flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 flex-shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.75)]" />
+          <p className="text-[10px] text-slate-600 font-mono">Fabric 2.4 · AES-256-GCM</p>
+        </div>
       </div>
     </aside>
   )
@@ -251,14 +272,14 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
             onClick={onClose}
           />
           <div className="fixed inset-y-0 left-0 z-40 lg:hidden flex">
             {sidebarContent}
             <button
               onClick={onClose}
-              className="absolute top-4 right-[-40px] w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-text-muted shadow-md"
+              className="absolute top-4 right-[-40px] w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-slate-600 shadow-md"
               aria-label="Close menu"
             >
               <X className="w-4 h-4" />
