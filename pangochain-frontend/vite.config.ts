@@ -16,12 +16,12 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080',
         changeOrigin: true,
       },
       // SockJS/STOMP handshake + websocket upgrade for real-time chat
       '/ws': {
-        target: 'http://localhost:8080',
+        target: process.env.VITE_BACKEND_URL ?? 'http://localhost:8080',
         changeOrigin: true,
         ws: true,
       },

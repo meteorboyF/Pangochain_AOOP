@@ -96,6 +96,7 @@ export default function Login() {
       const body = err.response?.data
 
       if (status === 403 && body?.requiresMfaSetup) {
+        sessionStorage.setItem('pangochain-mfa-setup-token', body.setupToken)
         setLoginStage('mfa_setup_required')
         return
       }

@@ -101,7 +101,7 @@ public class IpfsService {
                     .uri("/api/v0/pin/add?arg={cid}", cid)
                     .retrieve()
                     .bodyToMono(Map.class)
-                    .block();
+                    .block(java.time.Duration.ofSeconds(3));
             log.info("Pinned CID {} on both IPFS nodes", cid);
         } catch (Exception e) {
             log.warn("Failed to pin CID {} on secondary IPFS node: {}", cid, e.getMessage());

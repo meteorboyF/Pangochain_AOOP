@@ -1,0 +1,20 @@
+Chen-Meridian Master Lease Agreement 2021
+Case: chen-v-meridian
+Category: CONTRACT
+
+MASTER COMMERCIAL LEASE AGREEMENT
+
+Parties: Marcus Chen, tenant, and Meridian Holdings Ltd., landlord.
+Premises: 12,500 square feet of warehouse and light assembly space at 1440 Alameda Street, Los Angeles.
+Term: January 1, 2021 through December 31, 2026.
+
+Section 8.2 - Termination Notice.
+Landlord may not terminate the lease for alleged monetary default unless landlord gives tenant 90 days written notice and a clear itemized cure amount. Notice must be sent by certified mail and email to the tenant notice address.
+
+Section 10.1 - Repairs.
+Landlord is responsible for roof, HVAC, loading dock doors, and base building electrical systems. Tenant rent abatement applies when landlord repair delay materially interrupts warehouse operations for more than 72 hours.
+
+Section 14.4 - Attorneys' Fees.
+The prevailing party in any lease enforcement action is entitled to reasonable attorneys' fees and costs.
+
+Case note for AI testing: Chen's strongest argument is that Meridian's January 18, 2024 default notice did not provide a correct cure amount and ignored the February wire transfer.

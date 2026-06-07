@@ -40,13 +40,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
         try {
-            if (!jwtTokenProvider.isAccessToken(token)) {
+            boolean setupTokenAllowed = isMfaSetupRequest(request) && jwtTokenProvider.isMfaSetupToken(token);
+            if (!jwtTokenProvider.isAccessToken(token) && !setupTokenAllowed) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
             UUID userId = jwtTokenProvider.extractUserId(token);
-            String role = jwtTokenProvider.extractRole(token);
 
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
                 var user = userRepository.findById(userId).orElse(null);
@@ -54,7 +54,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     var auth = new UsernamePasswordAuthenticationToken(
                             user,
                             null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                            List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
                     );
                     auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(auth);
@@ -65,5 +65,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isMfaSetupRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return "POST".equalsIgnoreCase(request.getMethod())
+                && ("/api/auth/mfa/setup".equals(path) || "/api/auth/mfa/verify".equals(path));
     }
 }

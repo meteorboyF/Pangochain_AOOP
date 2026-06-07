@@ -1,0 +1,76 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 956 >>
+stream
+BT
+/F1 11 Tf
+50 742 Td
+14 TL
+/F1 16 Tf
+(Pinnacle Security Incident Report Oct 2024) Tj
+/F1 11 Tf
+T*
+(Case: pinnacle-data-breach | Category: INCIDENT_REPORT) Tj
+T*
+() Tj
+T*
+(PINNACLE SECURITY INCIDENT REPORT) Tj
+T*
+() Tj
+T*
+(Incident date range: October 4, 2024 through October 9, 2024.) Tj
+T*
+(Attack vector: Credential stuffing against customer support accounts.) Tj
+T*
+(Records affected: Approximately 12,000 customer profiles, including names, emails,) Tj
+T*
+(support ticket metadata, and partial account identifiers.) Tj
+T*
+() Tj
+T*
+(Containment steps:) Tj
+T*
+(- Disabled affected credentials.) Tj
+T*
+(- Forced password reset for support staff.) Tj
+T*
+(- Expanded MFA rollout.) Tj
+T*
+(- Preserved authentication logs for expert review.) Tj
+T*
+() Tj
+T*
+(Litigation note: Plaintiffs allege delayed notice. Defense position is that notice) Tj
+T*
+(timing ran from confirmation of unauthorized access, not the first suspicious login) Tj
+T*
+(alert.) Tj
+T*
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1318
+%%EOF

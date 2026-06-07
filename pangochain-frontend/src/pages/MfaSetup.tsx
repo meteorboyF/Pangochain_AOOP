@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Shield, QrCode, Loader2, CheckCircle, AlertCircle, Copy, KeyRound, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -7,6 +8,7 @@ import toast from 'react-hot-toast'
 type Stage = 'idle' | 'loading' | 'scan' | 'verify' | 'recovery' | 'done' | 'error'
 
 export default function MfaSetup() {
+  const navigate = useNavigate()
   const { user, updateUser } = useAuthStore()
   const [stage, setStage] = useState<Stage>('idle')
   const [qrUri, setQrUri] = useState('')
@@ -19,7 +21,10 @@ export default function MfaSetup() {
     setStage('loading')
     setError('')
     try {
-      const { data } = await api.post('/auth/mfa/setup')
+      const setupToken = sessionStorage.getItem('pangochain-mfa-setup-token')
+      const { data } = await api.post('/auth/mfa/setup', undefined, setupToken
+        ? { headers: { Authorization: `Bearer ${setupToken}` } }
+        : undefined)
       setQrUri(data.qrUri)
       setSecret(data.secret)
       setStage('scan')
@@ -34,7 +39,11 @@ export default function MfaSetup() {
     setStage('loading')
     setError('')
     try {
-      const { data } = await api.post('/auth/mfa/verify', { code })
+      const setupToken = sessionStorage.getItem('pangochain-mfa-setup-token')
+      const { data } = await api.post('/auth/mfa/verify', { code }, setupToken
+        ? { headers: { Authorization: `Bearer ${setupToken}` } }
+        : undefined)
+      sessionStorage.removeItem('pangochain-mfa-setup-token')
       updateUser({ mfaEnabled: true })
       toast.success('Two-factor authentication enabled!')
       if (Array.isArray(data?.recoveryCodes) && data.recoveryCodes.length > 0) {
@@ -217,6 +226,11 @@ export default function MfaSetup() {
           <p className="text-sm text-text-muted text-center">
             You'll be asked for a 6-digit code from your authenticator app each time you log in.
           </p>
+          {!user && (
+            <button onClick={() => navigate('/login')} className="btn-primary justify-center py-2 px-4 mt-2">
+              Back to login
+            </button>
+          )}
         </div>
       )}
     </div>

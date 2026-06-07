@@ -39,7 +39,7 @@ spring:
     enabled: true
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   error:
     include-message: always
     include-binding-errors: always
@@ -78,6 +78,26 @@ ipfs:
   gateway:
     host: ${IPFS_GW_HOST:http://localhost}
     port: ${IPFS_GW_PORT:8080}
+
+rag:
+  enabled: ${RAG_ENABLED:true}
+  # Local development fallback. Set RAG_MOCK_ENABLED=false when using Gemini or
+  # real embedding/LLM endpoints.
+  mock-enabled: ${RAG_MOCK_ENABLED:true}
+  session-ttl-seconds: ${RAG_SESSION_TTL_SECONDS:1800}
+  embedding:
+    provider: ${RAG_EMBEDDING_PROVIDER:sentence-transformer}
+    endpoint: ${RAG_EMBEDDING_ENDPOINT:}
+    model: ${RAG_EMBEDDING_MODEL:sentence-transformer/all-MiniLM-L6-v2}
+    api-key: ${RAG_EMBEDDING_API_KEY:}
+    base-url: ${RAG_EMBEDDING_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
+    dimensions: ${RAG_EMBEDDING_DIMENSIONS:384}
+  llm:
+    provider: ${RAG_LLM_PROVIDER:http}
+    endpoint: ${RAG_LLM_ENDPOINT:}
+    model: ${RAG_LLM_MODEL:gemini-1.5-flash}
+    api-key: ${RAG_LLM_API_KEY:}
+    base-url: ${RAG_LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
 
 management:
   endpoints:

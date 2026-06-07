@@ -1,0 +1,17 @@
+Pinnacle Security Incident Report Oct 2024
+Case: pinnacle-data-breach
+Category: INCIDENT_REPORT
+
+PINNACLE SECURITY INCIDENT REPORT
+
+Incident date range: October 4, 2024 through October 9, 2024.
+Attack vector: Credential stuffing against customer support accounts.
+Records affected: Approximately 12,000 customer profiles, including names, emails, support ticket metadata, and partial account identifiers.
+
+Containment steps:
+- Disabled affected credentials.
+- Forced password reset for support staff.
+- Expanded MFA rollout.
+- Preserved authentication logs for expert review.
+
+Litigation note: Plaintiffs allege delayed notice. Defense position is that notice timing ran from confirmation of unauthorized access, not the first suspicious login alert.

@@ -57,6 +57,10 @@ public class JwtTokenProvider {
         return "mfa_challenge".equals(validateAndParseClaims(token).get("type", String.class));
     }
 
+    public boolean isMfaSetupToken(String token) {
+        return "mfa_setup".equals(validateAndParseClaims(token).get("type", String.class));
+    }
+
     private String buildToken(UUID userId, String email, String role, long expirySeconds, String tokenType) {
         Instant now = Instant.now();
         return Jwts.builder()

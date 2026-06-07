@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.pangochain.backend.cases.Case;
 import com.pangochain.backend.cases.CaseRepository;
 import com.pangochain.backend.document.dto.DocumentDto;
