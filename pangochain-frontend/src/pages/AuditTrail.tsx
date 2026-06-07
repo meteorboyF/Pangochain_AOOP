@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, Search, Shield, ExternalLink, Filter, Loader2, AlertCircle } from 'lucide-react'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
+import { useAuthStore, canViewGlobalAudit } from '../store/authStore'
 
 interface AuditLog {
   id: number
@@ -44,10 +45,13 @@ const EVENT_LABEL: Record<string, string> = {
 const EVENT_TYPES = ['ALL', 'DOC_REGISTERED', 'ACCESS_GRANTED', 'ACCESS_REVOKED', 'DOC_VIEWED', 'CASE_REGISTERED', 'ACL_FABRIC_FALLBACK']
 
 export default function AuditTrail() {
+  const user = useAuthStore((s) => s.user)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [currentPage, setCurrentPage] = useState(0)
   const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  const allowed = user ? canViewGlobalAudit(user.role) : false
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
@@ -64,10 +68,34 @@ export default function AuditTrail() {
       return data
     },
     placeholderData: (prev) => prev,
+    enabled: allowed,
   })
   const error = isError ? 'Failed to load audit log' : ''
 
   const entries = page?.content ?? []
+
+  if (!allowed) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="font-heading text-2xl font-bold text-text-primary">Audit Trail</h1>
+          <p className="text-text-muted text-sm mt-0.5">Restricted administrative audit area</p>
+        </div>
+        <div className="card border-amber-200 bg-amber-50/80">
+          <div className="flex items-start gap-3">
+            <Shield className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="font-heading font-semibold text-amber-900">Global audit access is restricted</p>
+              <p className="mt-1 text-sm leading-6 text-amber-800">
+                Only Managing Partners, IT Admins, and Regulators can view the global audit trail.
+                Case and document activity remains protected through role-based access controls.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">

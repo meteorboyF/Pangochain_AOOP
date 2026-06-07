@@ -17,7 +17,7 @@ public class AuditController {
 
     private final AuditLogRepository auditLogRepository;
 
-    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','SECRETARY','IT_ADMIN','PARALEGAL','REGULATOR')")
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','IT_ADMIN','REGULATOR')")
     @GetMapping
     public ResponseEntity<Page<AuditLog>> list(
             @RequestParam(required = false) String eventType,

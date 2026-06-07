@@ -4,10 +4,10 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Bell, Shield, ShieldCheck, Calendar, Search, X, FileSignature,
+  Gavel, Shield, ShieldCheck, Search, X, FileSignature,
   Bot, TrendingUp, DoorOpen, Video, MessagesSquare,
 } from 'lucide-react'
-import { useAuthStore, isClient, isPartnerOrAbove, roleLabel } from '../store/authStore'
+import { useAuthStore, isClient, roleLabel, canViewGlobalAudit } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 import api from '../lib/api'
@@ -37,6 +37,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
   if (!user) return null
 
+  const showGlobalAudit = canViewGlobalAudit(user.role)
+
   const legalItems: NavItem[] = [
     { to: '/dashboard', icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', description: 'Your daily command center: cases, hearings, alerts, audit activity.', end: true },
     { to: '/cases', icon: <FolderOpen className="w-4 h-4" />, label: 'Cases', description: 'Open, search, and manage legal matters and case files.' },
@@ -44,7 +46,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     { to: '/templates', icon: <FileSignature className="w-4 h-4" />, label: 'Templates', description: 'Create reusable legal document templates and drafting workflows.' },
     { to: '/messages', icon: <MessageSquare className="w-4 h-4" />, label: 'Messages', description: 'Secure collaboration thread for lawyers, clients, and staff.', badge: unreadCount },
     { to: '/hearings', icon: <Gavel className="w-4 h-4" />, label: 'Hearings', description: 'Track hearings, court dates, locations, and preparation tasks.' },
-    { to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail', description: 'Review immutable access, upload, signature, and permission events.' },
+    ...(showGlobalAudit ? [{ to: '/audit', icon: <ClipboardList className="w-4 h-4" />, label: 'Audit Trail', description: 'Review immutable access, upload, signature, and permission events.' }] : []),
   ]
 
   const clientItems: NavItem[] = [

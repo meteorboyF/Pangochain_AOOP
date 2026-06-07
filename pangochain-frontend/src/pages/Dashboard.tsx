@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar, FileSignature, DoorOpen, Bot, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useAuthStore, roleLabel } from '../store/authStore'
+import { useAuthStore, roleLabel, canViewGlobalAudit } from '../store/authStore'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
 import { StatusBadge } from '../components/ui/StatusBadge'
@@ -97,6 +97,7 @@ function HearingCountdown({ date }: { date: string }) {
 
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const showGlobalAudit = user ? canViewGlobalAudit(user.role) : false
 
   // Four independent queries — each tolerates its own failure (mirrors the old
   // Promise.allSettled behaviour), so one endpoint being down never blanks the page.
@@ -111,6 +112,7 @@ export default function Dashboard() {
   const auditQuery = useQuery({
     queryKey: [...queryKeys.audit(), 'recent'],
     queryFn: async () => (await api.get('/audit', { params: { size: 4 } })).data.content ?? [],
+    enabled: showGlobalAudit,
   })
   const lawyerQuery = useQuery({
     queryKey: queryKeys.dashboardLawyer(),
@@ -131,7 +133,7 @@ export default function Dashboard() {
       <PageHero
         eyebrow="Today in PangoChain"
         title={`Good ${getGreeting()}, ${user?.fullName.split(' ')[0]}`}
-        description={`${roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} at ${user?.firmId ?? 'PangoChain'} - review matters, documents, hearings, and audit evidence from one command center.`}
+        description={`${roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} at ${user?.firmId ?? 'PangoChain'} - review matters, documents, hearings, and secure legal workflows from one command center.`}
         icon={Gavel}
         actions={(
           <>
@@ -168,15 +170,17 @@ export default function Dashboard() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${showGlobalAudit ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
           <StatCard icon={<FolderOpen className="w-5 h-5" />} label="Active Cases"
             value={stats?.activeCases ?? 0} to="/cases" />
           <StatCard icon={<FileText className="w-5 h-5" />} label="Documents"
             value={stats?.totalDocuments ?? 0} to="/documents" />
           <StatCard icon={<MessageSquare className="w-5 h-5" />} label="Unread Messages"
             value={stats?.unreadMessages ?? 0} to="/messages" />
-          <StatCard icon={<Activity className="w-5 h-5" />} label="Audit Events"
-            value={(stats?.auditEvents ?? 0).toLocaleString()} to="/audit" />
+          {showGlobalAudit && (
+            <StatCard icon={<Activity className="w-5 h-5" />} label="Audit Events"
+              value={(stats?.auditEvents ?? 0).toLocaleString()} to="/audit" />
+          )}
         </div>
       )}
 
@@ -301,7 +305,7 @@ export default function Dashboard() {
               Every document access, upload and permission change is immutably recorded on Hyperledger Fabric.
             </p>
             <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50 font-mono">
-              Channel: legal-channel · {(stats?.auditEvents ?? 0).toLocaleString()} events
+              Channel: legal-channel · {showGlobalAudit ? `${(stats?.auditEvents ?? 0).toLocaleString()} events` : 'admin audit restricted'}
             </div>
           </div>
 
@@ -311,11 +315,12 @@ export default function Dashboard() {
               <h2 className="font-heading font-semibold text-text-primary text-sm">Feature Finder</h2>
             </div>
             <p className="text-xs leading-5 text-slate-600">
-              Use the sidebar search to find features by purpose: type "audit", "client", "video", "keys", or "documents".
+              Use the sidebar search to find features by purpose: type "client", "video", "keys", "cases", or "documents".
             </p>
           </div>
 
           {/* Recent Audit */}
+          {showGlobalAudit && (
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-semibold text-text-primary">Recent Activity</h2>
@@ -342,6 +347,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

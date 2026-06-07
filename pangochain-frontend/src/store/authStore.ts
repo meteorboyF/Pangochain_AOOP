@@ -97,6 +97,10 @@ export function isPartnerOrAbove(role: UserRole) {
   return PARTNER_ROLES.includes(role)
 }
 
+export function canViewGlobalAudit(role: UserRole) {
+  return role === 'MANAGING_PARTNER' || role === 'IT_ADMIN' || role === 'REGULATOR'
+}
+
 export function roleLabel(role: UserRole): string {
   const labels: Record<UserRole, string> = {
     MANAGING_PARTNER: 'Managing Partner',
