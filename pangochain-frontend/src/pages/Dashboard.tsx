@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar } from 'lucide-react'
+import { FolderOpen, FileText, MessageSquare, Activity, Plus, Shield, ChevronRight, Clock, TrendingUp, Gavel, Calendar, FileSignature, DoorOpen, Bot, Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore, roleLabel } from '../store/authStore'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
 import { StatusBadge } from '../components/ui/StatusBadge'
+import { PageHero, QuickActionGrid } from '../components/ui/PageChrome'
+import { Tooltip } from '../components/ui/Tooltip'
 
 interface NextHearing {
   id: string
@@ -64,17 +66,19 @@ function StatCard({ icon, label, value, to, trend }: {
   icon: React.ReactNode; label: string; value: string | number; to: string; trend?: string
 }) {
   return (
-    <Link to={to} className="card flex items-center gap-4 hover:shadow-card-hover transition-all group hover:-translate-y-0.5">
-      <div className="w-12 h-12 rounded-xl bg-[#1d6464]/10 flex items-center justify-center text-[#1d6464] flex-shrink-0 group-hover:bg-[#1d6464] group-hover:text-white transition-colors">
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-text-muted text-sm">{label}</p>
-        <p className="font-heading font-bold text-2xl text-text-primary">{value}</p>
-        {trend && <p className="text-xs text-success flex items-center gap-0.5 mt-0.5"><TrendingUp className="w-3 h-3" />{trend}</p>}
-      </div>
-      <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0" />
-    </Link>
+    <Tooltip content={`Open ${label.toLowerCase()} and continue work from there.`} side="bottom" className="w-full">
+      <Link to={to} className="card group flex items-center gap-4 transition-all hover:-translate-y-1 hover:border-cyan-200 hover:shadow-card-hover">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-500 to-slate-900 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-cyan-950/10">
+          {icon}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-text-muted text-sm">{label}</p>
+          <p className="font-heading font-bold text-2xl text-text-primary">{value}</p>
+          {trend && <p className="text-xs text-success flex items-center gap-0.5 mt-0.5"><TrendingUp className="w-3 h-3" />{trend}</p>}
+        </div>
+        <ChevronRight className="w-4 h-4 text-text-muted flex-shrink-0 transition-transform group-hover:translate-x-1 group-hover:text-cyan-700" />
+      </Link>
+    </Tooltip>
   )
 }
 
@@ -124,18 +128,31 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">
-            Good {getGreeting()}, {user?.fullName.split(' ')[0]}
-          </h1>
-          <p className="text-text-muted text-sm mt-0.5">{roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} · {user?.firmId ?? 'PangoChain'}</p>
-        </div>
-        <Link to="/cases/new" className="btn-primary">
-          <Plus className="w-4 h-4" /> New Case
-        </Link>
-      </div>
+      <PageHero
+        eyebrow="Today in PangoChain"
+        title={`Good ${getGreeting()}, ${user?.fullName.split(' ')[0]}`}
+        description={`${roleLabel(user?.role ?? 'ASSOCIATE_JUNIOR')} at ${user?.firmId ?? 'PangoChain'} - review matters, documents, hearings, and audit evidence from one command center.`}
+        icon={Gavel}
+        actions={(
+          <>
+            <Link to="/cases/new" className="btn-primary">
+              <Plus className="w-4 h-4" /> New Case
+            </Link>
+            <Link to="/documents" className="btn-secondary">
+              <Search className="w-4 h-4" /> Find Evidence
+            </Link>
+          </>
+        )}
+      >
+        <QuickActionGrid
+          actions={[
+            { label: 'Register a case', description: 'Create a new matter with blockchain-ready document controls.', to: '/cases/new', icon: FolderOpen, tone: 'cyan' },
+            { label: 'Upload evidence', description: 'Encrypt a document, pin it to IPFS, and register its hash on Fabric.', to: '/documents', icon: FileText, tone: 'emerald' },
+            { label: 'Prepare templates', description: 'Open reusable legal templates for faster drafting.', to: '/templates', icon: FileSignature, tone: 'amber' },
+            { label: 'Ask assistant', description: 'Use the assistant workspace for guided legal workflow support.', to: '/assistant', icon: Bot, tone: 'violet' },
+          ]}
+        />
+      </PageHero>
 
       {/* Stats */}
       {loading ? (
@@ -166,9 +183,12 @@ export default function Dashboard() {
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Recent Cases */}
-        <div className="lg:col-span-2 card">
+        <div className="lg:col-span-2 card overflow-hidden">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-heading font-semibold text-text-primary">Recent Cases</h2>
+            <div>
+              <h2 className="font-heading font-semibold text-text-primary">Recent Cases</h2>
+              <p className="text-xs text-slate-500 mt-1">Open a matter to manage files, access, deadlines, and audit history.</p>
+            </div>
             <Link to="/cases" className="text-sm text-[#1d6464] hover:underline font-medium">View all →</Link>
           </div>
           {loading ? (
@@ -252,7 +272,8 @@ export default function Dashboard() {
 
           {/* Security Status */}
           <div className="card">
-            <h2 className="font-heading font-semibold text-text-primary mb-4">Security Status</h2>
+            <h2 className="font-heading font-semibold text-text-primary mb-1">Security Status</h2>
+            <p className="mb-4 text-xs text-slate-500">Hover each control in the app for what it protects.</p>
             <div className="space-y-3.5">
               {[
                 { label: 'Document Encryption', active: true },
@@ -273,8 +294,8 @@ export default function Dashboard() {
           </div>
 
           {/* Blockchain card */}
-          <div className="card bg-[#0f3d3d] text-white">
-            <Shield className="w-6 h-6 mb-3 text-[#4ab8b8]" />
+          <div className="card bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.35),transparent_35%),linear-gradient(135deg,#0f172a,#0f3d3d)] text-white">
+            <Shield className="w-6 h-6 mb-3 text-cyan-200" />
             <p className="font-heading font-semibold text-sm mb-1">Blockchain-Verified</p>
             <p className="text-xs text-white/60 leading-relaxed">
               Every document access, upload and permission change is immutably recorded on Hyperledger Fabric.
@@ -282,6 +303,16 @@ export default function Dashboard() {
             <div className="mt-3 pt-3 border-t border-white/10 text-xs text-white/50 font-mono">
               Channel: legal-channel · {(stats?.auditEvents ?? 0).toLocaleString()} events
             </div>
+          </div>
+
+          <div className="card">
+            <div className="flex items-center gap-2 mb-3">
+              <DoorOpen className="h-4 w-4 text-cyan-700" />
+              <h2 className="font-heading font-semibold text-text-primary text-sm">Feature Finder</h2>
+            </div>
+            <p className="text-xs leading-5 text-slate-600">
+              Use the sidebar search to find features by purpose: type "audit", "client", "video", "keys", or "documents".
+            </p>
           </div>
 
           {/* Recent Audit */}

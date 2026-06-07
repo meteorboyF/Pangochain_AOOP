@@ -9,6 +9,8 @@ import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
+import { EmptyState, PageHero, QuickActionGrid } from '../components/ui/PageChrome'
+import { Tooltip } from '../components/ui/Tooltip'
 
 type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
 
@@ -71,26 +73,34 @@ export default function Documents() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">Documents</h1>
-          {!loading && !error && (
-            <p className="text-text-muted text-sm mt-0.5">{page?.totalElements ?? 0} documents · blockchain-verified</p>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#1d6464]/10 text-[#1d6464] text-xs font-semibold">
-            <Shield className="w-3.5 h-3.5" /> AES-256-GCM + IPFS
-          </div>
-          <button onClick={() => setShowUpload(true)} className="btn-primary">
-            <Plus className="w-4 h-4" /> Upload
-          </button>
-        </div>
-      </div>
+      <PageHero
+        eyebrow="Encrypted evidence vault"
+        title="Documents"
+        description="Find, sign, verify, and download legal documents with visible custody, version history, IPFS CIDs, and Fabric transaction references."
+        icon={FileText}
+        actions={(
+          <>
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+              <Shield className="w-3.5 h-3.5" /> AES-256-GCM + IPFS
+            </div>
+            <button onClick={() => setShowUpload(true)} className="btn-primary">
+              <Plus className="w-4 h-4" /> Upload
+            </button>
+          </>
+        )}
+      >
+        <QuickActionGrid
+          actions={[
+            { label: 'Upload encrypted file', description: 'Add a document, encrypt it client-side, and refresh this vault.', onClick: () => setShowUpload(true), icon: Plus, tone: 'cyan' },
+            { label: 'Review custody', description: 'Use the custody action on any row to inspect access and provenance.', to: '/audit', icon: Network, tone: 'emerald' },
+            { label: 'Version history', description: 'Track document revisions and integrity over time.', to: '/documents', icon: History, tone: 'amber' },
+            { label: 'Secure download', description: 'Decrypt authorized documents through the secure download flow.', to: '/documents', icon: Download, tone: 'violet' },
+          ]}
+        />
+      </PageHero>
 
       {/* Search + Category Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="glass-panel flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
         <div className="relative max-w-md flex-1">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
@@ -100,19 +110,20 @@ export default function Documents() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 lg:pb-0">
           {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3 py-2 rounded-xl text-xs font-medium border transition-all ${
-                category === cat
-                  ? 'bg-[#1d6464] text-white border-[#1d6464]'
-                  : 'bg-white text-text-secondary border-border hover:border-[#1d6464]/40'
-              }`}
-            >
-              {cat === 'ALL' ? <><Filter className="w-3 h-3 inline mr-1" />All</> : cat}
-            </button>
+            <Tooltip key={cat} content={cat === 'ALL' ? 'Show all document categories.' : `Show ${cat.toLowerCase()} documents only.`} side="bottom">
+              <button
+                onClick={() => setCategory(cat)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
+                  category === cat
+                    ? 'bg-slate-950 text-white border-slate-950 shadow-md'
+                    : 'bg-white text-text-secondary border-border hover:border-cyan-300 hover:bg-cyan-50'
+                }`}
+              >
+                {cat === 'ALL' ? <><Filter className="w-3 h-3" />All</> : cat}
+              </button>
+            </Tooltip>
           ))}
         </div>
       </div>
@@ -127,18 +138,23 @@ export default function Documents() {
       )}
 
       {!loading && !error && docs.length === 0 && (
-        <div className="text-center py-16 border-2 border-dashed border-border rounded-2xl">
-          <FileText className="w-12 h-12 text-text-muted mx-auto mb-4" />
-          <p className="font-heading font-semibold text-text-primary">No documents yet</p>
-          <p className="text-text-muted text-sm mt-1 mb-4">Upload a document from within a case, or directly here.</p>
-          <button onClick={() => setShowUpload(true)} className="btn-primary">
-            <Plus className="w-4 h-4" /> Upload Document
-          </button>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="No documents yet"
+          description="Upload a document from within a case, or directly here. Uploaded files can be encrypted, pinned to IPFS, signed, and audited."
+          action={<button onClick={() => setShowUpload(true)} className="btn-primary"><Plus className="w-4 h-4" /> Upload Document</button>}
+        />
       )}
 
       {!loading && !error && docs.length > 0 && (
         <div className="card p-0 overflow-hidden">
+          <div className="flex flex-col gap-1 border-b border-border bg-white/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-heading text-sm font-bold text-slate-950">{page?.totalElements ?? 0} secured documents</p>
+              <p className="text-xs text-slate-500">Hover row actions to see what each tool does.</p>
+            </div>
+            <p className="text-xs font-mono text-cyan-700">Fabric + IPFS evidence layer</p>
+          </div>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-surface-muted">
@@ -186,35 +202,43 @@ export default function Documents() {
                     </code>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => setSignTarget(doc)}
-                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="Sign document"
-                      >
-                        <PenTool className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setHistoryTarget(doc)}
-                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="Version history"
-                      >
-                        <History className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setCustodyTarget(doc)}
-                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="Chain of custody"
-                      >
-                        <Network className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setDownloadTarget(doc)}
-                        className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                        title="Secure Download"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
+                      <Tooltip content="Create or verify an ECDSA signature for this document." side="left">
+                        <button
+                          onClick={() => setSignTarget(doc)}
+                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
+                          aria-label="Sign document"
+                        >
+                          <PenTool className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Open previous document versions and integrity metadata." side="left">
+                        <button
+                          onClick={() => setHistoryTarget(doc)}
+                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
+                          aria-label="Version history"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Trace access, custody, and provenance for this file." side="left">
+                        <button
+                          onClick={() => setCustodyTarget(doc)}
+                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
+                          aria-label="Chain of custody"
+                        >
+                          <Network className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip content="Download through the secure authorization and decrypt flow." side="left">
+                        <button
+                          onClick={() => setDownloadTarget(doc)}
+                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
+                          aria-label="Secure download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </Tooltip>
                     </div>
                   </td>
                 </tr>

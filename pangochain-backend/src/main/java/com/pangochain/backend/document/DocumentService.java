@@ -13,6 +13,9 @@ import com.pangochain.backend.ipfs.IpfsService;
 import com.pangochain.backend.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -219,16 +222,34 @@ public class DocumentService {
     }
 
     @Transactional(readOnly = true)
-    public List<DocumentDto> listAccessibleByUser(User user) {
-        return documentRepository.findAccessibleByUser(user.getId(), DocStatus.ACTIVE)
-                .stream()
-                .map(d -> toDto(d, d.getOwner().getEmail()))
-                .toList();
+    public Page<DocumentDto> listAccessibleByUser(User user, int page, int size) {
+        return listAccessibleByUser(user, page, size, null, null);
     }
 
     @Transactional(readOnly = true)
-    public List<DocumentDto> listByCase(UUID caseId) {
-        return documentRepository.findByLegalCaseIdAndStatus(caseId, DocStatus.ACTIVE)
+    public Page<DocumentDto> listAccessibleByUser(User user, int page, int size, String q, String category) {
+        int boundedSize = Math.min(Math.max(size, 1), 100);
+        String normalizedQ = q == null || q.isBlank() ? null : q.trim().toLowerCase();
+        String normalizedCategory = category == null || category.isBlank() || "ALL".equalsIgnoreCase(category)
+                ? null
+                : category.trim().toUpperCase();
+
+        return documentRepository.searchAccessibleByUser(
+                        user.getId(),
+                        DocStatus.ACTIVE.name(),
+                        normalizedQ,
+                        normalizedCategory,
+                        PageRequest.of(Math.max(page, 0), boundedSize))
+                .map(d -> toDto(d, d.getOwner().getEmail()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentDto> listByCase(UUID caseId, int limit) {
+        int boundedLimit = Math.min(Math.max(limit, 1), 200);
+        return documentRepository.findByLegalCaseIdAndStatus(
+                        caseId,
+                        DocStatus.ACTIVE,
+                        PageRequest.of(0, boundedLimit, Sort.by(Sort.Direction.DESC, "createdAt")))
                 .stream()
                 .map(d -> toDto(d, d.getOwner().getEmail()))
                 .toList();

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -97,8 +98,10 @@ public class DocumentController {
      */
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/by-case/{caseId}")
-    public ResponseEntity<List<DocumentDto>> listByCase(@PathVariable UUID caseId) {
-        return ResponseEntity.ok(documentService.listByCase(caseId));
+    public ResponseEntity<List<DocumentDto>> listByCase(
+            @PathVariable UUID caseId,
+            @RequestParam(defaultValue = "100") int limit) {
+        return ResponseEntity.ok(documentService.listByCase(caseId, limit));
     }
 
     /**
@@ -110,17 +113,16 @@ public class DocumentController {
     public ResponseEntity<Map<String, Object>> listAll(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String category,
             @AuthenticationPrincipal UserDetails principal) {
         User user = resolveUser(principal);
-        List<DocumentDto> content = documentService.listAccessibleByUser(user);
-        int total = content.size();
-        int from = Math.min(page * size, total);
-        int to = Math.min(from + size, total);
+        Page<DocumentDto> docs = documentService.listAccessibleByUser(user, page, size, q, category);
         return ResponseEntity.ok(Map.of(
-                "content", content.subList(from, to),
-                "totalElements", total,
-                "totalPages", (int) Math.ceil((double) total / size),
-                "number", page
+                "content", docs.getContent(),
+                "totalElements", docs.getTotalElements(),
+                "totalPages", docs.getTotalPages(),
+                "number", docs.getNumber()
         ));
     }
 
