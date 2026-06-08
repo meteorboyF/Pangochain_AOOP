@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Key, CheckCircle, Loader2, Eye, EyeOff, ArrowLeft, Briefcase } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import api from '../lib/api'
 import { useAuthStore, roleLabel, type UserRole, LEGAL_ROLES, CLIENT_ROLES } from '../store/authStore'
 import {
@@ -176,6 +177,10 @@ export default function Register() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to Portal
         </Link>
+
+        <div className="absolute right-8 top-8 z-20">
+          <ThemeToggle />
+        </div>
 
         <div className="relative z-10 w-full max-w-lg mt-16 mb-8">
           {/* Mobile logo */}

@@ -6,6 +6,7 @@ import {
   JusticeSvg, ScalesSvg, WaxSealSvg, ChainLinkSvg,
   ColumnDividerSvg, DocumentSealSvg, VaultSvg, ConstellationBg
 } from '../components/ui/SvgAssets'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 
 // Self-counting stats component on mount or inView
 function Counter({ value, suffix = '', duration = 1500 }: { value: number; suffix?: string; duration?: number }) {
@@ -68,6 +69,7 @@ function LandingNav() {
           ))}
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <Link to="/login" className="text-xs font-bold uppercase tracking-wider text-text-primary hover:text-gold-300 transition-colors duration-300">
             Enter Platform
           </Link>

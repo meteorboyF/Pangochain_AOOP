@@ -2,6 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-navy-950: #050A18;
+  --color-navy-900: #080E20;
+  --color-navy-800: #0D1526;
+  
+  --color-gold-300: #E8D5A3;
+  --color-gold-400: #D4B96A;
+  --color-gold-500: #C9A84C;
+  --color-gold-600: #A8893C;
+
+  --color-slate-750: #1E2A3A;
+  --color-slate-800: #162030;
+
+  --color-primary-default: #C9A84C;
+  --color-primary-50: #0D1526;
+  --color-primary-100: #1E2A3A;
+  --color-primary-500: #C9A84C;
+  --color-primary-600: #A8893C;
+  --color-primary-900: #050A18;
+
+  --color-accent: #C9A84C;
+
+  --color-surface-default: #050A18;
+  --color-surface-card: #080E20;
+  --color-surface-muted: #0D1526;
+
+  --color-text-primary: #F5F0E8;
+  --color-text-secondary: #8A9BB0;
+  --color-text-muted: #64748B;
+
+  --color-border: rgba(201, 168, 76, 0.15);
+  --color-success: #1A5C4A;
+  --color-warning: #C9A84C;
+  --color-error: #8B1A1A;
+
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+  --color-emerald-600: #059669;
+
+  --color-rose-300: #fda4af;
+  --color-rose-400: #fb7185;
+  --color-rose-500: #f43f5e;
+
+  /* Custom radial layers & gradients */
+  --radial-at-0: rgba(13, 21, 38, 0.65);
+  --radial-at-50: rgba(201, 168, 76, 0.06);
+  --radial-at-100: rgba(26, 92, 74, 0.05);
+  --etched-line-color: rgba(201, 168, 76, 0.012);
+  
+  --custom-shadow-sm: 0 0 8px rgba(201, 168, 76, 0.2);
+  --custom-shadow-md: 0 0 20px rgba(201, 168, 76, 0.3);
+  --custom-shadow-lg: 0 0 40px rgba(201, 168, 76, 0.4);
+  --glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+:root.light {
+  --color-navy-950: #FAF8F5;
+  --color-navy-900: #FFFFFF;
+  --color-navy-800: #F3EFE9;
+  
+  --color-gold-300: #8E702A;
+  --color-gold-400: #A8893C;
+  --color-gold-500: #C9A84C;
+  --color-gold-600: #D4B96A;
+
+  --color-slate-750: #E2E8F0;
+  --color-slate-800: #F1F5F9;
+
+  --color-primary-default: #C9A84C;
+  --color-primary-50: #FAF8F5;
+  --color-primary-100: #F3EFE9;
+  --color-primary-500: #C9A84C;
+  --color-primary-600: #A8893C;
+  --color-primary-900: #FAF8F5;
+
+  --color-accent: #C9A84C;
+
+  --color-surface-default: #FAF8F5;
+  --color-surface-card: #FFFFFF;
+  --color-surface-muted: #F3EFE9;
+
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+
+  --color-border: rgba(201, 168, 76, 0.22);
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+
+  --color-emerald-400: #047857;
+  --color-emerald-500: #065f46;
+  --color-emerald-600: #064e3b;
+
+  --color-rose-300: #be123c;
+  --color-rose-400: #9f1239;
+  --color-rose-500: #881337;
+
+  /* Custom radial layers & gradients */
+  --radial-at-0: rgba(201, 168, 76, 0.06);
+  --radial-at-50: rgba(26, 92, 74, 0.02);
+  --radial-at-100: rgba(13, 21, 38, 0.01);
+  --etched-line-color: rgba(201, 168, 76, 0.025);
+  
+  --custom-shadow-sm: 0 0 8px rgba(201, 168, 76, 0.1);
+  --custom-shadow-md: 0 0 20px rgba(201, 168, 76, 0.15);
+  --custom-shadow-lg: 0 0 40px rgba(201, 168, 76, 0.25);
+  --glass-glow: inset 0 1px 0 rgba(0, 0, 0, 0.02);
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -9,15 +119,15 @@
 
   body {
     @apply bg-navy-950 text-text-primary font-sans antialiased;
-    background-color: #050A18;
+    background-color: var(--color-navy-950);
     background-image: 
-      radial-gradient(at 0% 0%, rgba(13, 21, 38, 0.65) 0px, transparent 50%),
-      radial-gradient(at 50% 0%, rgba(201, 168, 76, 0.06) 0px, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(26, 92, 74, 0.05) 0px, transparent 50%),
+      radial-gradient(at 0% 0%, var(--radial-at-0) 0px, transparent 50%),
+      radial-gradient(at 50% 0%, var(--radial-at-50) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, var(--radial-at-100) 0px, transparent 50%),
       repeating-linear-gradient(
         45deg,
-        rgba(201, 168, 76, 0.012) 0px,
-        rgba(201, 168, 76, 0.012) 1px,
+        var(--etched-line-color) 0px,
+        var(--etched-line-color) 1px,
         transparent 1px,
         transparent 10px
       );

@@ -3,6 +3,7 @@ import { Outlet, useLocation, Link } from 'react-router-dom'
 import { Menu, Search, X } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { NotificationBell } from '../components/NotificationBell'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 
 export function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -49,7 +50,7 @@ export function MainLayout() {
 
                 return (
                   <span key={to} className="flex items-center space-x-2">
-                    <span className="text-gold-500/40">/</span>
+                     <span className="text-gold-500/40">/</span>
                     {isLast ? (
                       <span className="text-gold-300 font-semibold">{label}</span>
                     ) : (
@@ -63,7 +64,7 @@ export function MainLayout() {
             </nav>
           </div>
 
-          {/* Right: Expandable Search + Notification Bell */}
+          {/* Right: Expandable Search + Notification Bell + Theme Toggle */}
           <div className="flex items-center gap-4">
             {/* Expandable Search Input */}
             <div className="relative flex items-center">
@@ -98,6 +99,9 @@ export function MainLayout() {
                 )}
               </div>
             </div>
+
+            {/* Theme Toggle */}
+            <ThemeToggle />
 
             {/* Notification Bell */}
             <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-gold-500/15 bg-navy-900/60 hover:bg-white/5 transition-colors duration-200">

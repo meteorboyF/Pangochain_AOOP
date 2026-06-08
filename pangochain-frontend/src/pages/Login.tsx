@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Eye, EyeOff, Loader2, ShieldCheck, Lock, Zap } from 'lucide-react'
 import { motion } from 'framer-motion'
+import { ThemeToggle } from '../components/ui/ThemeToggle'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
@@ -172,6 +173,10 @@ export default function Login() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Back to Portal
         </Link>
+
+        <div className="absolute right-8 top-8 z-20">
+          <ThemeToggle />
+        </div>
 
         {/* Form panel card */}
         <div className="relative z-10 w-full max-w-md rounded-2xl border border-gold-500/10 border-t-2 border-t-gold-500 bg-navy-900/50 p-8 shadow-card backdrop-blur-md">
