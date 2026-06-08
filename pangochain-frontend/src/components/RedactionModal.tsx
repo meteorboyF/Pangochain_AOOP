@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Eraser, Loader2, Lock, CheckCircle, AlertCircle, ShieldCheck, Highlighter } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -14,6 +15,7 @@ interface Props {
   fileName: string
   category?: string
   version?: number
+  ipfsCid?: string
   documentHashSha256?: string
   onClose: () => void
   onRedacted?: () => void
@@ -22,18 +24,39 @@ interface Props {
 type Stage = 'unlock' | 'editing' | 'saving' | 'done' | 'error'
 
 const BLOCK = '█'
+const isDemoDoc = (ipfsCid?: string) => !!ipfsCid?.startsWith('QmDemo')
 
-export function RedactionModal({ docId, caseId, fileName, category, version = 1, documentHashSha256, onClose, onRedacted }: Props) {
+function demoRedactionText(fileName: string) {
+  return [
+    `PangoChain demo redaction worksheet for ${fileName}`,
+    '',
+    'Client: Marcus Chen',
+    'Opposing party: Meridian Holdings Ltd.',
+    'Privileged note: settlement authority currently ranges from $410,000 to $445,000.',
+    'Sensitive identifier: MC-LEASE-2021-7784.',
+    'Attorney work product: lead with notice defect, then payment cure, then business disruption.',
+    '',
+    'Select any sensitive phrase and click Redact selection. The saved copy will be encrypted as a new document version and linked to the original redaction record.',
+  ].join('\n')
+}
+
+export function RedactionModal({ docId, caseId, fileName, category, version = 1, ipfsCid, documentHashSha256, onClose, onRedacted }: Props) {
   const { user } = useAuthStore()
+  const demoMode = isDemoDoc(ipfsCid)
   const [password, setPassword] = useState('')
-  const [stage, setStage] = useState<Stage>('unlock')
-  const [text, setText] = useState('')
+  const [stage, setStage] = useState<Stage>(demoMode ? 'editing' : 'unlock')
+  const [text, setText] = useState(demoMode ? demoRedactionText(fileName) : '')
   const [redactions, setRedactions] = useState(0)
   const [error, setError] = useState('')
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   const unlock = async () => {
     setError('')
+    if (demoMode) {
+      setText((t) => t || demoRedactionText(fileName))
+      setStage('editing')
+      return
+    }
     try {
       const stored = loadWrappedPrivateKey(user!.id)
       if (!stored) { setError('No private key on this device — log in again to provision your keys.'); return }
@@ -111,9 +134,9 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="card w-full max-w-2xl max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card w-full max-w-2xl max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden bg-navy-900" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2 min-w-0">
             <Eraser className="w-5 h-5 text-gold-500 shrink-0" />
@@ -130,7 +153,9 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
           <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
-            The document is decrypted in your browser. The redacted copy is re-encrypted with a fresh key and uploaded as a new document; the server never sees the pre-redaction plaintext.
+            {demoMode
+              ? 'This seeded demo document opens as a redaction worksheet. The saved copy is encrypted as a new version and linked to the original redaction record.'
+              : 'The document is decrypted in your browser. The redacted copy is re-encrypted with a fresh key and uploaded as a new document; the server never sees the pre-redaction plaintext.'}
           </div>
 
           {(stage === 'unlock' || stage === 'error') && (
@@ -184,4 +209,6 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }

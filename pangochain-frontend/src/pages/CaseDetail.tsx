@@ -593,6 +593,7 @@ export default function CaseDetail() {
           fileName={redactTarget.fileName}
           category={redactTarget.category}
           version={redactTarget.version}
+          ipfsCid={redactTarget.ipfsCid}
           documentHashSha256={docHash(redactTarget)}
           onClose={() => setRedactTarget(null)}
           onRedacted={() => { setRedactTarget(null); loadData() }}

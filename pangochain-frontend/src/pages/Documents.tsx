@@ -39,6 +39,7 @@ interface DocumentDto {
   status: string
   createdAt: string
   category?: string
+  confidential?: boolean
 }
 
 interface Page<T> { content: T[]; totalElements: number }
@@ -364,6 +365,7 @@ export default function Documents() {
           fileName={redactTarget.fileName}
           category={redactTarget.category}
           version={redactTarget.version}
+          ipfsCid={redactTarget.ipfsCid}
           documentHashSha256={redactTarget.documentHash}
           onClose={() => setRedactTarget(null)}
           onRedacted={() => { setRedactTarget(null); refetch() }}
