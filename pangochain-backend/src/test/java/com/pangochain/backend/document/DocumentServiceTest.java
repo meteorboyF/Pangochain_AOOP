@@ -132,6 +132,8 @@ class DocumentServiceTest {
         byte[] result = documentService.downloadCiphertext(docId, uploader);
 
         verify(ipfsService).cat("Qm123");
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
         assertThat(result).isEqualTo(ciphertextBlob);
     }
 
@@ -145,11 +147,29 @@ class DocumentServiceTest {
                 .hasMessageContaining("Access denied");
 
         verify(ipfsService, never()).cat(any());
+        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
     }
 
     @Test
-    void downloadCiphertext_fabricUnavailable_fallsBackToDb_andLogsAclFabricFallback() throws Exception {
-        byte[] ciphertextBlob = new byte[]{4, 5, 6};
+    void downloadCiphertext_fabricUnavailable_deniesFailClosedAndLogsOutage() throws Exception {
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(any(), any(), any()))
+                .thenThrow(new FabricException("Fabric unreachable"));
+
+        assertThatThrownBy(() -> documentService.downloadCiphertext(docId, uploader))
+                .isInstanceOf(FabricException.class)
+                .hasMessageContaining("Fabric unreachable");
+
+        verify(ipfsService, never()).cat(any());
+        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void downloadCiphertext_fabricUnavailableWithValidDbAcl_stillDeniesFailClosed() throws Exception {
         DocumentAccess access = DocumentAccess.builder()
                 .docId(docId).userId(userId)
                 .capability(DocumentAccess.Capability.read)
@@ -159,12 +179,60 @@ class DocumentServiceTest {
         when(fabricGatewayService.checkAccess(any(), any(), any()))
                 .thenThrow(new FabricException("Fabric unreachable"));
         when(accessRepository.findActiveEntry(docId, userId)).thenReturn(Optional.of(access));
-        when(ipfsService.cat("Qm123")).thenReturn(ciphertextBlob);
 
-        byte[] result = documentService.downloadCiphertext(docId, uploader);
+        assertThatThrownBy(() -> documentService.downloadCiphertext(docId, uploader))
+                .isInstanceOf(FabricException.class);
 
-        verify(accessRepository).findActiveEntry(docId, userId);
-        verify(auditService).log(eq("ACL_FABRIC_FALLBACK"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
-        assertThat(result).isEqualTo(ciphertextBlob);
+        verify(ipfsService, never()).cat(any());
+        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getWrappedKey_layer2Pass_returnsToken() throws Exception {
+        DocumentAccess access = DocumentAccess.builder()
+                .docId(docId).userId(userId)
+                .capability(DocumentAccess.Capability.read)
+                .wrappedKeyToken("wkt").build();
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(eq(docId.toString()), eq(userId.toString()), eq("FirmMSP")))
+                .thenReturn(true);
+        when(accessRepository.findActiveEntry(docId, userId)).thenReturn(Optional.of(access));
+
+        String token = documentService.getWrappedKey(docId, uploader);
+
+        assertThat(token).isEqualTo("wkt");
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getWrappedKey_layer2Deny_throwsAccessDeniedWithoutDbFallback() throws Exception {
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(any(), any(), any())).thenReturn(false);
+
+        assertThatThrownBy(() -> documentService.getWrappedKey(docId, uploader))
+                .isInstanceOf(DocumentService.AccessDeniedException.class)
+                .hasMessageContaining("Access denied");
+
+        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getWrappedKey_fabricUnavailable_deniesFailClosedAndDoesNotReturnToken() throws Exception {
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(any(), any(), any()))
+                .thenThrow(new FabricException("UNAVAILABLE: io exception"));
+
+        assertThatThrownBy(() -> documentService.getWrappedKey(docId, uploader))
+                .isInstanceOf(FabricException.class)
+                .hasMessageContaining("UNAVAILABLE");
+
+        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
+        verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
     }
 }

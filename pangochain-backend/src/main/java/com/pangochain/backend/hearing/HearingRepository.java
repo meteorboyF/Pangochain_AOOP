@@ -20,7 +20,14 @@ public interface HearingRepository extends JpaRepository<Hearing, UUID> {
            "WHERE h.legalCase.firm.id = :firmId AND h.hearingDate > :now ORDER BY h.hearingDate ASC")
     List<Hearing> findUpcomingByFirm(UUID firmId, Instant now);
 
-    @Query(value = "SELECT h.* FROM hearings h JOIN cases c ON h.case_id = c.id JOIN case_clients cc ON cc.case_id = c.id WHERE cc.client_id = :clientId AND h.hearing_date > :now ORDER BY h.hearing_date ASC", nativeQuery = true)
+    @Query("""
+           SELECT h FROM Hearing h
+           JOIN FETCH h.legalCase c
+           LEFT JOIN FETCH h.createdBy
+           JOIN CaseMember cm ON cm.caseId = c.id
+           WHERE cm.userId = :clientId AND h.hearingDate > :now
+           ORDER BY h.hearingDate ASC
+           """)
     List<Hearing> findUpcomingForClient(UUID clientId, Instant now);
 
     Optional<Hearing> findFirstByLegalCaseIdAndHearingDateAfterOrderByHearingDateAsc(UUID caseId, Instant now);

@@ -41,6 +41,7 @@ The following table enumerates every existing feature on the legal professional 
 | **Case Detail — Hearings Tab** | Hearings CRUD with court, location, datetime, and notes. | Scheduling within the case context. |
 | **Case Detail — Team Access** | TeamAccessPanel: ECIES-wrapped key grants (owner/write/read) with optional expiry. | Granular, time-bounded access control. |
 | **Case Detail — Timeline Tab** | Paginated ledger event feed fetched via GetHistoryForKey. | Immutable chronological audit of case activity. |
+| **Case Journey Tree** | A centerline milestone tree where legal staff add findings, evidence, hearings, filings, and outcome nodes. A milestone is an authored case-progress item; a hearing is a scheduled court event that can merge several branches; an audit event is an immutable system/ledger record; the Events Feed is the raw chronological audit view. | Makes case strategy readable without confusing planning milestones with blockchain audit evidence. |
 | **Document Encryption Upload** | Browser-side AES-256-GCM encryption; IV prepended to ciphertext; pushed to IPFS. | Plaintext never leaves the client device. |
 | **Document SHA-256 Anchoring** | Plaintext SHA-256 hash written to Fabric ledger at upload time. | Tamper-evident integrity proof independent of storage. |
 | **Secure Document Download** | IPFS fetch → ECIES unwrap → AES-GCM decrypt → SHA-256 verify. | Four-stage cryptographic integrity check on every access. |

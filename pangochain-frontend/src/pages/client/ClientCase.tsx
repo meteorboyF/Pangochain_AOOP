@@ -89,18 +89,18 @@ export default function ClientCase() {
     queryFn: async () => ((await api.get('/hearings/upcoming')).data as Hearing[]) ?? [],
   })
   const eventsQuery = useQuery({
-    queryKey: [...queryKeys.audit(), 'client-case'],
+    queryKey: ['case-events', selectedCaseId, 'client-case'],
+    enabled: !!selectedCaseId,
     queryFn: async () => {
-      const data = (await api.get('/audit', { params: { size: 20 } })).data
-      const items = data?.content ?? data ?? []
+      const items = (await api.get(`/case-events/by-case/${selectedCaseId}`)).data ?? []
       return items.slice(0, 15).map((a: any): CaseEvent => ({
         id: a.id,
         eventType: a.eventType ?? 'GENERAL',
-        title: (a.eventType ?? 'GENERAL').replace(/_/g, ' '),
-        description: a.contextJson ?? '',
+        title: a.title ?? (a.eventType ?? 'GENERAL').replace(/_/g, ' '),
+        description: a.description ?? '',
         fabricTxId: a.fabricTxId ?? '',
-        actorName: a.actorEmail ?? 'System',
-        createdAt: a.timestamp ?? a.createdAt,
+        actorName: a.actorName ?? 'System',
+        createdAt: a.createdAt,
       }))
     },
   })

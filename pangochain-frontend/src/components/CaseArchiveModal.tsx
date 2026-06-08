@@ -7,7 +7,7 @@ import { loadWrappedPrivateKey, unwrapPrivateKey, derivePbkdf2Key, bytesToBase64
 import { decryptDocumentToBytes } from '../lib/decryptDoc'
 import toast from 'react-hot-toast'
 
-interface DocItem { id: string; fileName: string; documentHashSha256?: string }
+interface DocItem { id: string; fileName: string; documentHash?: string; documentHashSha256?: string }
 
 interface Props {
   caseId: string
@@ -67,7 +67,7 @@ export function CaseArchiveModal({ caseId, caseTitle, onClose }: Props) {
         setProgress(`Decrypting ${i + 1}/${documents.length}: ${doc.fileName}`)
         let bytes: ArrayBuffer
         try {
-          bytes = await decryptDocumentToBytes(doc.id, privateKey, doc.documentHashSha256)
+          bytes = await decryptDocumentToBytes(doc.id, privateKey, doc.documentHashSha256 ?? doc.documentHash)
         } catch (err: any) {
           if (err.message === 'INTEGRITY_FAILED') throw err // tampering → abort the whole archive
           skipped++ // not shared with this user / key mismatch → omit

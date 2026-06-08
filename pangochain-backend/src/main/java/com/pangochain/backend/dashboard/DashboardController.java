@@ -3,6 +3,8 @@ package com.pangochain.backend.dashboard;
 import com.pangochain.backend.audit.AuditLogRepository;
 import com.pangochain.backend.cases.CaseRepository;
 import com.pangochain.backend.cases.CaseStatus;
+import com.pangochain.backend.deadline.CaseDeadlineRepository;
+import com.pangochain.backend.document.DocStatus;
 import com.pangochain.backend.document.DocumentRepository;
 import com.pangochain.backend.hearing.HearingDto;
 import com.pangochain.backend.hearing.HearingRepository;
@@ -11,6 +13,7 @@ import com.pangochain.backend.reminder.ReminderRepository;
 import com.pangochain.backend.user.User;
 import com.pangochain.backend.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,6 +39,7 @@ public class DashboardController {
     private final HearingRepository hearingRepository;
     private final ReminderRepository reminderRepository;
     private final UserRepository userRepository;
+    private final CaseDeadlineRepository deadlineRepository;
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/stats")
@@ -49,15 +54,21 @@ public class DashboardController {
         boolean isClientRole = roleStr.startsWith("CLIENT_");
 
         if (isClientRole) {
-            // Client-specific stats
-            stats.put("activeCases", 0L); // populated from case_clients join (simplified)
-            stats.put("totalDocuments", documentRepository.countByOwnerId(user.getId()));
+            long activeCases = caseRepository.findByMember(user.getId()).stream()
+                    .filter(c -> c.getStatus() == CaseStatus.ACTIVE)
+                    .count();
+            stats.put("activeCases", activeCases);
+            stats.put("totalDocuments", documentRepository.countAccessibleByUser(user.getId(), DocStatus.ACTIVE));
             stats.put("unreadMessages", messageRepository.countByRecipientIdAndReadAtIsNull(user.getId()));
             stats.put("unreadReminders", reminderRepository.countByRecipientIdAndReadFalse(user.getId()));
             stats.put("auditEvents", auditLogRepository.count());
 
-            // Next upcoming hearing for client (from firm hearings — simplified for now)
-            stats.put("nextHearing", null);
+            hearingRepository.findUpcomingForClient(user.getId(), Instant.now())
+                    .stream().findFirst()
+                    .ifPresentOrElse(
+                            h -> stats.put("nextHearing", HearingDto.from(h)),
+                            () -> stats.put("nextHearing", null)
+                    );
 
         } else {
             // Legal professional stats
@@ -110,8 +121,25 @@ public class DashboardController {
                     .stream().findFirst()
                     .ifPresentOrElse(h -> stats.put("nextHearing", HearingDto.from(h)),
                             () -> stats.put("nextHearing", null));
+            // Upcoming deadlines for the dashboard timeline (5 soonest, not yet completed)
+            List<Map<String, Object>> upcomingDeadlines = deadlineRepository
+                    .findUpcomingByFirm(user.getFirm().getId(), Instant.now(), PageRequest.of(0, 5))
+                    .stream()
+                    .map(d -> {
+                        Map<String, Object> m = new HashMap<>();
+                        m.put("id", d.getId().toString());
+                        m.put("title", d.getTitle());
+                        m.put("description", d.getDescription());
+                        m.put("deadlineType", d.getDeadlineType().name());
+                        m.put("deadlineDate", d.getDeadlineDate().toEpochMilli());
+                        m.put("caseId", d.getCaseId().toString());
+                        return m;
+                    })
+                    .toList();
+            stats.put("upcomingDeadlines", upcomingDeadlines);
         } else {
             stats.put("nextHearing", null);
+            stats.put("upcomingDeadlines", List.of());
         }
         return ResponseEntity.ok(stats);
     }
@@ -124,11 +152,16 @@ public class DashboardController {
                 .orElseThrow(() -> new IllegalStateException("User not found"));
 
         Map<String, Object> stats = new HashMap<>();
-        stats.put("documentsCount", documentRepository.countByOwnerId(user.getId()));
+        stats.put("documentsCount", documentRepository.countAccessibleByUser(user.getId(), DocStatus.ACTIVE));
         stats.put("messagesCount", messageRepository.countByRecipientIdAndReadAtIsNull(user.getId()));
         stats.put("remindersCount", reminderRepository.countByRecipientIdAndReadFalse(user.getId()));
         stats.put("auditEventsCount", auditLogRepository.count());
-        stats.put("nextHearing", null);
+        hearingRepository.findUpcomingForClient(user.getId(), Instant.now())
+                .stream().findFirst()
+                .ifPresentOrElse(
+                        h -> stats.put("nextHearing", HearingDto.from(h)),
+                        () -> stats.put("nextHearing", null)
+                );
         stats.put("encryptionStatus", Map.of(
                 "algorithm", "AES-256-GCM",
                 "keyDerivation", "PBKDF2-SHA256-600k",

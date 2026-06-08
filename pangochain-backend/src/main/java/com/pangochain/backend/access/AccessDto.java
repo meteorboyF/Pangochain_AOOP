@@ -13,6 +13,7 @@ public class AccessDto {
     private UUID docId;
     private UUID userId;
     private String userEmail;
+    private String userFullName;
     private String grantedByEmail;
     private String capability;
     private Instant grantedAt;

@@ -4,6 +4,7 @@ import com.pangochain.backend.auth.InvalidMfaCodeException;
 import com.pangochain.backend.auth.MfaChallengeRequiredException;
 import com.pangochain.backend.auth.MfaSetupRequiredException;
 import com.pangochain.backend.blockchain.FabricException;
+import com.pangochain.backend.document.DocumentService;
 import com.pangochain.backend.ipfs.IpfsException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +75,12 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", "FORBIDDEN", "message", "You do not have permission to perform this action"));
     }
 
+    @ExceptionHandler(DocumentService.AccessDeniedException.class)
+    public ResponseEntity<Map<String, String>> handleDocumentAccessDenied(DocumentService.AccessDeniedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "DOCUMENT_ACCESS_DENIED", "message", ex.getMessage()));
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthentication(AuthenticationException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -105,9 +112,9 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Blockchain layer unavailable. The service-layer fallback (ACL_FABRIC_FALLBACK / DB path)
-     * has already run by the time this surfaces, so the client's data is safe — this is purely
-     * the response shape. 503 signals "retry later"; the frontend shows the amber Fabric banner.
+     * Blockchain layer unavailable. Protected document-material endpoints fail closed before
+     * reading IPFS ciphertext or wrapped-key rows, and emit FABRIC_OUTAGE_ACCESS_DENIED.
+     * 503 signals "retry later"; the frontend shows the amber Fabric banner.
      */
     @ExceptionHandler(FabricException.class)
     public ProblemDetail handleFabric(FabricException ex, HttpServletRequest req) {

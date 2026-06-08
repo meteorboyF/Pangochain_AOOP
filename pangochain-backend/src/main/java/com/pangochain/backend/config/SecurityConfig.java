@@ -58,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/mfa/verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/mfa/challenge").permitAll()
+                        // Recovery login: user has only a challenge token, not a full JWT
+                        .requestMatchers(HttpMethod.POST, "/api/auth/mfa/recovery").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
                         // WebSocket/SockJS handshake — STOMP CONNECT is authenticated by

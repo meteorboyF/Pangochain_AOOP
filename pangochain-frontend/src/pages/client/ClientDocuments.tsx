@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -18,12 +18,19 @@ interface DocumentDto {
   id: string
   fileName: string
   ipfsCid: string
-  documentHashSha256: string
+  documentHash?: string
+  documentHashSha256?: string
   fabricTxId: string | null
   category: string
   confidential: boolean
   createdAt: string
   caseTitle?: string
+}
+
+interface CaseInfo {
+  id: string
+  title: string
+  caseType?: string
 }
 
 const CATEGORIES = ['ALL', 'GENERAL', 'EVIDENCE', 'CONTRACT', 'CORRESPONDENCE', 'CONFESSION', 'MEDICAL', 'FINANCIAL']
@@ -68,6 +75,7 @@ export default function ClientDocuments() {
   const [uploadCategory, setUploadCategory] = useState('GENERAL')
   const [uploadConfidential, setUploadConfidential] = useState(false)
   const [uploadNote, setUploadNote] = useState('')
+  const [uploadCaseId, setUploadCaseId] = useState('')
   const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
 
   // AI auto-tagging
@@ -93,10 +101,22 @@ export default function ClientDocuments() {
       return (Array.isArray(data) ? data : data?.content ?? []) as DocumentDto[]
     },
   })
+  const { data: myCases = [], isLoading: casesLoading } = useQuery({
+    queryKey: [...queryKeys.cases(), 'client-upload-cases'],
+    queryFn: async () => ((await api.get('/cases/my-cases')).data as CaseInfo[]) ?? [],
+  })
   const error = isError ? 'Failed to load documents' : ''
+
+  useEffect(() => {
+    if (!uploadCaseId && myCases.length > 0) setUploadCaseId(myCases[0].id)
+  }, [myCases, uploadCaseId])
 
   const handleUpload = async () => {
     if (!uploadFile || !user) return
+    if (!uploadCaseId) {
+      toast.error('No case is available for this upload')
+      return
+    }
     setUploading(true)
     try {
       setUploadStage('Reading file…')
@@ -114,6 +134,7 @@ export default function ClientDocuments() {
 
       setUploadStage('Uploading encrypted ciphertext…')
       await api.post('/documents/upload', {
+        caseId: uploadCaseId,
         fileName: uploadFile.name,
         ciphertextBase64: ciphertextB64,
         ivBase64: ivB64,
@@ -127,6 +148,7 @@ export default function ClientDocuments() {
       setUploadModalOpen(false)
       setUploadFile(null)
       setUploadNote('')
+      setUploadConfidential(false)
       refetch()
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? e.message ?? 'Upload failed')
@@ -323,6 +345,23 @@ export default function ClientDocuments() {
 
             <div className="space-y-4">
               <div>
+                <label className="label">Case Matter</label>
+                <select
+                  id="file-case-select"
+                  className="input py-2.5 bg-navy-950 border-gold-500/20 focus:border-gold-500"
+                  value={uploadCaseId}
+                  onChange={(e) => setUploadCaseId(e.target.value)}
+                  disabled={casesLoading || myCases.length === 0}
+                >
+                  {myCases.length === 0 ? (
+                    <option value="" className="bg-navy-950 text-text-primary">No linked case available</option>
+                  ) : myCases.map((c) => (
+                    <option key={c.id} value={c.id} className="bg-navy-950 text-text-primary">{c.title}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="label">Select Document File</label>
                 <input
                   id="file-upload-input"
@@ -408,7 +447,7 @@ export default function ClientDocuments() {
               <button
                 id="upload-submit-btn"
                 onClick={handleUpload}
-                disabled={!uploadFile || uploading}
+                disabled={!uploadFile || uploading || !uploadCaseId}
                 className="flex-1 btn-primary py-2.5 justify-center text-xs font-bold disabled:opacity-50"
               >
                 {uploading
@@ -425,7 +464,7 @@ export default function ClientDocuments() {
         <SecureDownloadModal
           docId={downloadDoc.id}
           fileName={downloadDoc.fileName}
-          expectedHash={downloadDoc.documentHashSha256}
+          expectedHash={downloadDoc.documentHashSha256 ?? downloadDoc.documentHash}
           onClose={() => setDownloadDoc(null)}
         />
       )}

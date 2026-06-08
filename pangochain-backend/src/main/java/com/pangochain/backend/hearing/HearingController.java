@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -44,7 +45,8 @@ public class HearingController {
         if (user.getFirm() != null) {
             hearings = hearingRepository.findUpcomingByFirm(user.getFirm().getId(), Instant.now());
         } else {
-            hearings = List.of();
+            // Client users have no firm — look up via case membership instead
+            hearings = hearingRepository.findUpcomingForClient(user.getId(), Instant.now());
         }
         return ResponseEntity.ok(hearings.stream().map(HearingDto::from).toList());
     }
@@ -76,6 +78,7 @@ public class HearingController {
     }
 
     @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
+    @Transactional
     @PutMapping("/{id}")
     public ResponseEntity<HearingDto> update(
             @PathVariable UUID id,

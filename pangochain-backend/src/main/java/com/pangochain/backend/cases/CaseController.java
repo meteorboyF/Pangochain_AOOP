@@ -106,6 +106,19 @@ public class CaseController {
         return ResponseEntity.ok(caseService.close(id, closer));
     }
 
+    public record StatusUpdateRequest(String status) {}
+
+    /** PATCH /api/cases/{id}/status — persist dashboard pipeline moves. */
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<CaseDto> updateStatus(
+            @PathVariable UUID id,
+            @RequestBody StatusUpdateRequest req,
+            @AuthenticationPrincipal UserDetails principal) {
+        User updater = resolveUser(principal);
+        return ResponseEntity.ok(caseService.updateStatus(id, CaseStatus.valueOf(req.status()), updater));
+    }
+
     /** Link a client user to a case (lawyer/partner only) */
     @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR')")
     @PostMapping("/{id}/clients")

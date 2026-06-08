@@ -90,8 +90,7 @@ public class FabricGatewayService {
     /**
      * Circuit-breaker fallback for {@link #submitTransaction}. Fires immediately when the
      * breaker is OPEN (Fabric outage) instead of waiting for each call to time out. Always
-     * throws FabricException so existing service-layer catch blocks run their DB/ACL fallback
-     * and emit ACL_FABRIC_FALLBACK as before — behaviour is identical, just faster.
+     * throws FabricException so protected document-material callers can deny fail-closed.
      */
     @SuppressWarnings("unused")
     private String submitFallback(String functionName, String[] args, Throwable t) throws FabricException {

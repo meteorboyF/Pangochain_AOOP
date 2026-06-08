@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   GitBranch, Plus, Loader2, AlertCircle, ArrowLeft, X, FileText, User as UserIcon, Calendar,
-  GitMerge, Check
+  GitMerge, Check, ChevronDown, ChevronRight, CircleDot,
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -39,11 +39,6 @@ const TYPE_STYLE: Record<string, { dot: string; chip: string }> = {
 
 const TYPES = ['FINDING', 'EVIDENCE', 'RESEARCH', 'LOOPHOLE', 'HEARING', 'FILING']
 
-const toRoman = (num: number) => {
-  const romanArray = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
-  return romanArray[num] || (num + 1).toString()
-}
-
 export default function CaseJourney() {
   const { id: caseId } = useParams<{ id: string }>()
   const [nodes, setNodes] = useState<Node[]>([])
@@ -51,6 +46,7 @@ export default function CaseJourney() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selected, setSelected] = useState<Node | null>(null)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
 
   // add-node form
@@ -70,6 +66,11 @@ export default function CaseJourney() {
         // Sort chronologically
         const sorted = r.data.sort((a, b) => new Date(a.nodeDate).getTime() - new Date(b.nodeDate).getTime())
         setNodes(sorted)
+        setExpandedIds((prev) => {
+          const next = new Set(prev)
+          sorted.filter((n) => n.nodeType === 'ROOT' || n.parentId === null).forEach((n) => next.add(n.id))
+          return next
+        })
       })
       .catch((e) => setError(e.response?.data?.detail ?? 'Failed to load journey'))
       .finally(() => setLoading(false))
@@ -85,6 +86,29 @@ export default function CaseJourney() {
   }, [caseId])
 
   const docName = (id: string | null) => (id ? docs.find((d) => d.id === id)?.fileName ?? 'document' : null)
+
+  const childrenByParent = nodes.reduce<Record<string, Node[]>>((acc, node) => {
+    const key = node.parentId ?? 'rootless'
+    acc[key] = [...(acc[key] ?? []), node]
+    return acc
+  }, {})
+
+  for (const key of Object.keys(childrenByParent)) {
+    childrenByParent[key].sort((a, b) => new Date(a.nodeDate).getTime() - new Date(b.nodeDate).getTime())
+  }
+
+  const rootNode = nodes.find((n) => n.nodeType === 'ROOT') ?? nodes.find((n) => n.parentId === null) ?? null
+  const rootChildren = rootNode ? childrenByParent[rootNode.id] ?? [] : nodes.filter((n) => n.parentId === null)
+
+  const toggleNode = (node: Node) => {
+    setSelected((current) => current?.id === node.id ? null : node)
+    setExpandedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(node.id) && selected?.id === node.id) next.delete(node.id)
+      else next.add(node.id)
+      return next
+    })
+  }
 
   const handleConsolidate = async (target: Node) => {
     setMerging(true)
@@ -122,6 +146,167 @@ export default function CaseJourney() {
     }
   }
 
+  const renderNode = (node: Node, depth = 0) => {
+    const children = childrenByParent[node.id] ?? []
+    const expanded = expandedIds.has(node.id)
+    const active = selected?.id === node.id
+    const typeStyle = TYPE_STYLE[node.nodeType] || TYPE_STYLE.FINDING
+    const mergeTarget = node.mergeIntoId ? nodes.find((n) => n.id === node.mergeIntoId) : null
+    const contributors = nodes.filter((n) => n.mergeIntoId === node.id)
+    const unmerged = contributors.filter((c) => !c.merged)
+
+    return (
+      <div key={node.id} className="relative">
+        {depth > 0 && (
+          <div className="absolute -left-6 top-0 h-6 w-6 border-l border-b border-gold-500/20 rounded-bl-xl" />
+        )}
+
+        <motion.button
+          type="button"
+          layout
+          onClick={() => toggleNode(node)}
+          className={`group relative w-full text-left rounded-xl border px-4 py-3 transition-all duration-200 ${
+            active
+              ? 'bg-gold-500/10 border-gold-500/40 shadow-gold-sm'
+              : 'bg-navy-950/50 border-gold-500/10 hover:border-gold-500/30 hover:bg-navy-900/60'
+          } ${node.merged ? 'opacity-70' : ''}`}
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className="mt-1 h-4 w-4 rounded-full border-2 shrink-0 shadow-sm"
+              style={{ borderColor: typeStyle.dot, backgroundColor: active ? typeStyle.dot : 'transparent' }}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${typeStyle.chip}`}>
+                  {node.nodeType === 'ROOT' ? 'Case Started' : node.nodeType}
+                </span>
+                {node.merged && (
+                  <span className="text-[9px] text-emerald-400 bg-success/15 px-2 py-0.5 rounded border border-success/30 uppercase tracking-wider">
+                    consolidated
+                  </span>
+                )}
+                {children.length > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-text-muted">
+                    {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                    {children.length}
+                  </span>
+                )}
+              </div>
+              <p className="font-serif font-bold text-gold-200 mt-1 truncate group-hover:text-gold-100">{node.title}</p>
+              <p className="text-[10px] text-text-secondary font-mono mt-1">
+                {new Date(node.nodeDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+              </p>
+            </div>
+            <CircleDot className={`w-4 h-4 mt-1 shrink-0 ${active ? 'text-gold-300' : 'text-text-muted group-hover:text-gold-400'}`} />
+          </div>
+        </motion.button>
+
+        <AnimatePresence initial={false}>
+          {active && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-3 mb-4 rounded-xl border border-gold-500/15 bg-navy-950/60 p-4 ml-0 md:ml-7">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="font-serif text-xl font-bold text-gold-300">{node.title}</h2>
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-text-secondary font-mono">
+                      <span className="inline-flex items-center gap-1"><UserIcon className="w-3.5 h-3.5 text-gold-400" /> {node.authorName}</span>
+                      <span className="inline-flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-gold-400" /> {new Date(node.nodeDate).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setSelected(null) }}
+                    className="p-1.5 rounded-lg border border-gold-500/10 text-text-secondary hover:text-text-primary hover:border-gold-500/30"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {node.description ? (
+                  <p className="mt-4 text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{node.description}</p>
+                ) : (
+                  <p className="mt-4 text-sm text-text-muted italic">No details recorded yet.</p>
+                )}
+
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                  {node.linkedDocId && (
+                    <Link to="/documents" className="inline-flex items-center gap-2 rounded-lg border border-gold-500/15 bg-navy-900/60 px-3 py-2 text-gold-300 hover:border-gold-500/30">
+                      <FileText className="w-4 h-4 text-gold-400" /> {docName(node.linkedDocId)}
+                    </Link>
+                  )}
+                  {mergeTarget && (
+                    <button
+                      type="button"
+                      onClick={() => { setSelected(mergeTarget); setExpandedIds((prev) => new Set(prev).add(mergeTarget.id)) }}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gold-500/15 bg-navy-900/60 px-3 py-2 text-text-secondary hover:text-gold-300 hover:border-gold-500/30"
+                    >
+                      <GitMerge className="w-4 h-4 text-gold-400" /> Converges into {mergeTarget.title}
+                    </button>
+                  )}
+                </div>
+
+                {(node.nodeType === 'HEARING' || node.nodeType === 'FILING') && (
+                  <div className="mt-5 rounded-xl border border-gold-500/10 bg-navy-900/50 p-4">
+                    <div className="flex items-center justify-between gap-3 border-b border-gold-500/5 pb-3">
+                      <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold-300">
+                        <GitMerge className="w-4 h-4 text-gold-400" /> Outcome Consolidation
+                      </span>
+                      <span className="text-[10px] text-text-muted font-mono">{contributors.length} linked branch{contributors.length === 1 ? '' : 'es'}</span>
+                    </div>
+                    {contributors.length === 0 ? (
+                      <p className="pt-3 text-xs text-text-muted italic">No findings or evidence converge into this outcome yet.</p>
+                    ) : (
+                      <div className="pt-3 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {contributors.map((c) => (
+                            <button
+                              type="button"
+                              key={c.id}
+                              onClick={() => { setSelected(c); setExpandedIds((prev) => new Set(prev).add(c.parentId ?? node.id)) }}
+                              className="rounded-lg border border-gold-500/10 bg-navy-950/50 px-3 py-2 text-left hover:border-gold-500/30"
+                            >
+                              <p className="text-xs text-gold-200 truncate">{c.title}</p>
+                              <p className="text-[10px] text-text-muted">{c.merged ? 'Consolidated' : 'Pending'}</p>
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => handleConsolidate(node)}
+                          disabled={merging || unmerged.length === 0}
+                          className="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                        >
+                          {merging ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Consolidating...</>
+                          ) : unmerged.length === 0 ? (
+                            <><Check className="w-3.5 h-3.5 mr-1" /> Outcome Consolidated</>
+                          ) : (
+                            <><GitMerge className="w-3.5 h-3.5 mr-1.5" /> Consolidate {unmerged.length} Node{unmerged.length === 1 ? '' : 's'}</>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {children.length > 0 && expanded && (
+          <div className="relative ml-6 md:ml-9 mt-3 space-y-3 border-l border-gold-500/15 pl-6">
+            {children.map((child) => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-20 text-gold-300">
@@ -151,7 +336,7 @@ export default function CaseJourney() {
             <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300">Evidentiary Journey</h1>
           </div>
           <p className="text-xs text-text-secondary mt-1">
-            Chronological audit of findings, court filings, and milestones verified on Hyperledger.
+            Milestones are lawyer-authored progress nodes. Hearings can act as merge points; the immutable Events Feed remains the raw audit ledger.
           </p>
         </div>
         <button onClick={() => setShowAdd(true)} className="btn-primary text-xs uppercase tracking-wider font-bold px-4 py-2.5">
@@ -159,181 +344,31 @@ export default function CaseJourney() {
         </button>
       </div>
 
-      {/* Main timeline canvas */}
+      {/* Main dynamic tree canvas */}
       <div className="card bg-navy-900/60 p-6 border-gold-500/10 relative overflow-hidden">
-        
-        {/* Horizontal timeline on Desktop, vertical on Mobile */}
-        <div className="relative flex flex-col md:flex-row items-stretch md:items-center gap-12 md:gap-16 py-10 overflow-x-auto scrollbar-thin px-4">
-          
-          {/* Animated path line (Desktop) */}
-          <div className="hidden md:block absolute left-8 right-8 top-1/2 h-0.5 bg-gold-500/10 -translate-y-1/2 z-0" />
-          
-          {/* Animated path line (Mobile) */}
-          <div className="block md:hidden absolute left-10 top-8 bottom-8 w-0.5 bg-gold-500/10 z-0" />
-
-          {nodes.map((node, index) => {
-            const completed = !node.merged
-            const typeStyle = TYPE_STYLE[node.nodeType] || TYPE_STYLE.FINDING
-            const isSelected = selected?.id === node.id
-
-            return (
-              <div
-                key={node.id}
-                className="relative flex flex-col md:items-center z-10 shrink-0 cursor-pointer group"
-                onClick={() => setSelected(node)}
-              >
-                {/* Milestone Node Badge */}
-                <motion.div
-                  whileHover={{ scale: 1.08 }}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center font-serif text-sm font-bold transition-all duration-300 select-none ${
-                    completed
-                      ? 'bg-gradient-to-br from-gold-600 via-gold-500 to-gold-400 text-navy-950 shadow-gold-md'
-                      : 'bg-navy-950 border-2 border-gold-500/30 text-gold-300/60 hover:border-gold-500'
-                  } ${isSelected ? 'ring-4 ring-gold-500/30 border-gold-400' : ''}`}
-                >
-                  {toRoman(index)}
-                </motion.div>
-
-                {/* Micro pulse indicator for active node */}
-                {!node.merged && (
-                  <span className="absolute top-0 right-0 md:right-1/3 flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-gold-500"></span>
-                  </span>
-                )}
-
-                {/* Node info box */}
-                <div className="mt-4 md:text-center max-w-[150px] pl-16 md:pl-0">
-                  <p className="font-serif text-xs font-bold text-gold-300 truncate group-hover:text-gold-100 transition-colors">
-                    {node.title}
-                  </p>
-                  <p className="text-[9px] font-mono text-text-secondary mt-1">
-                    {new Date(node.nodeDate).toLocaleDateString()}
-                  </p>
-                  <span className={`inline-block text-[8px] font-bold px-1.5 py-0.5 rounded uppercase mt-2 ${typeStyle.chip}`}>
-                    {node.nodeType}
-                  </span>
+        <div className="absolute top-0 right-0 w-56 h-56 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.05),transparent_14rem)]" />
+        <div className="relative space-y-3">
+          {rootNode ? (
+            <>
+              <div className="mb-5 flex justify-center">
+                <div className="rounded-full border border-gold-500/20 bg-gold-500/10 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-gold-300">
+                  Case centerline
                 </div>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Expanded detail panel with Framer Motion */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="card bg-navy-900/60 border-gold-500/20 p-6 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.04),transparent_10rem)]" />
-            
-            <div className="flex items-start justify-between mb-4 border-b border-gold-500/5 pb-4">
-              <div>
-                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${(TYPE_STYLE[selected.nodeType] || TYPE_STYLE.FINDING).chip}`}>
-                  {selected.nodeType}
-                </span>
-                <h2 className="font-serif text-2xl font-bold text-gold-300 mt-2">{selected.title}</h2>
-              </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="p-1.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 text-text-secondary hover:text-text-primary transition-all"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-              <div className="md:col-span-2 space-y-4">
-                <div className="text-xs text-text-secondary font-mono flex flex-wrap items-center gap-4">
-                  <span className="flex items-center gap-1">
-                    <UserIcon className="w-3.5 h-3.5 text-gold-400" /> Lodged by: {selected.authorName}
-                  </span>
-                  <span className="opacity-30">|</span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-gold-400" /> Event Date: {new Date(selected.nodeDate).toLocaleString()}
-                  </span>
-                </div>
-
-                {selected.description && (
-                  <p className="text-sm text-text-secondary leading-relaxed bg-navy-950/40 p-4 rounded-xl border border-gold-500/5 whitespace-pre-wrap">
-                    {selected.description}
-                  </p>
-                )}
-
-                {selected.linkedDocId && (
-                  <div className="pt-2">
-                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest block mb-2">LINKED EVIDENTIARY DEED</span>
-                    <Link
-                      to={`/documents`}
-                      className="inline-flex items-center gap-2 rounded-xl border border-gold-500/15 bg-navy-950/60 px-4 py-2.5 text-xs text-gold-300 font-semibold hover:border-gold-500/30 hover:text-gold-200 transition-all"
-                    >
-                      <FileText className="w-4 h-4 text-gold-400" />
-                      {docName(selected.linkedDocId)}
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              {/* Merge / Consolidation utilities (Hearing/Filing specific) */}
-              {(selected.nodeType === 'HEARING' || selected.nodeType === 'FILING') && (
-                <div className="card bg-navy-950/40 border-gold-500/10 p-5 space-y-4">
-                  <div className="flex items-center gap-1.5 pb-2 border-b border-gold-500/5">
-                    <GitMerge className="w-4 h-4 text-gold-400" />
-                    <span className="text-xs font-bold uppercase tracking-wider text-gold-300">Consolidation Matrix</span>
-                  </div>
-                  {(() => {
-                    const contributors = nodes.filter((n) => n.mergeIntoId === selected.id)
-                    const unmerged = contributors.filter((c) => !c.merged)
-                    return (
-                      <>
-                        {contributors.length === 0 ? (
-                          <p className="text-[10px] text-text-muted leading-relaxed italic">
-                            No branches converge into this node yet. Connect findings to this target when adding milestones.
-                          </p>
-                        ) : (
-                          <div className="space-y-3">
-                            <ul className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin pr-1">
-                              {contributors.map((c) => (
-                                <li key={c.id} className="flex items-center justify-between text-xs font-mono">
-                                  <span className="truncate max-w-[140px] text-text-secondary">{c.title}</span>
-                                  {c.merged ? (
-                                    <span className="text-[9px] text-emerald-400 bg-success/15 px-1.5 py-0.5 rounded border border-success/30">CONSOLIDATED</span>
-                                  ) : (
-                                    <span className="text-[9px] text-gold-300 bg-gold-500/10 px-1.5 py-0.5 rounded border border-gold-500/20">PENDING</span>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-
-                            <button
-                              onClick={() => handleConsolidate(selected)}
-                              disabled={merging || unmerged.length === 0}
-                              className="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-wider shrink-0"
-                            >
-                              {merging ? (
-                                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Consolidating...</>
-                              ) : unmerged.length === 0 ? (
-                                <><Check className="w-3.5 h-3.5 mr-1" /> Bound Consolidated</>
-                              ) : (
-                                <><GitMerge className="w-3.5 h-3.5 mr-1.5" /> Consolidate {unmerged.length} Nodes</>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )
-                  })()}
+              {renderNode(rootNode)}
+              {rootChildren.length === 0 && (
+                <div className="ml-9 rounded-xl border border-dashed border-gold-500/15 bg-navy-950/30 px-4 py-6 text-sm text-text-secondary">
+                  No branch nodes yet. Add a finding, hearing, filing, or evidence node to begin the journey.
                 </div>
               )}
+            </>
+          ) : (
+            <div className="rounded-xl border border-dashed border-gold-500/15 bg-navy-950/30 px-4 py-10 text-center text-sm text-text-secondary">
+              No journey nodes have been created for this case yet.
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
+      </div>
 
       {/* Add milestone Modal */}
       {showAdd && (
@@ -365,7 +400,7 @@ export default function CaseJourney() {
                 <div>
                   <label className="label">Branch From node</label>
                   <select className="input" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                    <option value="" className="bg-navy-950">(root mat)</option>
+                    <option value="" className="bg-navy-950">(case root)</option>
                     {nodes.map((n) => <option key={n.id} value={n.id} className="bg-navy-950">{n.title}</option>)}
                   </select>
                 </div>
@@ -380,6 +415,7 @@ export default function CaseJourney() {
                       <option key={n.id} value={n.id} className="bg-navy-950">{n.title} ({n.nodeType})</option>
                     ))}
                   </select>
+                  <p className="mt-1 text-[10px] text-text-muted">Use this to converge evidence or research into a hearing or filing, then continue the case tree afterward.</p>
                 </div>
                 <div>
                   <label className="label">Evidentiary doc link (optional)</label>

@@ -205,7 +205,7 @@ export default function Login() {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/mfa/setup')}
+                onClick={() => navigate('/profile/mfa')}
                 className="btn-primary w-full justify-center py-3"
               >
                 Set up MFA now

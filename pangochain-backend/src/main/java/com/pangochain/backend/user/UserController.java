@@ -3,6 +3,7 @@ package com.pangochain.backend.user;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import com.pangochain.backend.document.DocumentAccessRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserRepository userRepository;
+    private final DocumentAccessRepository accessRepository;
 
     public record SetPublicKeysRequest(@NotBlank String publicKeyJwk, String signingPublicKeyJwk) {}
 
@@ -86,5 +88,48 @@ public class UserController {
                         "hasPublicKey", u.getPublicKeyEcies() != null
                 )))
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    /** Access-grant suggestions: same-firm users below the caller's role who do not already have access. */
+    @GetMapping("/access-candidates")
+    public ResponseEntity<java.util.List<Map<String, Object>>> accessCandidates(
+            @RequestParam UUID docId,
+            @RequestParam(required = false, defaultValue = "") String q,
+            @AuthenticationPrincipal UserDetails principal) {
+        User me = userRepository.findByEmail(principal.getUsername())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+        if (me.getFirm() == null) return ResponseEntity.ok(java.util.List.of());
+        String needle = q == null ? "" : q.trim().toLowerCase();
+        java.util.List<Map<String, Object>> out = userRepository.findByFirm_Id(me.getFirm().getId()).stream()
+                .filter(u -> !u.getId().equals(me.getId()))
+                .filter(u -> rank(u.getRole()) < rank(me.getRole()))
+                .filter(u -> accessRepository.findActiveEntry(docId, u.getId()).isEmpty())
+                .filter(u -> needle.isBlank()
+                        || u.getEmail().toLowerCase().contains(needle)
+                        || u.getFullName().toLowerCase().contains(needle))
+                .limit(8)
+                .map(u -> Map.<String, Object>of(
+                        "id", u.getId().toString(),
+                        "fullName", u.getFullName(),
+                        "email", u.getEmail(),
+                        "role", u.getRole().name(),
+                        "hasPublicKey", u.getPublicKeyEcies() != null))
+                .toList();
+        return ResponseEntity.ok(out);
+    }
+
+    private static int rank(UserRole role) {
+        return switch (role) {
+            case MANAGING_PARTNER, IT_ADMIN -> 100;
+            case PARTNER_SENIOR -> 90;
+            case PARTNER_JUNIOR -> 80;
+            case ASSOCIATE_SENIOR -> 70;
+            case ASSOCIATE_JUNIOR -> 60;
+            case PARALEGAL, SECRETARY -> 50;
+            case CLIENT_CORP_ADMIN -> 40;
+            case CLIENT_PRIMARY -> 30;
+            case CLIENT_SECONDARY -> 20;
+            case REGULATOR -> 10;
+        };
     }
 }

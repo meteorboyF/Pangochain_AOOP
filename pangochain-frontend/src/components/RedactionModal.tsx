@@ -13,6 +13,7 @@ interface Props {
   caseId: string
   fileName: string
   category?: string
+  version?: number
   documentHashSha256?: string
   onClose: () => void
   onRedacted?: () => void
@@ -22,7 +23,7 @@ type Stage = 'unlock' | 'editing' | 'saving' | 'done' | 'error'
 
 const BLOCK = '█'
 
-export function RedactionModal({ docId, caseId, fileName, category, documentHashSha256, onClose, onRedacted }: Props) {
+export function RedactionModal({ docId, caseId, fileName, category, version = 1, documentHashSha256, onClose, onRedacted }: Props) {
   const { user } = useAuthStore()
   const [password, setPassword] = useState('')
   const [stage, setStage] = useState<Stage>('unlock')
@@ -84,7 +85,10 @@ export function RedactionModal({ docId, caseId, fileName, category, documentHash
         wrappedKeyToken = await eciesWrapKey(ownerPubKeyJwk, encrypted.keyB64)
       } catch { /* demo-mode raw key fallback */ }
 
-      const redactedName = fileName.replace(/(\.[^.]+)?$/, ' (redacted)$1')
+      const cleanedName = fileName
+        .replace(/\s*\(redacted\)/ig, '')
+        .replace(/\s+v\d+\s+redacted/ig, '')
+      const redactedName = cleanedName.replace(/(\.[^.]+)?$/, ` v${version + 1} redacted$1`)
       const { data: newDoc } = await api.post('/documents/upload', {
         caseId,
         fileName: redactedName,
@@ -92,7 +96,7 @@ export function RedactionModal({ docId, caseId, fileName, category, documentHash
         ivBase64: encrypted.ivB64,
         documentHashSha256: encrypted.hashB64,
         wrappedKeyTokenForOwner: wrappedKeyToken,
-        previousVersionId: null,
+        previousVersionId: docId,
         category: category ?? 'GENERAL',
       })
 

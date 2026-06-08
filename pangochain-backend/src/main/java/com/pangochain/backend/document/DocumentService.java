@@ -52,6 +52,7 @@ public class DocumentService {
     public DocumentDto upload(DocumentUploadRequest req, User uploader) {
         Case legalCase = caseRepository.findById(UUID.fromString(req.getCaseId()))
                 .orElseThrow(() -> new IllegalArgumentException("Case not found: " + req.getCaseId()));
+        enforceUploadAllowed(legalCase, uploader);
 
         // Decode IV + ciphertext from browser and prepend IV so download can split it
         byte[] ivBytes = Base64.getDecoder().decode(req.getIvBase64());
@@ -142,37 +143,11 @@ public class DocumentService {
      * 3. Fetch ciphertext from IPFS
      * 4. Return ciphertext to browser for WebCrypto decryption
      */
-    public byte[] downloadCiphertext(UUID docId, User requester) {
+    public byte[] downloadCiphertext(UUID docId, User requester) throws FabricException {
         Document doc = documentRepository.findById(docId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found"));
 
-        // Two-layer ACL: Layer 1 = JWT (Spring Security, validated before this method).
-        //                Layer 2 = Fabric CheckAccess chaincode (authoritative on-chain ACL).
-        boolean allowed;
-        String aclLayer2Status;
-        try {
-            if (fabricGatewayService != null) {
-                allowed = fabricGatewayService.checkAccess(
-                        docId.toString(),
-                        requester.getId().toString(),
-                        requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP");
-                aclLayer2Status = allowed ? "PASS" : "FAIL";
-            } else {
-                // Fabric disabled — fall back to DB access check
-                allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
-                aclLayer2Status = "FALLBACK";
-                log.warn("ACL fallback to DB for doc={}: Fabric not enabled", docId);
-            }
-        } catch (FabricException e) {
-            log.warn("Fabric ACL check failed for doc={}: {}", docId, e.getMessage());
-            allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
-            aclLayer2Status = "FALLBACK";
-            auditService.log("ACL_FABRIC_FALLBACK", requester.getId(), "DOCUMENT", docId.toString(), null,
-                    "{\"reason\":\"" + e.getMessage().replace("\"", "'") + "\"}");
-        }
-        log.info("ACL check: Layer1=PASS Layer2={} doc={} user={}", aclLayer2Status, docId, requester.getEmail());
-
-        if (!allowed) throw new AccessDeniedException("Access denied for document " + docId);
+        enforceFabricAccessOrFailClosed(docId, requester);
 
         auditService.log("DOC_VIEWED", requester.getId(), "DOCUMENT",
                 docId.toString(), null, null);
@@ -215,7 +190,10 @@ public class DocumentService {
         log.info("Key rotation completed for doc={} by user={}", docId, requester.getEmail());
     }
 
-    public String getWrappedKey(UUID docId, User requester) {
+    public String getWrappedKey(UUID docId, User requester) throws FabricException {
+        documentRepository.findById(docId)
+                .orElseThrow(() -> new IllegalArgumentException("Document not found"));
+        enforceFabricAccessOrFailClosed(docId, requester);
         return accessRepository.findActiveEntry(docId, requester.getId())
                 .map(DocumentAccess::getWrappedKeyToken)
                 .orElseThrow(() -> new AccessDeniedException("No active access entry for document " + docId));
@@ -412,6 +390,63 @@ public class DocumentService {
 
     private String toJson(Object obj) {
         try { return objectMapper.writeValueAsString(obj); } catch (Exception e) { return "{}"; }
+    }
+
+    private void enforceUploadAllowed(Case legalCase, User uploader) {
+        String role = uploader.getRole() != null ? uploader.getRole().name() : "";
+        boolean client = role.startsWith("CLIENT_");
+
+        if (client) {
+            boolean linkedClient = caseRepository.countClientMembership(legalCase.getId(), uploader.getId()) > 0;
+            if (!linkedClient) {
+                throw new AccessDeniedException("You can upload documents only to your linked cases");
+            }
+            return;
+        }
+
+        boolean sameFirm = legalCase.getFirm() != null
+                && uploader.getFirm() != null
+                && legalCase.getFirm().getId().equals(uploader.getFirm().getId());
+        boolean caseTeamMember = caseRepository.countTeamMembership(legalCase.getId(), uploader.getId()) > 0;
+        if (!sameFirm && !caseTeamMember) {
+            throw new AccessDeniedException("You can upload documents only to cases in your firm or assigned team");
+        }
+    }
+
+    /**
+     * Protected document material is fail-closed: PostgreSQL access rows are never
+     * used to authorize ciphertext or wrapped-key release when Fabric is unavailable.
+     */
+    private void enforceFabricAccessOrFailClosed(UUID docId, User requester) throws FabricException {
+        if (fabricGatewayService == null) {
+            FabricException e = new FabricException("Fabric authorization service is not configured");
+            logFabricOutageAccessDenied(docId, requester, e);
+            throw e;
+        }
+
+        boolean allowed;
+        try {
+            allowed = fabricGatewayService.checkAccess(
+                    docId.toString(),
+                    requester.getId().toString(),
+                    requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP");
+        } catch (FabricException e) {
+            log.warn("Fabric ACL check failed closed for doc={}: {}", docId, e.getMessage());
+            logFabricOutageAccessDenied(docId, requester, e);
+            throw e;
+        }
+
+        log.info("ACL check: Layer1=PASS Layer2={} doc={} user={}",
+                allowed ? "PASS" : "FAIL", docId, requester.getEmail());
+        if (!allowed) throw new AccessDeniedException("Access denied for document " + docId);
+    }
+
+    private void logFabricOutageAccessDenied(UUID docId, User requester, FabricException e) {
+        auditService.log("FABRIC_OUTAGE_ACCESS_DENIED", requester.getId(), "DOCUMENT", docId.toString(), null,
+                toJson(Map.of(
+                        "reason", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName(),
+                        "mode", "fail_closed"
+                )));
     }
 
     public static class AccessDeniedException extends RuntimeException {

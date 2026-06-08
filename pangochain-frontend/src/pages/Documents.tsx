@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, Filter, AlertCircle, Plus, Folder, ChevronDown, Lock } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, AlertCircle, Plus, Folder, Lock, MessageCircle, Eraser, Share2 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { SignDocumentModal } from '../components/SignDocumentModal'
 import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
 import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
+import { AnnotationModal } from '../components/AnnotationModal'
+import { RedactionModal } from '../components/RedactionModal'
+import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
@@ -58,6 +61,9 @@ export default function Documents() {
   const [historyTarget, setHistoryTarget] = useState<DocumentDto | null>(null)
   const [signTarget, setSignTarget] = useState<DocumentDto | null>(null)
   const [custodyTarget, setCustodyTarget] = useState<DocumentDto | null>(null)
+  const [annotateTarget, setAnnotateTarget] = useState<DocumentDto | null>(null)
+  const [redactTarget, setRedactTarget] = useState<DocumentDto | null>(null)
+  const [accessTarget, setAccessTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), search ? 300 : 0)
@@ -238,6 +244,30 @@ export default function Documents() {
 
                       {/* Tooltip action group */}
                       <div className="flex items-center gap-1.5">
+                        <Tooltip content="Annotate / comments" side="top">
+                          <button
+                            onClick={() => setAnnotateTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <MessageCircle className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Redact in browser" side="top">
+                          <button
+                            onClick={() => setRedactTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <Eraser className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Grant document access" side="top">
+                          <button
+                            onClick={() => setAccessTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <Share2 className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
                         <Tooltip content="Sign Verification" side="top">
                           <button
                             onClick={() => setSignTarget(doc)}
@@ -318,6 +348,33 @@ export default function Documents() {
           fileName={custodyTarget.fileName}
           onClose={() => setCustodyTarget(null)}
         />
+      )}
+      {annotateTarget && (
+        <AnnotationModal
+          docId={annotateTarget.id}
+          fileName={annotateTarget.fileName}
+          versionHash={annotateTarget.documentHash}
+          onClose={() => setAnnotateTarget(null)}
+        />
+      )}
+      {redactTarget && (
+        <RedactionModal
+          docId={redactTarget.id}
+          caseId={redactTarget.caseId}
+          fileName={redactTarget.fileName}
+          category={redactTarget.category}
+          version={redactTarget.version}
+          documentHashSha256={redactTarget.documentHash}
+          onClose={() => setRedactTarget(null)}
+          onRedacted={() => { setRedactTarget(null); refetch() }}
+        />
+      )}
+      {accessTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setAccessTarget(null)}>
+          <div className="card w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-gold-500/20 bg-navy-900 p-5" onClick={(e) => e.stopPropagation()}>
+            <TeamAccessPanel docId={accessTarget.id} docName={accessTarget.fileName} />
+          </div>
+        </div>
       )}
     </div>
   )

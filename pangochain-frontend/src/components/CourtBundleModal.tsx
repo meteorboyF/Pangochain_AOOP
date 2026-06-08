@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 interface DocItem {
   id: string
   fileName: string
+  documentHash?: string
   documentHashSha256?: string
 }
 
@@ -58,7 +59,7 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
       for (let i = 0; i < picks.length; i++) {
         const doc = picks[i]
         setProgress(`Decrypting ${i + 1}/${picks.length}: ${doc.fileName}`)
-        const bytes = await decryptDocumentToBytes(doc.id, privateKey, doc.documentHashSha256)
+        const bytes = await decryptDocumentToBytes(doc.id, privateKey, doc.documentHashSha256 ?? doc.documentHash)
         const text = bytesToTextIfPrintable(bytes)
         items.push({ documentId: doc.id, plaintextBase64: text != null ? bytesToBase64(new Uint8Array(bytes)) : null })
       }

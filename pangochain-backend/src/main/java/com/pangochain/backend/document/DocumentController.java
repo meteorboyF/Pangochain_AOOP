@@ -1,5 +1,6 @@
 package com.pangochain.backend.document;
 
+import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.document.dto.DocumentDto;
 import com.pangochain.backend.document.dto.DocumentUploadRequest;
 import com.pangochain.backend.user.User;
@@ -33,7 +34,7 @@ public class DocumentController {
      * AES-256-GCM encryption occurs in the browser via WebCrypto API before this endpoint is called.
      * Accepts IV+ciphertext + metadata, pins to IPFS, anchors on Fabric.
      */
-    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL')")
+    @PreAuthorize("hasAnyRole('MANAGING_PARTNER','PARTNER_SENIOR','PARTNER_JUNIOR','ASSOCIATE_SENIOR','ASSOCIATE_JUNIOR','PARALEGAL','CLIENT_PRIMARY','CLIENT_SECONDARY','CLIENT_CORP_ADMIN')")
     @PostMapping("/upload")
     public ResponseEntity<DocumentDto> upload(
             @Valid @RequestBody DocumentUploadRequest req,
@@ -52,7 +53,7 @@ public class DocumentController {
     @GetMapping("/{id}/ciphertext")
     public ResponseEntity<byte[]> downloadCiphertext(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails principal) {
+            @AuthenticationPrincipal UserDetails principal) throws FabricException {
         User requester = resolveUser(principal);
         byte[] ciphertext = documentService.downloadCiphertext(id, requester);
         return ResponseEntity.ok()
@@ -70,7 +71,7 @@ public class DocumentController {
     @GetMapping("/{id}/wrapped-key")
     public ResponseEntity<String> getWrappedKey(
             @PathVariable UUID id,
-            @AuthenticationPrincipal UserDetails principal) {
+            @AuthenticationPrincipal UserDetails principal) throws FabricException {
         User requester = resolveUser(principal);
         String token = documentService.getWrappedKey(id, requester);
         return ResponseEntity.ok(token);

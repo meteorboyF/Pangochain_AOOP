@@ -21,6 +21,7 @@ import api from '../lib/api'
 import toast from 'react-hot-toast'
 import { WaxSealSvg } from '../components/ui/SvgAssets'
 import { Tooltip } from '../components/ui/Tooltip'
+import { useAuthStore } from '../store/authStore'
 
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE:   'text-emerald-400 bg-success/10 border border-success/30',
@@ -48,6 +49,7 @@ interface DocItem {
   id: string
   fileName: string
   ipfsCid?: string
+  documentHash?: string
   documentHashSha256?: string
   fabricTxId?: string
   ownerEmail?: string
@@ -70,8 +72,14 @@ interface Hearing {
 
 type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing' | 'settlement'
 
+const docHash = (doc: DocItem) => doc.documentHashSha256 ?? doc.documentHash
+
+const HEARING_CREATE_ROLES = ['MANAGING_PARTNER', 'PARTNER_SENIOR', 'PARTNER_JUNIOR', 'ASSOCIATE_SENIOR', 'ASSOCIATE_JUNIOR']
+
 export default function CaseDetail() {
   const { id } = useParams<{ id: string }>()
+  const { user } = useAuthStore()
+  const canScheduleHearings = user ? HEARING_CREATE_ROLES.includes(user.role) : false
   const [legalCase, setLegalCase] = useState<CaseDto | null>(null)
   const [documents, setDocuments] = useState<DocItem[]>([])
   const [hearings, setHearings] = useState<Hearing[]>([])
@@ -84,11 +92,13 @@ export default function CaseDetail() {
   const [annotateTarget, setAnnotateTarget] = useState<DocItem | null>(null)
   const [signTarget, setSignTarget] = useState<DocItem | null>(null)
   const [redactTarget, setRedactTarget] = useState<DocItem | null>(null)
+  const [teamMembers, setTeamMembers] = useState<Array<{ userId: string; fullName: string; roleInCase: string }>>([])
 
   // Hearing form state
   const [showHearingForm, setShowHearingForm] = useState(false)
   const [hearingTitle, setHearingTitle] = useState('')
   const [hearingDate, setHearingDate] = useState('')
+  const [hearingTime, setHearingTime] = useState('09:00')
   const [hearingLocation, setHearingLocation] = useState('')
   const [hearingCourt, setHearingCourt] = useState('')
   const [hearingType, setHearingType] = useState('COURT_HEARING')
@@ -97,14 +107,16 @@ export default function CaseDetail() {
 
   const loadData = useCallback(async () => {
     try {
-      const [caseRes, docsRes, hearingsRes] = await Promise.allSettled([
+      const [caseRes, docsRes, hearingsRes, membersRes] = await Promise.allSettled([
         api.get(`/cases/${id}`),
         api.get(`/documents/by-case/${id}`),
         api.get(`/hearings/by-case/${id}`),
+        api.get(`/cases/${id}/members`),
       ])
       if (caseRes.status === 'fulfilled') setLegalCase(caseRes.value.data)
       if (docsRes.status === 'fulfilled') setDocuments(docsRes.value.data ?? [])
       if (hearingsRes.status === 'fulfilled') setHearings(hearingsRes.value.data ?? [])
+      if (membersRes.status === 'fulfilled') setTeamMembers(membersRes.value.data ?? [])
     } finally {
       setLoading(false)
     }
@@ -114,13 +126,13 @@ export default function CaseDetail() {
 
   const handleAddHearing = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!hearingTitle || !hearingDate) return
+    if (!hearingTitle || !hearingDate || !hearingTime) return
     setSubmittingHearing(true)
     try {
       const { data } = await api.post('/hearings', {
         caseId: id,
         title: hearingTitle,
-        hearingDate: new Date(hearingDate).toISOString(),
+        hearingDate: new Date(`${hearingDate}T${hearingTime}`).toISOString(),
         location: hearingLocation || null,
         courtName: hearingCourt || null,
         hearingType,
@@ -129,7 +141,7 @@ export default function CaseDetail() {
       setHearings((prev) => [...prev, data])
       toast.success('Hearing scheduled')
       setShowHearingForm(false)
-      setHearingTitle(''); setHearingDate(''); setHearingLocation(''); setHearingCourt(''); setHearingNotes('')
+      setHearingTitle(''); setHearingDate(''); setHearingTime('09:00'); setHearingLocation(''); setHearingCourt(''); setHearingNotes('')
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? 'Failed to schedule hearing')
     } finally {
@@ -201,23 +213,26 @@ export default function CaseDetail() {
               <span className="text-text-muted">{legalCase.firmName}</span>
             </p>
 
-            {/* Assigned Attorneys List Avatars with Gold Rings */}
-            <div className="flex items-center gap-2 pt-2">
-              <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">Assigned Council:</span>
-              <div className="flex -space-x-2.5">
-                {[
-                  { name: 'Sarah Sterling', initial: 'S', color: 'from-gold-600 to-navy-900' },
-                  { name: 'Marcus Vance', initial: 'V', color: 'from-navy-800 to-gold-500' },
-                  { name: 'IT Admin', initial: 'A', color: 'from-slate-700 to-navy-950' }
-                ].map((attorney, i) => (
-                  <Tooltip key={i} content={attorney.name} side="bottom">
-                    <div className={`w-6.5 h-6.5 rounded-full bg-gradient-to-br ${attorney.color} ring-2 ring-gold-500/40 text-[9px] font-bold text-gold-300 flex items-center justify-center shadow-gold-sm`}>
-                      {attorney.initial}
+            {/* Assigned Team Avatars — from /cases/:id/members */}
+            {teamMembers.length > 0 && (
+              <div className="flex items-center gap-2 pt-2">
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">Team:</span>
+                <div className="flex -space-x-2.5">
+                  {teamMembers.slice(0, 5).map((m) => (
+                    <Tooltip key={m.userId} content={`${m.fullName} · ${m.roleInCase}`} side="bottom">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gold-600 to-navy-900 ring-2 ring-gold-500/40 text-[9px] font-bold text-gold-300 flex items-center justify-center shadow-gold-sm">
+                        {m.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    </Tooltip>
+                  ))}
+                  {teamMembers.length > 5 && (
+                    <div className="w-7 h-7 rounded-full bg-navy-800 ring-2 ring-gold-500/20 text-[9px] font-bold text-text-secondary flex items-center justify-center">
+                      +{teamMembers.length - 5}
                     </div>
-                  </Tooltip>
-                ))}
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -405,9 +420,11 @@ export default function CaseDetail() {
               <div className="card bg-navy-900/40 border-gold-500/10 space-y-6">
                 <div className="flex items-center justify-between pb-2 border-b border-gold-500/5">
                   <h2 className="font-serif text-xl font-bold text-gold-300">Case Hearings</h2>
-                  <button onClick={() => setShowHearingForm(!showHearingForm)} className="btn-primary text-xs uppercase tracking-wider font-bold">
-                    <Plus className="w-4 h-4" /> Schedule Docket
-                  </button>
+                  {canScheduleHearings && (
+                    <button onClick={() => setShowHearingForm(!showHearingForm)} className="btn-primary text-xs uppercase tracking-wider font-bold">
+                      <Plus className="w-4 h-4" /> Schedule Docket
+                    </button>
+                  )}
                 </div>
 
                 {showHearingForm && (
@@ -424,8 +441,12 @@ export default function CaseDetail() {
                         </select>
                       </div>
                       <div>
-                        <label className="label">Date & Time *</label>
-                        <input type="datetime-local" className="input" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
+                        <label className="label">Date *</label>
+                        <input type="date" className="input" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="label">Time *</label>
+                        <input type="time" className="input" value={hearingTime} onChange={(e) => setHearingTime(e.target.value)} required />
                       </div>
                       <div>
                         <label className="label">Court Name</label>
@@ -538,7 +559,7 @@ export default function CaseDetail() {
         <SecureDownloadModal
           docId={downloadTarget.id}
           fileName={downloadTarget.fileName}
-          expectedHash={downloadTarget.documentHashSha256}
+          expectedHash={docHash(downloadTarget)}
           onClose={() => setDownloadTarget(null)}
         />
       )}
@@ -553,7 +574,7 @@ export default function CaseDetail() {
         <AnnotationModal
           docId={annotateTarget.id}
           fileName={annotateTarget.fileName}
-          versionHash={annotateTarget.documentHashSha256}
+          versionHash={docHash(annotateTarget)}
           onClose={() => setAnnotateTarget(null)}
         />
       )}
@@ -571,7 +592,8 @@ export default function CaseDetail() {
           caseId={id!}
           fileName={redactTarget.fileName}
           category={redactTarget.category}
-          documentHashSha256={redactTarget.documentHashSha256}
+          version={redactTarget.version}
+          documentHashSha256={docHash(redactTarget)}
           onClose={() => setRedactTarget(null)}
           onRedacted={() => { setRedactTarget(null); loadData() }}
         />

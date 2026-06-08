@@ -122,6 +122,7 @@ case team (lawyer + Associates A–D + paralegal + client on Chen v. Meridian), 
 |---------|---------|
 | **Case management** | Create, list, search, close cases — Fabric-anchored |
 | **Case detail (4 tabs)** | Documents · Hearings · Team Access · Timeline |
+| **Case Journey tree** | Milestone graph for case progress. Milestones are lawyer-authored planning/progress nodes; hearings and filings can merge branches and the tree can continue after the hearing. This differs from the Events Feed, which is the immutable audit/ledger chronology of system actions. |
 | **Hearing scheduler** | Create hearings (type, court, location, datetime, notes), delete |
 | **Send reminders to clients** | Email lookup → `POST /api/reminders` with priority (HIGH/NORMAL) |
 | **HearingManager page** | Calendar-style date badges, upcoming/past separation |
@@ -220,17 +221,7 @@ case team (lawyer + Associates A–D + paralegal + client on Chen v. Meridian), 
 | **Key rotation workflow** | Low | Generate new ECIES keypair, re-wrap all document keys with new public key |
 | **Caliper CI integration** | Low | Run benchmarks automatically in CI on Fabric changes |
 
----
 
-## Demo Login Credentials
-
-| Role | Email | Password |
-|------|-------|----------|
-| Managing Partner (Admin) | `admin@pangolawfirm.com` | `Admin123!` |
-| Senior Associate (Lawyer) | `lawyer@pangolawfirm.com` | `Lawyer123!` |
-| Paralegal | `paralegal@pangolawfirm.com` | `Paralegal123!` |
-| Client (Primary) | `client@demo.com` | `Client123!` |
-| Client 2 | `client2@demo.com` | `Client123!` |
 
 > **Note:** These accounts are created by the DataSeeder on first backend startup. All accounts are set to `ACTIVE` status — no approval step needed for demo.
 

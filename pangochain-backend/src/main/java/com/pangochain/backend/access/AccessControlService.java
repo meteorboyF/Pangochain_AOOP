@@ -109,7 +109,7 @@ public class AccessControlService {
                 docId.toString(), fabricTxId,
                 toJson(Map.of("grantee", grantee.getEmail(), "capability", req.getCapability())));
 
-        return toDto(access, grantee.getEmail(), granter.getEmail());
+        return toDto(access, grantee.getEmail(), grantee.getFullName(), granter.getEmail());
     }
 
     /**
@@ -172,22 +172,24 @@ public class AccessControlService {
         return accessRepository.findActiveByDoc(docId)
                 .stream()
                 .map(a -> {
-                    String granteeEmail = userRepository.findById(a.getUserId())
-                            .map(User::getEmail).orElse("unknown");
+                    User grantee = userRepository.findById(a.getUserId()).orElse(null);
+                    String granteeEmail = grantee != null ? grantee.getEmail() : "unknown";
+                    String granteeName = grantee != null ? grantee.getFullName() : "Unknown user";
                     String granterEmail = a.getGrantedBy() != null
                             ? userRepository.findById(a.getGrantedBy()).map(User::getEmail).orElse("system")
                             : "system";
-                    return toDto(a, granteeEmail, granterEmail);
+                    return toDto(a, granteeEmail, granteeName, granterEmail);
                 })
                 .toList();
     }
 
-    private AccessDto toDto(DocumentAccess a, String granteeEmail, String granterEmail) {
+    private AccessDto toDto(DocumentAccess a, String granteeEmail, String granteeName, String granterEmail) {
         return AccessDto.builder()
                 .id(a.getId())
                 .docId(a.getDocId())
                 .userId(a.getUserId())
                 .userEmail(granteeEmail)
+                .userFullName(granteeName)
                 .grantedByEmail(granterEmail)
                 .capability(a.getCapability().name())
                 .expiresAt(a.getExpiresAt())

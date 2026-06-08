@@ -62,6 +62,8 @@ export default function TemplateEngine() {
   const [stage, setStage] = useState<Stage>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [quillAnimating, setQuillAnimating] = useState(false)
+  const [documentName, setDocumentName] = useState('')
+  const [editableBody, setEditableBody] = useState('')
 
   const { data: templates, isLoading: tLoading, isError: tError } = useQuery({
     queryKey: queryKeys.templates(),
@@ -80,10 +82,13 @@ export default function TemplateEngine() {
     try { return JSON.parse(selected.fieldsJson) } catch { return [] }
   }, [selected])
 
-  const preview = useMemo(() => (selected ? render(selected.body, values) : ''), [selected, values])
+  const preview = useMemo(() => (selected ? render(editableBody || selected.body, values) : ''), [selected, editableBody, values])
 
   const pickTemplate = (id: string) => {
     setSelectedId(id)
+    const t = templates?.find((candidate) => candidate.id === id)
+    setDocumentName(t ? `${t.name}.txt` : '')
+    setEditableBody(t?.body ?? '')
     setValues({})
     setStage('idle')
     setErrorMsg('')
@@ -97,7 +102,7 @@ export default function TemplateEngine() {
     setQuillAnimating(true)
     try {
       // 1. Build the plaintext instrument
-      const plaintext = render(selected.body, values)
+      const plaintext = render(editableBody || selected.body, values)
       const buffer = new TextEncoder().encode(plaintext).buffer
 
       // 2. Encrypt
@@ -115,7 +120,7 @@ export default function TemplateEngine() {
 
       // 4. Upload
       setStage('uploading')
-      const fileName = `${selected.name}.txt`
+      const fileName = documentName.trim() || `${selected.name}.txt`
       const { data: doc } = await api.post('/documents/upload', {
         caseId,
         fileName,
@@ -225,6 +230,15 @@ export default function TemplateEngine() {
                     {cases?.map((c) => <option key={c.id} value={c.id} className="bg-navy-950">{c.title}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="label">Generated Document Name *</label>
+                  <input
+                    className="input bg-navy-950 text-xs"
+                    value={documentName}
+                    onChange={(e) => setDocumentName(e.target.value)}
+                    placeholder="e.g. Chen settlement draft v1.txt"
+                  />
+                </div>
                 
                 {fields.map((f) => (
                   <div key={f.name}>
@@ -260,7 +274,7 @@ export default function TemplateEngine() {
                 {/* Generate button with Quill animations */}
                 <button
                   onClick={handleGenerate}
-                  disabled={!allFilled || !caseId || busy || stage === 'done'}
+                  disabled={!allFilled || !caseId || !documentName.trim() || busy || stage === 'done'}
                   className="btn-primary w-full justify-center py-3 text-xs uppercase tracking-wider font-bold relative overflow-hidden"
                 >
                   <motion.span
@@ -276,9 +290,14 @@ export default function TemplateEngine() {
 
               {/* Code editor preview panel */}
               <div className="card bg-navy-950/80 p-5 border-gold-500/10 space-y-2">
-                <p className="text-[9px] font-mono font-bold text-gold-500 uppercase tracking-widest">Template Source Editor (Gold Highlights)</p>
-                <div className="text-[11px] leading-relaxed whitespace-pre-wrap font-mono text-text-secondary max-h-[30vh] overflow-y-auto pr-1">
-                  {highlightSyntax(selected.body)}
+                <p className="text-[9px] font-mono font-bold text-gold-500 uppercase tracking-widest">Template Source Editor</p>
+                <textarea
+                  className="input min-h-[220px] bg-navy-950 text-xs font-mono leading-relaxed"
+                  value={editableBody}
+                  onChange={(e) => setEditableBody(e.target.value)}
+                />
+                <div className="text-[11px] leading-relaxed whitespace-pre-wrap font-mono text-text-secondary max-h-[18vh] overflow-y-auto pr-1 border-t border-gold-500/10 pt-3">
+                  {highlightSyntax(editableBody)}
                 </div>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   FolderOpen, FileText, MessageSquare, Activity, Plus, Search,
@@ -123,6 +123,7 @@ function HearingCountdown({ date }: { date: string }) {
 
 export default function Dashboard() {
   const { user } = useAuthStore()
+  const navigate = useNavigate()
   const showGlobalAudit = user ? canViewGlobalAudit(user.role) : false
 
   const statsQuery = useQuery({
@@ -154,36 +155,18 @@ export default function Dashboard() {
     title: string
     caseType: string
     documentCount: number
-    status: 'INTAKE' | 'ACTIVE' | 'IN_REVIEW' | 'CLOSED'
+    status: 'ACTIVE' | 'CLOSED' | 'ARCHIVED'
   }>>([])
 
-  // Load backend cases into Kanban and add beautiful mocks to make it look full
+  // Load backend cases into Kanban. No decorative mock cases: every card must be real.
   useEffect(() => {
-    if (casesList.length > 0) {
-      const parsed = casesList.map((c, i) => {
-        let col: 'INTAKE' | 'ACTIVE' | 'IN_REVIEW' | 'CLOSED' = 'ACTIVE'
-        if (c.status === 'CLOSED') col = 'CLOSED'
-        if (i % 3 === 0) col = 'IN_REVIEW'
-        if (i % 4 === 0) col = 'INTAKE'
-
-        return {
-          id: c.id,
-          title: c.title,
-          caseType: c.caseType || 'General Litigation',
-          documentCount: c.documentCount || 0,
-          status: col
-        }
-      })
-      setKanbanMatters(parsed)
-    } else {
-      // Mock cases if backend is empty to keep it beautiful
-      setKanbanMatters([
-        { id: 'c-1', title: 'Sterling Class Action Defense', caseType: 'Corporate Law', documentCount: 12, status: 'ACTIVE' },
-        { id: 'c-2', title: 'Vance Intellectual Property Dispute', caseType: 'IP Infringement', documentCount: 5, status: 'IN_REVIEW' },
-        { id: 'c-3', title: 'Beacon Energy Regulatory Filings', caseType: 'Compliance', documentCount: 22, status: 'INTAKE' },
-        { id: 'c-4', title: 'State vs. Arthur Pendelton', caseType: 'Criminal Law', documentCount: 8, status: 'CLOSED' },
-      ])
-    }
+    setKanbanMatters(casesList.map((c) => ({
+      id: c.id,
+      title: c.title,
+      caseType: c.caseType || 'General Litigation',
+      documentCount: c.documentCount || 0,
+      status: (c.status === 'CLOSED' || c.status === 'ARCHIVED') ? c.status : 'ACTIVE',
+    })))
   }, [casesQuery.data])
 
   // Drag and Drop handlers
@@ -199,29 +182,51 @@ export default function Dashboard() {
     setDragOverCol(col)
   }
 
-  const handleDrop = (col: 'INTAKE' | 'ACTIVE' | 'IN_REVIEW' | 'CLOSED') => {
+  const handleDrop = async (col: 'ACTIVE' | 'CLOSED' | 'ARCHIVED') => {
     if (!draggedId) return
-    setKanbanMatters((prev) =>
-      prev.map((item) => (item.id === draggedId ? { ...item, status: col } : item))
-    )
+    const previous = kanbanMatters
+    const target = kanbanMatters.find((item) => item.id === draggedId)
+    if (!target || target.status === col) {
+      setDraggedId(null)
+      setDragOverCol(null)
+      return
+    }
+    setKanbanMatters((prev) => prev.map((item) => (item.id === draggedId ? { ...item, status: col } : item)))
     setDraggedId(null)
     setDragOverCol(null)
-    toast.success('Case pipeline updated')
+    try {
+      await api.patch(`/cases/${target.id}/status`, { status: col })
+      await casesQuery.refetch()
+      toast.success(col === 'CLOSED' ? 'Case closed and persisted' : 'Case status updated')
+    } catch (e: any) {
+      setKanbanMatters(previous)
+      toast.error(e.response?.data?.detail ?? 'Could not persist case status')
+    }
   }
 
-  // Deadlines Timeline Mock
-  const deadlines = [
-    { title: 'Evidentiary Motion Filing', detail: 'Sterling Class Action Defense', date: 'June 12, 2026', time: '5:00 PM' },
-    { title: 'Discovery File Auditing Cutoff', detail: 'Beacon Compliance Check', date: 'June 18, 2026', time: '12:00 PM' },
-    { title: 'Initial Scheduling Conference', detail: 'Vance Patent Infringement Case', date: 'July 02, 2026', time: '9:30 AM' }
-  ]
+  // Deadlines from backend (or fallback when not loaded yet)
+  interface DeadlineItem { id: string; title: string; description: string; deadlineType: string; deadlineDate: number; caseId: string }
+  const rawDeadlines: DeadlineItem[] = lawyerQuery.data?.upcomingDeadlines ?? []
+  const deadlines = rawDeadlines.length > 0
+    ? rawDeadlines.map((d) => {
+        const dt = new Date(d.deadlineDate)
+        return {
+          title: d.title,
+          detail: d.description ?? d.deadlineType.replace(/_/g, ' '),
+          date: dt.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+          time: dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        }
+      })
+    : [
+        { title: 'Awaiting deadline data…', detail: 'No deadlines found or backend loading', date: '—', time: '—' },
+      ]
 
   // KPI card configs
   const kpis = [
-    { label: 'Active Cases', value: stats.activeCases || 6, icon: <FolderOpen className="w-5 h-5 text-gold-400" />, trend: [2, 4, 3, 5, 4, 6] },
-    { label: 'Documents', value: stats.totalDocuments || 45, icon: <FileText className="w-5 h-5 text-gold-400" />, trend: [10, 20, 15, 30, 28, 45] },
-    { label: 'Hearings Bound', value: nextHearing ? 1 : 2, icon: <Calendar className="w-5 h-5 text-gold-400" />, trend: [0, 1, 1, 2, 1, 2] },
-    { label: 'Secure Messages', value: stats.unreadMessages || 3, icon: <MessageSquare className="w-5 h-5 text-gold-400" />, trend: [5, 4, 6, 3, 2, 3] }
+    { label: 'Active Cases', value: stats.activeCases, help: 'Open matters assigned to your firm or role-safe case scope.', icon: <FolderOpen className="w-5 h-5 text-gold-400" />, trend: [2, 4, 3, 5, 4, Math.max(stats.activeCases, 0)] },
+    { label: 'Documents', value: stats.totalDocuments, help: 'Encrypted documents currently visible to your account.', icon: <FileText className="w-5 h-5 text-gold-400" />, trend: [10, 20, 15, 30, 28, Math.max(stats.totalDocuments, 0)] },
+    { label: 'Hearings Bound', value: nextHearing ? 1 : 0, help: 'Your next scheduled hearing from the live hearings service.', icon: <Calendar className="w-5 h-5 text-gold-400" />, trend: [0, 1, 1, 0, 1, nextHearing ? 1 : 0] },
+    { label: 'Secure Messages', value: stats.unreadMessages, help: 'Unread encrypted client or team messages.', icon: <MessageSquare className="w-5 h-5 text-gold-400" />, trend: [5, 4, 6, 3, 2, Math.max(stats.unreadMessages, 0)] }
   ]
 
   return (
@@ -249,6 +254,7 @@ export default function Dashboard() {
       {/* 4 KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k, i) => (
+          <Tooltip key={k.label} content={k.help} side="bottom" className="block">
           <div
             key={k.label}
             className="card relative border-t-2 border-t-gold-500 overflow-hidden bg-navy-900/60 p-5 backdrop-blur-md shadow-card hover:shadow-gold-sm hover:-translate-y-0.5 transition-all duration-300"
@@ -274,6 +280,7 @@ export default function Dashboard() {
               <Sparkline data={k.trend} />
             </div>
           </div>
+          </Tooltip>
         ))}
       </div>
 
@@ -285,7 +292,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-serif text-2xl font-bold text-gold-300">Case Matter Pipeline</h2>
-              <p className="text-xs text-text-secondary mt-1">Drag and drop cards to adjust evidentiary states.</p>
+              <p className="text-xs text-text-secondary mt-1">Drag cards to persist Active, Closed, or Archived case status.</p>
             </div>
             <Link to="/cases" className="inline-flex items-center gap-1 text-xs font-bold text-gold-400 hover:text-gold-300 tracking-wider uppercase">
               Matters List <ChevronRight className="w-3.5 h-3.5" />
@@ -293,7 +300,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            {(['INTAKE', 'ACTIVE', 'IN_REVIEW', 'CLOSED'] as const).map((col) => {
+            {(['ACTIVE', 'CLOSED', 'ARCHIVED'] as const).map((col) => {
               const columnMatters = kanbanMatters.filter((x) => x.status === col)
               const isOver = dragOverCol === col
               return (
@@ -317,18 +324,20 @@ export default function Dashboard() {
                   <div className="space-y-3 flex-1 overflow-y-auto max-h-[400px] scrollbar-thin">
                     <AnimatePresence>
                       {columnMatters.map((matter) => (
-                        <div
+                        <button
+                          type="button"
                           key={matter.id}
                           draggable
                           onDragStart={() => handleDragStart(matter.id)}
-                          className="bg-navy-950 border border-gold-500/10 rounded-xl p-3.5 shadow-card hover:border-gold-500/30 cursor-grab active:cursor-grabbing transition-all hover:scale-[1.01]"
+                          onClick={() => navigate(`/cases/${matter.id}`)}
+                          className="w-full text-left bg-navy-950 border border-gold-500/10 rounded-xl p-3.5 shadow-card hover:border-gold-500/30 cursor-grab active:cursor-grabbing transition-all hover:scale-[1.01]"
                         >
                           <p className="font-serif text-xs font-bold text-gold-300 line-clamp-2">{matter.title}</p>
                           <div className="flex items-center justify-between text-[9px] text-text-secondary font-mono mt-3 pt-2 border-t border-gold-500/5">
                             <span>{matter.caseType}</span>
                             <span className="bg-gold-500/10 px-1 rounded text-gold-400">{matter.documentCount} D</span>
                           </div>
-                        </div>
+                        </button>
                       ))}
                     </AnimatePresence>
                     {columnMatters.length === 0 && (

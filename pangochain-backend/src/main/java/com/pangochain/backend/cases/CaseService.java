@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -74,12 +75,12 @@ public class CaseService {
 
     @Transactional(readOnly = true)
     public Page<CaseDto> listByFirm(UUID firmId, CaseStatus status, String q, int page, int size) {
-        PageRequest pageable = PageRequest.of(page, size);
+        PageRequest pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
         Page<Case> cases = (q != null && !q.isBlank())
                 ? caseRepository.searchByFirm(firmId, status, q, pageable)
                 : (status != null ? caseRepository.findByFirmIdAndStatus(firmId, status, pageable)
                         : caseRepository.findByFirmId(firmId, pageable));
-        return cases.map(c -> toDto(c, documentRepository.countByLegalCaseIdAndStatus(c.getId(), com.pangochain.backend.document.DocStatus.ACTIVE)));
+        return cases.map(c -> toDto(c, -1L));
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +99,19 @@ public class CaseService {
         c.setClosedAt(Instant.now());
         c = caseRepository.save(c);
         auditService.log("CASE_CLOSED", closer.getId(), "CASE", caseId.toString(), null, null);
+        return toDto(c, documentRepository.countByLegalCaseIdAndStatus(caseId, com.pangochain.backend.document.DocStatus.ACTIVE));
+    }
+
+    @Transactional
+    public CaseDto updateStatus(UUID caseId, CaseStatus status, User updater) {
+        Case c = caseRepository.findById(caseId)
+                .orElseThrow(() -> new IllegalArgumentException("Case not found: " + caseId));
+        CaseStatus previous = c.getStatus();
+        c.setStatus(status);
+        c.setClosedAt(status == CaseStatus.CLOSED ? Instant.now() : null);
+        c = caseRepository.save(c);
+        auditService.log("CASE_STATUS_UPDATED", updater.getId(), "CASE", caseId.toString(), c.getFabricTxId(),
+                toJson(Map.of("from", previous.name(), "to", status.name())));
         return toDto(c, documentRepository.countByLegalCaseIdAndStatus(caseId, com.pangochain.backend.document.DocStatus.ACTIVE));
     }
 

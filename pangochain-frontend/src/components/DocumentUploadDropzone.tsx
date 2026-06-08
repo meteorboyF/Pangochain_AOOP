@@ -19,6 +19,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
   const { user } = useAuthStore()
   const [file, setFile] = useState<File | null>(null)
   const [category, setCategory] = useState('GENERAL')
+  const [confidential, setConfidential] = useState(false)
   const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
   const [stage, setStage] = useState<Stage>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -93,6 +94,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
         wrappedKeyTokenForOwner: wrappedKeyToken,
         previousVersionId: previousVersionId ?? null,
         category,
+        confidential,
       })
 
       setStage('done')
@@ -189,6 +191,19 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
                 </div>
               )}
             </div>
+          )}
+
+          {file && stage === 'idle' && (
+            <label className="flex items-center gap-3 bg-red-950/20 border border-red-500/25 rounded-xl px-4 py-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={confidential}
+                onChange={(e) => setConfidential(e.target.checked)}
+                className="w-4 h-4 accent-red-600 cursor-pointer"
+              />
+              <span className="text-sm font-semibold text-rose-300">Mark as confidential</span>
+              <Shield className="w-4 h-4 text-rose-400 ml-auto shrink-0" />
+            </label>
           )}
 
           {/* Progress */}

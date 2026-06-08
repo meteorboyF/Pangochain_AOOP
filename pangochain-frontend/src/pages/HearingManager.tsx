@@ -36,6 +36,7 @@ export default function HearingManager() {
   const [caseId, setCaseId] = useState('')
   const [title, setTitle] = useState('')
   const [hearingDate, setHearingDate] = useState('')
+  const [hearingTime, setHearingTime] = useState('09:00')
   const [location, setLocation] = useState('')
   const [courtName, setCourtName] = useState('')
   const [hearingType, setHearingType] = useState('COURT_HEARING')
@@ -63,13 +64,13 @@ export default function HearingManager() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!caseId || !title || !hearingDate) return
+    if (!caseId || !title || !hearingDate || !hearingTime) return
     setSubmitting(true)
     try {
       await api.post('/hearings', {
         caseId,
         title,
-        hearingDate: new Date(hearingDate).toISOString(),
+        hearingDate: new Date(`${hearingDate}T${hearingTime}`).toISOString(),
         location: location || null,
         courtName: courtName || null,
         hearingType,
@@ -78,7 +79,7 @@ export default function HearingManager() {
       toast.success('Hearing scheduled')
       refreshHearings()
       setShowForm(false)
-      setTitle(''); setHearingDate(''); setLocation(''); setCourtName(''); setNotes('')
+      setTitle(''); setHearingDate(''); setHearingTime('09:00'); setLocation(''); setCourtName(''); setNotes('')
     } catch (e: any) {
       toast.error(e.response?.data?.detail ?? 'Failed to schedule hearing')
     } finally {
@@ -161,9 +162,16 @@ export default function HearingManager() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="label">Date & Time *</label>
-                <input type="datetime-local" className="input text-text-primary" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
+                <label className="label">Date *</label>
+                <input type="date" className="input text-text-primary" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
               </div>
+              <div>
+                <label className="label">Time *</label>
+                <input type="time" className="input text-text-primary" value={hearingTime} onChange={(e) => setHearingTime(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Court Name</label>
                 <input className="input" placeholder="e.g. Superior Court of California" value={courtName} onChange={(e) => setCourtName(e.target.value)} />
