@@ -1,3 +1,12 @@
+function withOpacity(variableName) {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `rgba(var(${variableName}), ${opacityValue})`
+    }
+    return `rgb(var(${variableName}))`
+  }
+}
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -5,55 +14,55 @@ export default {
     extend: {
       colors: {
         navy: {
-          950: 'var(--color-navy-950)',
-          900: 'var(--color-navy-900)',
-          800: 'var(--color-navy-800)',
+          950: withOpacity('--color-navy-950-rgb'),
+          900: withOpacity('--color-navy-900-rgb'),
+          800: withOpacity('--color-navy-800-rgb'),
         },
         gold: {
-          300: 'var(--color-gold-300)',
-          400: 'var(--color-gold-400)',
-          500: 'var(--color-gold-500)',
-          600: 'var(--color-gold-600)',
+          300: withOpacity('--color-gold-300-rgb'),
+          400: withOpacity('--color-gold-400-rgb'),
+          500: withOpacity('--color-gold-500-rgb'),
+          600: withOpacity('--color-gold-600-rgb'),
         },
         slate: {
-          750: 'var(--color-slate-750)',
-          800: 'var(--color-slate-800)',
+          750: withOpacity('--color-slate-750-rgb'),
+          800: withOpacity('--color-slate-800-rgb'),
         },
         // Preserve some core semantic aliases but map them beautifully
         primary: {
-          DEFAULT: 'var(--color-primary-default)',
-          50: 'var(--color-primary-50)',
-          100: 'var(--color-primary-100)',
-          500: 'var(--color-primary-500)',
-          600: 'var(--color-primary-600)',
-          900: 'var(--color-primary-900)',
+          DEFAULT: withOpacity('--color-primary-default-rgb'),
+          50: withOpacity('--color-primary-50-rgb'),
+          100: withOpacity('--color-primary-100-rgb'),
+          500: withOpacity('--color-primary-500-rgb'),
+          600: withOpacity('--color-primary-600-rgb'),
+          900: withOpacity('--color-primary-900-rgb'),
         },
-        accent: 'var(--color-accent)',
+        accent: withOpacity('--color-accent-rgb'),
         surface: {
-          DEFAULT: 'var(--color-surface-default)',
-          card: 'var(--color-surface-card)',
-          muted: 'var(--color-surface-muted)',
+          DEFAULT: withOpacity('--color-surface-default-rgb'),
+          card: withOpacity('--color-surface-card-rgb'),
+          muted: withOpacity('--color-surface-muted-rgb'),
         },
         text: {
-          primary: 'var(--color-text-primary)',
-          secondary: 'var(--color-text-secondary)',
-          muted: 'var(--color-text-muted)',
+          primary: withOpacity('--color-text-primary-rgb'),
+          secondary: withOpacity('--color-text-secondary-rgb'),
+          muted: withOpacity('--color-text-muted-rgb'),
         },
         border: 'var(--color-border)',
-        success: 'var(--color-success)',
-        warning: 'var(--color-warning)',
-        error: 'var(--color-error)',
+        success: withOpacity('--color-success-rgb'),
+        warning: withOpacity('--color-warning-rgb'),
+        error: withOpacity('--color-error-rgb'),
         
         // Map emerald and rose utility color families to adjust nicely on light/dark mode
         emerald: {
-          400: 'var(--color-emerald-400)',
-          500: 'var(--color-emerald-500)',
-          600: 'var(--color-emerald-600)',
+          400: withOpacity('--color-emerald-400-rgb'),
+          500: withOpacity('--color-emerald-500-rgb'),
+          600: withOpacity('--color-emerald-600-rgb'),
         },
         rose: {
-          300: 'var(--color-rose-300)',
-          400: 'var(--color-rose-400)',
-          500: 'var(--color-rose-500)',
+          300: withOpacity('--color-rose-300-rgb'),
+          400: withOpacity('--color-rose-400-rgb'),
+          500: withOpacity('--color-rose-500-rgb'),
         },
       },
       fontFamily: {

@@ -3,47 +3,49 @@
 @tailwind utilities;
 
 :root {
-  --color-navy-950: #050A18;
-  --color-navy-900: #080E20;
-  --color-navy-800: #0D1526;
+  --color-navy-950-rgb: 5, 10, 24;
+  --color-navy-900-rgb: 8, 14, 32;
+  --color-navy-800-rgb: 13, 21, 38;
   
-  --color-gold-300: #E8D5A3;
-  --color-gold-400: #D4B96A;
-  --color-gold-500: #C9A84C;
-  --color-gold-600: #A8893C;
+  --color-gold-300-rgb: 232, 213, 163;
+  --color-gold-400-rgb: 212, 185, 106;
+  --color-gold-500-rgb: 201, 168, 76;
+  --color-gold-600-rgb: 168, 137, 60;
 
-  --color-slate-750: #1E2A3A;
-  --color-slate-800: #162030;
+  --color-slate-750-rgb: 30, 42, 58;
+  --color-slate-800-rgb: 22, 32, 48;
 
-  --color-primary-default: #C9A84C;
-  --color-primary-50: #0D1526;
-  --color-primary-100: #1E2A3A;
-  --color-primary-500: #C9A84C;
-  --color-primary-600: #A8893C;
-  --color-primary-900: #050A18;
+  --color-primary-default-rgb: 201, 168, 76;
+  --color-primary-50-rgb: 13, 21, 38;
+  --color-primary-100-rgb: 30, 42, 58;
+  --color-primary-500-rgb: 201, 168, 76;
+  --color-primary-600-rgb: 168, 137, 60;
+  --color-primary-900-rgb: 5, 10, 24;
 
-  --color-accent: #C9A84C;
+  --color-accent-rgb: 201, 168, 76;
 
-  --color-surface-default: #050A18;
-  --color-surface-card: #080E20;
-  --color-surface-muted: #0D1526;
+  --color-surface-default-rgb: 5, 10, 24;
+  --color-surface-card-rgb: 8, 14, 32;
+  --color-surface-muted-rgb: 13, 21, 38;
 
-  --color-text-primary: #F5F0E8;
-  --color-text-secondary: #8A9BB0;
-  --color-text-muted: #64748B;
+  --color-text-primary-rgb: 245, 240, 232;
+  --color-text-secondary-rgb: 138, 155, 176;
+  --color-text-muted-rgb: 100, 116, 139;
 
   --color-border: rgba(201, 168, 76, 0.15);
-  --color-success: #1A5C4A;
-  --color-warning: #C9A84C;
-  --color-error: #8B1A1A;
+  --color-border-rgb: 201, 168, 76;
+  
+  --color-success-rgb: 26, 92, 74;
+  --color-warning-rgb: 201, 168, 76;
+  --color-error-rgb: 139, 26, 26;
 
-  --color-emerald-400: #34d399;
-  --color-emerald-500: #10b981;
-  --color-emerald-600: #059669;
+  --color-emerald-400-rgb: 52, 211, 153;
+  --color-emerald-500-rgb: 16, 185, 129;
+  --color-emerald-600-rgb: 5, 150, 105;
 
-  --color-rose-300: #fda4af;
-  --color-rose-400: #fb7185;
-  --color-rose-500: #f43f5e;
+  --color-rose-300-rgb: 253, 164, 175;
+  --color-rose-400-rgb: 251, 113, 133;
+  --color-rose-500-rgb: 244, 63, 94;
 
   /* Custom radial layers & gradients */
   --radial-at-0: rgba(13, 21, 38, 0.65);
@@ -57,48 +59,50 @@
   --glass-glow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-:root.light {
-  --color-navy-950: #FAF8F5;
-  --color-navy-900: #FFFFFF;
-  --color-navy-800: #F3EFE9;
+.light {
+  --color-navy-950-rgb: 250, 248, 245;
+  --color-navy-900-rgb: 255, 255, 255;
+  --color-navy-800-rgb: 243, 239, 233;
   
-  --color-gold-300: #8E702A;
-  --color-gold-400: #A8893C;
-  --color-gold-500: #C9A84C;
-  --color-gold-600: #D4B96A;
+  --color-gold-300-rgb: 142, 112, 42;
+  --color-gold-400-rgb: 168, 137, 60;
+  --color-gold-500-rgb: 201, 168, 76;
+  --color-gold-600-rgb: 212, 185, 106;
 
-  --color-slate-750: #E2E8F0;
-  --color-slate-800: #F1F5F9;
+  --color-slate-750-rgb: 226, 232, 240;
+  --color-slate-800-rgb: 241, 245, 249;
 
-  --color-primary-default: #C9A84C;
-  --color-primary-50: #FAF8F5;
-  --color-primary-100: #F3EFE9;
-  --color-primary-500: #C9A84C;
-  --color-primary-600: #A8893C;
-  --color-primary-900: #FAF8F5;
+  --color-primary-default-rgb: 201, 168, 76;
+  --color-primary-50-rgb: 250, 248, 245;
+  --color-primary-100-rgb: 243, 239, 233;
+  --color-primary-500-rgb: 201, 168, 76;
+  --color-primary-600-rgb: 168, 137, 60;
+  --color-primary-900-rgb: 250, 248, 245;
 
-  --color-accent: #C9A84C;
+  --color-accent-rgb: 201, 168, 76;
 
-  --color-surface-default: #FAF8F5;
-  --color-surface-card: #FFFFFF;
-  --color-surface-muted: #F3EFE9;
+  --color-surface-default-rgb: 250, 248, 245;
+  --color-surface-card-rgb: 255, 255, 255;
+  --color-surface-muted-rgb: 243, 239, 233;
 
-  --color-text-primary: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-muted: #94A3B8;
+  --color-text-primary-rgb: 15, 23, 42;
+  --color-text-secondary-rgb: 71, 85, 105;
+  --color-text-muted-rgb: 148, 163, 184;
 
   --color-border: rgba(201, 168, 76, 0.22);
-  --color-success: #10B981;
-  --color-warning: #F59E0B;
-  --color-error: #EF4444;
+  --color-border-rgb: 201, 168, 76;
+  
+  --color-success-rgb: 16, 185, 129;
+  --color-warning-rgb: 245, 158, 11;
+  --color-error-rgb: 239, 68, 68;
 
-  --color-emerald-400: #047857;
-  --color-emerald-500: #065f46;
-  --color-emerald-600: #064e3b;
+  --color-emerald-400-rgb: 4, 120, 87;
+  --color-emerald-500-rgb: 6, 95, 70;
+  --color-emerald-600-rgb: 6, 78, 59;
 
-  --color-rose-300: #be123c;
-  --color-rose-400: #9f1239;
-  --color-rose-500: #881337;
+  --color-rose-300-rgb: 190, 18, 60;
+  --color-rose-400-rgb: 159, 18, 57;
+  --color-rose-500-rgb: 136, 19, 55;
 
   /* Custom radial layers & gradients */
   --radial-at-0: rgba(201, 168, 76, 0.06);
@@ -119,7 +123,6 @@
 
   body {
     @apply bg-navy-950 text-text-primary font-sans antialiased;
-    background-color: var(--color-navy-950);
     background-image: 
       radial-gradient(at 0% 0%, var(--radial-at-0) 0px, transparent 50%),
       radial-gradient(at 50% 0%, var(--radial-at-50) 0px, transparent 50%),
