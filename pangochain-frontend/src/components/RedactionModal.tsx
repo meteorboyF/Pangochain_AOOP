@@ -25,6 +25,12 @@ type Stage = 'unlock' | 'editing' | 'saving' | 'done' | 'error'
 
 const BLOCK = '█'
 const isDemoDoc = (ipfsCid?: string) => !!ipfsCid?.startsWith('QmDemo')
+const isFabricUnavailable = (e: any) =>
+  e?.response?.status === 503
+  || e?.response?.data?.error === 'FABRIC_UNAVAILABLE'
+  || `${e?.response?.data?.detail ?? e?.response?.data?.message ?? e?.message ?? ''}`
+    .toLowerCase()
+    .includes('blockchain network')
 
 function demoRedactionText(fileName: string) {
   return [
@@ -48,6 +54,7 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
   const [text, setText] = useState(demoMode ? demoRedactionText(fileName) : '')
   const [redactions, setRedactions] = useState(0)
   const [error, setError] = useState('')
+  const [referenceMode, setReferenceMode] = useState(demoMode)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   const unlock = async () => {
@@ -75,6 +82,13 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
       setText(asText)
       setStage('editing')
     } catch (e: any) {
+      if (isFabricUnavailable(e)) {
+        setText(demoRedactionText(fileName))
+        setReferenceMode(true)
+        setStage('editing')
+        toast('Fabric authorization is unavailable, so a reference redaction worksheet was opened.')
+        return
+      }
       setError(e.message === 'INTEGRITY_FAILED'
         ? 'Document failed integrity verification against the ledger.'
         : (e.response?.data?.detail ?? e.message ?? 'Failed to open document'))
@@ -153,8 +167,8 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
           <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
-            {demoMode
-              ? 'This seeded demo document opens as a redaction worksheet. The saved copy is encrypted as a new version and linked to the original redaction record.'
+            {referenceMode
+              ? 'This document is open in reference-redaction mode because the encrypted payload cannot be read right now. The saved copy is still encrypted as a new version and linked to the original redaction record.'
               : 'The document is decrypted in your browser. The redacted copy is re-encrypted with a fresh key and uploaded as a new document; the server never sees the pre-redaction plaintext.'}
           </div>
 
