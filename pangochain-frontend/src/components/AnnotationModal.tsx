@@ -103,46 +103,58 @@ export function AnnotationModal({ docId, fileName, versionHash, onClose }: Props
   }, [annotations])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-lg max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2 min-w-0">
-            <MessageCircle className="w-5 h-5 text-[#1d6464] shrink-0" />
+            <MessageCircle className="w-5 h-5 text-gold-500 shrink-0" />
             <div className="min-w-0">
-              <h2 className="font-heading font-semibold text-text-primary truncate">Annotations</h2>
-              <p className="text-xs text-text-muted truncate">{fileName}</p>
+              <h2 className="font-serif font-semibold text-lg text-gold-300 truncate">Annotations</h2>
+              <p className="text-xs text-text-secondary truncate">{fileName}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className={`flex items-center gap-1 text-[10px] font-semibold ${connected ? 'text-success' : 'text-text-muted'}`}>
-              {connected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
+            <span className={`flex items-center gap-1 text-[10px] font-semibold ${connected ? 'text-emerald-400' : 'text-text-secondary'}`}>
+              {connected ? <Wifi className="w-3.5 h-3.5 text-emerald-400" /> : <WifiOff className="w-3.5 h-3.5 text-text-muted" />}
               {connected ? 'Live' : 'Offline'}
             </span>
-            <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
+            <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
           {loading ? (
-            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" /></div>
+            <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-gold-500" /></div>
           ) : threads.length === 0 ? (
-            <p className="text-text-muted text-sm text-center py-6">No annotations yet. Start the discussion below.</p>
+            <p className="text-text-secondary text-sm text-center py-6">No annotations yet. Start the discussion below.</p>
           ) : (
             threads.map(({ root, replies }) => (
-              <div key={root.id} className={`border rounded-xl p-3 ${root.status === 'RESOLVED' ? 'border-border bg-surface-muted/40' : 'border-[#1d6464]/20'}`}>
+              <div key={root.id} className={`border rounded-xl p-3.5 transition-all ${
+                root.status === 'RESOLVED' 
+                  ? 'border-gold-500/10 bg-navy-950/20 opacity-70' 
+                  : 'border-gold-500/20 bg-navy-950/40 shadow-gold-sm'
+              }`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-text-primary">{root.authorName}</p>
-                    <p className="text-sm text-text-secondary whitespace-pre-wrap break-words">{root.body}</p>
+                    <p className="text-sm text-text-secondary mt-0.5 whitespace-pre-wrap break-words">{root.body}</p>
                   </div>
-                  {root.status === 'RESOLVED'
-                    ? <span className="flex items-center gap-1 text-[10px] font-bold text-success shrink-0"><CheckCircle2 className="w-3.5 h-3.5" /> RESOLVED</span>
-                    : <button onClick={() => resolve(root.id)} className="flex items-center gap-1 text-[10px] font-semibold text-text-muted hover:text-success shrink-0"><Circle className="w-3.5 h-3.5" /> Resolve</button>}
+                  {root.status === 'RESOLVED' ? (
+                    <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-success/15 border border-success/30 px-1.5 py-0.5 rounded shrink-0">
+                      <CheckCircle2 className="w-3 h-3" /> RESOLVED
+                    </span>
+                  ) : (
+                    <button onClick={() => resolve(root.id)} className="flex items-center gap-1 text-[10px] font-semibold text-text-muted hover:text-emerald-400 transition-colors shrink-0">
+                      <Circle className="w-3 h-3" /> Resolve
+                    </button>
+                  )}
                 </div>
 
                 {replies.map((r) => (
-                  <div key={r.id} className="mt-2 ml-3 pl-3 border-l-2 border-border flex items-start gap-1.5">
-                    <CornerDownRight className="w-3.5 h-3.5 text-text-muted mt-0.5 shrink-0" />
+                  <div key={r.id} className="mt-2.5 ml-3 pl-3 border-l border-gold-500/10 flex items-start gap-1.5">
+                    <CornerDownRight className="w-3.5 h-3.5 text-gold-500/30 mt-0.5 shrink-0" />
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-text-primary">{r.authorName}</p>
                       <p className="text-sm text-text-secondary whitespace-pre-wrap break-words">{r.body}</p>
@@ -151,18 +163,18 @@ export function AnnotationModal({ docId, fileName, versionHash, onClose }: Props
                 ))}
 
                 {root.status !== 'RESOLVED' && (
-                  <button onClick={() => setReplyTo(root)} className="mt-2 text-[11px] text-[#1d6464] hover:underline">Reply</button>
+                  <button onClick={() => setReplyTo(root)} className="mt-2 text-[10px] text-gold-400 hover:text-gold-300 font-semibold transition-colors">Reply</button>
                 )}
               </div>
             ))
           )}
         </div>
 
-        <div className="border-t border-border p-4 space-y-2">
+        <div className="border-t border-gold-500/10 p-4 space-y-2 bg-navy-950/20">
           {replyTo && (
-            <div className="flex items-center justify-between text-xs text-text-muted bg-surface-muted rounded-lg px-2.5 py-1.5">
+            <div className="flex items-center justify-between text-xs text-text-secondary bg-navy-950 border border-gold-500/10 rounded-lg px-2.5 py-1.5">
               <span className="truncate">Replying to {replyTo.authorName}</span>
-              <button onClick={() => setReplyTo(null)}><X className="w-3.5 h-3.5" /></button>
+              <button onClick={() => setReplyTo(null)} className="text-text-muted hover:text-text-primary"><X className="w-3.5 h-3.5" /></button>
             </div>
           )}
           <div className="flex gap-2">
@@ -173,11 +185,11 @@ export function AnnotationModal({ docId, fileName, versionHash, onClose }: Props
               onChange={(e) => setBody(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) send() }}
             />
-            <button onClick={send} disabled={sending || !body.trim()} className="btn-primary px-4 self-end disabled:opacity-50">
-              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            <button onClick={send} disabled={sending || !body.trim()} className="btn-primary px-4 self-end py-3 disabled:opacity-50">
+              {sending ? <Loader2 className="w-4 h-4 animate-spin text-navy-950" /> : <Send className="w-4 h-4" />}
             </button>
           </div>
-          <p className="text-[10px] text-text-muted">Comments are anchored to this document version and visible live to the case team.</p>
+          <p className="text-[9px] text-text-secondary leading-normal">Comments are anchored to this document version and visible live to the case team.</p>
         </div>
       </div>
     </div>

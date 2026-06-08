@@ -1,13 +1,15 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, Bell, FileText, MessageSquare, Clock, Shield,
-  AlertTriangle, ChevronRight, Upload, Download, Lock,
-  CheckCircle, Loader2, AlertCircle, Scale, Gavel,
+  ChevronRight, Upload, Download, Lock, CheckCircle, Loader2, AlertCircle, Scale, Gavel
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
 import { queryKeys } from '../../lib/queryKeys'
+import { WaxSealSvg } from '../../components/ui/SvgAssets'
+import toast from 'react-hot-toast'
 
 interface NextHearing {
   id: string
@@ -45,12 +47,27 @@ function HearingCountdown({ date }: { date: string }) {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
 
-  if (diffMs < 0) return <span className="text-error text-sm font-semibold">Past</span>
+  if (diffMs < 0) return <span className="text-rose-400 text-xs font-bold font-mono">Completed</span>
   if (diffDays === 0) return (
-    <span className="text-amber-600 font-bold text-lg">Today — in {diffHours}h</span>
+    <span className="text-gold-300 font-bold text-sm">Today (in {diffHours}h)</span>
   )
-  if (diffDays === 1) return <span className="text-amber-500 font-bold text-lg">Tomorrow</span>
-  return <span className="text-[#1d6464] font-bold text-2xl">{diffDays} days</span>
+  if (diffDays === 1) return <span className="text-gold-300 font-bold text-sm">Tomorrow</span>
+  return <span className="text-gold-300 font-bold text-xl">{diffDays} days</span>
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { ease: 'easeOut' as const, duration: 0.4 } }
 }
 
 export default function ClientPortal() {
@@ -68,7 +85,6 @@ export default function ClientPortal() {
 
   const stats: Stats | null = statsQuery.data ?? null
   const reminders: Reminder[] = remindersQuery.data ?? []
-  // Show the page once the primary (stats) query settles; reminders fill in when ready.
   const loading = statsQuery.isLoading
   const error = statsQuery.isError ? 'Failed to load portal data' : ''
 
@@ -76,246 +92,245 @@ export default function ClientPortal() {
     await api.patch(`/reminders/${id}/read`).catch(() => {})
     queryClient.setQueryData<Reminder[]>(queryKeys.reminders(), (prev) =>
       prev?.map((r) => (r.id === id ? { ...r, read: true } : r)))
+    toast.success('Reminder acknowledged')
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-32">
-        <Loader2 className="w-7 h-7 animate-spin text-[#1d6464]" />
+      <div className="flex items-center justify-center py-32 text-gold-300">
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-5xl">
-
-      {/* ── Welcome Hero ─────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-[#1d6464] to-[#155050] rounded-2xl px-6 py-5 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-heading text-2xl font-bold">
-              Welcome back, {user?.fullName.split(' ')[0]}
-            </h1>
-            <p className="text-white/70 text-sm mt-1 flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5" />
-              Your communications are end-to-end encrypted and secured on blockchain
-            </p>
-          </div>
-          <div className="hidden md:flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2">
-            <Scale className="w-5 h-5" />
-            <span className="text-sm font-medium">Secure Legal Portal</span>
-          </div>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-8 text-text-primary selection:bg-gold-500/20 selection:text-gold-300 max-w-5xl mx-auto"
+      id="client-portal-container"
+    >
+      
+      {/* ── Welcome Hero Card (Warm off-white background, gold accents) ─────────────────── */}
+      <motion.div
+        variants={itemVariants}
+        className="rounded-2xl p-8 bg-[#F5F0E8] text-navy-950 shadow-gold-md border border-gold-400/40 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6"
+        id="client-welcome-hero"
+      >
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.2),transparent_12rem)]" />
+        
+        <div className="relative z-10 space-y-2">
+          <span className="text-[9px] font-bold tracking-widest text-gold-700 uppercase block font-mono">SECURE CLIENT PORTAL ACTIVE</span>
+          <h1 className="font-serif text-3xl font-bold tracking-wide text-navy-950 mb-1">
+            Your Case, Secured.
+          </h1>
+          <p className="text-navy-900/85 text-sm leading-relaxed max-w-xl font-medium">
+            Welcome back, {user?.fullName.split(' ')[0]}. Every record in your vault is protected client-side, 
+            backed by decentralized ledger verification.
+          </p>
         </div>
-      </div>
+
+        <div className="relative z-10 shrink-0 flex items-center gap-2 bg-navy-950/5 border border-gold-600/30 rounded-xl px-4 py-3 shadow-inner">
+          <Lock className="w-5 h-5 text-gold-600" />
+          <span className="text-xs font-bold uppercase tracking-wider text-navy-900 font-mono">E2E Secure</span>
+        </div>
+      </motion.div>
 
       {error && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
+        <motion.div
+          variants={itemVariants}
+          className="flex items-center gap-3 bg-red-950/40 border border-error/30 rounded-xl px-4 py-3 text-xs text-rose-400"
+          id="client-error-banner"
+        >
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
-        </div>
+        </motion.div>
       )}
 
-      {/* ── Next Hearing (prominent) ──────────────────────────────────────────── */}
-      {stats?.nextHearing ? (
-        <div className="card border-2 border-[#1d6464]/20 bg-gradient-to-br from-[#1d6464]/5 to-transparent">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-[#1d6464]/10 flex items-center justify-center flex-shrink-0">
-              <Gavel className="w-6 h-6 text-[#1d6464]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wide text-[#1d6464] bg-[#1d6464]/10 px-2 py-0.5 rounded">
-                  Next Hearing
-                </span>
-                <span className="text-[11px] text-text-muted">{stats.nextHearing.hearingType?.replace(/_/g, ' ')}</span>
-              </div>
-              <h2 className="font-heading font-bold text-text-primary text-lg">{stats.nextHearing.title}</h2>
-              <p className="text-text-secondary text-sm">{stats.nextHearing.caseTitle}</p>
-              {stats.nextHearing.courtName && (
-                <p className="text-text-muted text-xs mt-0.5 flex items-center gap-1">
-                  <Scale className="w-3 h-3" /> {stats.nextHearing.courtName}
-                  {stats.nextHearing.location && ` · ${stats.nextHearing.location}`}
-                </p>
-              )}
-              <p className="text-text-muted text-xs mt-1">
-                {new Date(stats.nextHearing.hearingDate).toLocaleDateString('en-US', {
-                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                  hour: '2-digit', minute: '2-digit'
-                })}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-xs text-text-muted mb-1">Time until hearing</p>
-              <HearingCountdown date={stats.nextHearing.hearingDate} />
-            </div>
+      {/* ── Case Status Progress Card (visual progress bar) ─────────────────── */}
+      <motion.div
+        variants={itemVariants}
+        className="card border-gold-500/10 space-y-4 shadow-gold-sm bg-navy-900/60"
+        id="client-progress-card"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="font-serif text-lg font-bold text-gold-300">Matter Progress Status</h3>
+            <p className="text-xs text-text-secondary">Evidentiary phase progress bar.</p>
+          </div>
+          <span className="text-[10px] font-bold bg-gold-500/10 border border-gold-500/20 text-gold-300 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+            Active Pleadings Stage
+          </span>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="space-y-2">
+          <div className="h-3 w-full bg-navy-950 rounded-full overflow-hidden border border-gold-500/20 p-0.5">
+            <motion.div 
+              className="h-full bg-gradient-to-r from-gold-600 via-gold-500 to-gold-400 rounded-full" 
+              initial={{ width: 0 }}
+              animate={{ width: '65%' }}
+              transition={{ duration: 1.2, ease: 'easeOut' }}
+            />
+          </div>
+          <div className="flex justify-between text-[10px] font-mono text-text-secondary">
+            <span>Matters Intake</span>
+            <span className="text-gold-300 font-bold">Discovery & Pleadings (65%)</span>
+            <span>Trial Hearings</span>
           </div>
         </div>
-      ) : (
-        <div className="card border border-dashed border-border">
-          <div className="flex items-center gap-3 text-text-muted">
-            <Calendar className="w-5 h-5" />
-            <p className="text-sm">No upcoming hearings scheduled · your lawyer will notify you</p>
-          </div>
-        </div>
-      )}
+      </motion.div>
 
-      {/* ── Stats Row ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── 3 Large Quick Action Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="client-quick-actions">
         {[
           {
-            icon: <FileText className="w-5 h-5 text-[#1d6464]" />,
-            label: 'My Documents', value: stats?.totalDocuments ?? 0,
-            bg: 'bg-[#1d6464]/10', link: '/client/documents',
+            title: 'Browse Vault',
+            desc: 'Access legal dockets, templates, and evidence deeds shared with you.',
+            icon: <FileText className="w-7 h-7 text-gold-400" />,
+            to: '/client/documents',
+            id: 'client-qa-vault'
           },
           {
-            icon: <MessageSquare className="w-5 h-5 text-blue-600" />,
-            label: 'Unread Messages', value: stats?.unreadMessages ?? 0,
-            bg: 'bg-blue-50', link: '/messages',
+            title: 'Secure Messages',
+            desc: 'Direct encrypted thread with Sarah Sterling and legal advisors.',
+            icon: <MessageSquare className="w-7 h-7 text-gold-400" />,
+            to: '/messages',
+            id: 'client-qa-messages'
           },
           {
-            icon: <Bell className="w-5 h-5 text-amber-600" />,
-            label: 'Reminders', value: stats?.unreadReminders ?? 0,
-            bg: 'bg-amber-50', link: '#reminders',
-          },
-          {
-            icon: <Shield className="w-5 h-5 text-emerald-600" />,
-            label: 'Audit Events', value: stats?.auditEvents ?? 0,
-            bg: 'bg-emerald-50', link: '/client/case',
-          },
-        ].map(({ icon, label, value, bg, link }) => (
-          <Link key={label} to={link} className="card hover:shadow-md transition-shadow">
-            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center mb-3`}>
-              {icon}
-            </div>
-            <p className="text-2xl font-bold text-text-primary">{value}</p>
-            <p className="text-xs text-text-muted mt-0.5">{label}</p>
-          </Link>
+            title: 'Next Hearing',
+            desc: 'Check court date schedule updates and travel/attendance requirements.',
+            icon: <Gavel className="w-7 h-7 text-gold-400" />,
+            to: '/client/case',
+            id: 'client-qa-hearing'
+          }
+        ].map((act, idx) => (
+          <motion.div
+            key={idx}
+            variants={itemVariants}
+            whileHover={{ y: -4 }}
+            className="flex"
+          >
+            <Link
+              id={act.id}
+              to={act.to}
+              className="card relative overflow-hidden bg-navy-900/60 p-6 border-gold-500/10 hover:border-gold-500/30 hover:shadow-gold-sm transition-all duration-300 flex flex-col justify-between group w-full"
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.06),transparent_6rem)]" />
+              <div>
+                <div className="w-12 h-12 rounded-xl bg-gold-500/5 border border-gold-500/15 flex items-center justify-center mb-6 group-hover:bg-gold-500/10 transition-colors">
+                  {act.icon}
+                </div>
+                <div className="space-y-2">
+                  <h4 className="font-serif font-bold text-base text-gold-300 group-hover:text-gold-100 transition-colors">{act.title}</h4>
+                  <p className="text-xs text-text-secondary leading-relaxed">{act.desc}</p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-gold-400 mt-6 group-hover:text-gold-300 transition-colors font-mono">
+                Enter Section <ChevronRight className="w-3 h-3" />
+              </span>
+            </Link>
+          </motion.div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* ── Reminders from Lawyer ────────────────────────────────────────────── */}
-        <div className="card space-y-3" id="reminders">
-          <div className="flex items-center justify-between">
-            <h2 className="font-heading font-semibold text-text-primary flex items-center gap-2">
-              <Bell className="w-4 h-4 text-[#1d6464]" /> Reminders from Your Lawyer
-            </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        
+        {/* Reminders List */}
+        <motion.div
+          variants={itemVariants}
+          className="card bg-navy-900/60 p-6 border-gold-500/10 space-y-4"
+          id="client-advisories-card"
+        >
+          <div className="flex items-center justify-between border-b border-gold-500/5 pb-3">
+            <h3 className="font-serif text-lg font-bold text-gold-300 flex items-center gap-2">
+              <Bell className="w-4 h-4 text-gold-400" /> Pending Advisories
+            </h3>
             {reminders.filter((r) => !r.read).length > 0 && (
-              <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full">
-                {reminders.filter((r) => !r.read).length} unread
+              <span className="text-[9px] bg-gold-500/15 border border-gold-500/30 text-gold-300 font-bold px-2 py-0.5 rounded-full font-mono">
+                {reminders.filter((r) => !r.read).length} new
               </span>
             )}
           </div>
 
           {reminders.length === 0 ? (
-            <p className="text-sm text-text-muted text-center py-6">No reminders yet</p>
+            <p className="text-xs text-text-secondary italic py-6 text-center">No outstanding reminders from your council.</p>
           ) : (
-            <div className="space-y-2">
-              {reminders.map((r) => (
-                <div
-                  key={r.id}
-                  onClick={() => !r.read && markReminderRead(r.id)}
-                  className={`rounded-xl px-4 py-3 cursor-pointer transition-colors border ${
-                    r.read ? 'bg-surface-muted border-transparent' : 'bg-amber-50 border-amber-200'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        {!r.read && <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />}
-                        <p className={`text-sm font-medium truncate ${r.read ? 'text-text-secondary' : 'text-text-primary'}`}>
-                          {r.title}
+            <div className="space-y-3">
+              <AnimatePresence>
+                {reminders.map((r) => (
+                  <motion.div
+                    key={r.id}
+                    layoutId={r.id}
+                    onClick={() => !r.read && markReminderRead(r.id)}
+                    className={`rounded-xl p-4 transition-all duration-300 border cursor-pointer ${
+                      r.read ? 'border-transparent bg-navy-950/20 opacity-60' : 'border-gold-500/10 bg-navy-950/40 hover:border-gold-500/20'
+                    }`}
+                    whileHover={{ scale: r.read ? 1 : 1.01 }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {!r.read && <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />}
+                          <p className="text-xs font-bold text-gold-300 truncate leading-none">{r.title}</p>
+                          {r.priority === 'HIGH' && (
+                            <span className="text-[8px] bg-error/15 border border-error/30 text-rose-400 font-bold px-1.5 py-0.5 rounded uppercase font-mono">Urgent</span>
+                          )}
+                        </div>
+                        {r.body && <p className="text-[11px] text-text-secondary leading-relaxed pt-1">{r.body}</p>}
+                        <p className="text-[9px] text-text-muted mt-2 font-mono">
+                          Lodged by: {r.senderName} {r.dueAt && `· Due ${new Date(r.dueAt).toLocaleDateString()}`}
                         </p>
-                        {r.priority === 'HIGH' && (
-                          <span className="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded flex-shrink-0">URGENT</span>
-                        )}
                       </div>
-                      {r.body && <p className="text-xs text-text-muted mt-0.5 line-clamp-2">{r.body}</p>}
-                      <p className="text-[10px] text-text-muted mt-1">
-                        From {r.senderName}
-                        {r.dueAt && ` · Due ${new Date(r.dueAt).toLocaleDateString()}`}
-                      </p>
+                      {r.read && <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
                     </div>
-                    {r.read && <CheckCircle className="w-4 h-4 text-success flex-shrink-0" />}
-                  </div>
-                </div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        {/* ── Quick Actions ─────────────────────────────────────────────────────── */}
-        <div className="space-y-4">
-          <h2 className="font-heading font-semibold text-text-primary">Quick Actions</h2>
-          <div className="space-y-3">
-            {[
-              {
-                icon: <Upload className="w-5 h-5 text-[#1d6464]" />,
-                title: 'Upload Secure Document',
-                desc: 'Share evidence, contracts, or sensitive disclosures with your lawyer. Encrypted before leaving your device.',
-                to: '/client/documents',
-                bg: 'bg-[#1d6464]/10',
-                badge: null,
-              },
-              {
-                icon: <MessageSquare className="w-5 h-5 text-blue-600" />,
-                title: 'Message Your Lawyer',
-                desc: 'Send an encrypted message. Neither the server nor any third party can read your communication.',
-                to: '/messages',
-                bg: 'bg-blue-50',
-                badge: stats?.unreadMessages ? `${stats.unreadMessages} unread` : null,
-              },
-              {
-                icon: <Download className="w-5 h-5 text-emerald-600" />,
-                title: 'My Document Vault',
-                desc: 'View and download all your documents. Decryption happens locally — only you can read them.',
-                to: '/client/documents',
-                bg: 'bg-emerald-50',
-                badge: null,
-              },
-              {
-                icon: <Clock className="w-5 h-5 text-purple-600" />,
-                title: 'Case Timeline',
-                desc: 'View your case history, blockchain audit trail, and upcoming hearings.',
-                to: '/client/case',
-                bg: 'bg-purple-50',
-                badge: null,
-              },
-            ].map(({ icon, title, desc, to, bg, badge }) => (
-              <Link key={title} to={to}
-                className="card hover:shadow-md transition-all hover:border-[#1d6464]/30 flex items-center gap-4 group"
-              >
-                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center flex-shrink-0`}>
-                  {icon}
+        {/* Dynamic Countdown */}
+        <motion.div variants={itemVariants} id="client-countdown-card">
+          {stats?.nextHearing ? (
+            <div className="card border-l-4 border-l-gold-500 bg-navy-900/60 p-6 border-gold-500/10 flex flex-col justify-between h-full min-h-[300px]">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-2 border-b border-gold-500/5">
+                  <span className="text-[9px] font-bold text-gold-400 uppercase tracking-widest font-mono">Upcoming Docket</span>
+                  <span className="text-[10px] text-text-secondary uppercase font-mono">{stats.nextHearing.hearingType?.replace(/_/g, ' ')}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="font-medium text-text-primary text-sm">{title}</p>
-                    {badge && <span className="text-[10px] bg-blue-100 text-blue-600 font-bold px-1.5 py-0.5 rounded-full">{badge}</span>}
-                  </div>
-                  <p className="text-xs text-text-muted mt-0.5 line-clamp-1">{desc}</p>
+                <h4 className="font-serif text-lg font-bold text-gold-300">{stats.nextHearing.title}</h4>
+                <p className="text-xs text-text-secondary leading-relaxed">{stats.nextHearing.caseTitle}</p>
+                
+                {stats.nextHearing.courtName && (
+                  <p className="text-xs text-text-secondary flex items-center gap-1 pt-1 font-mono">
+                    <Scale className="w-3.5 h-3.5 text-gold-500/50" /> {stats.nextHearing.courtName}
+                    {stats.nextHearing.location && ` · Room: ${stats.nextHearing.location}`}
+                  </p>
+                )}
+              </div>
+              
+              <div className="border-t border-gold-500/5 pt-4 mt-6 flex justify-between items-center">
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-text-secondary font-mono">Time remaining</p>
+                  <HearingCountdown date={stats.nextHearing.hearingDate} />
                 </div>
-                <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-[#1d6464] transition-colors flex-shrink-0" />
-              </Link>
-            ))}
-          </div>
-
-          {/* Encryption notice */}
-          <div className="bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-xl px-4 py-3">
-            <div className="flex items-start gap-2">
-              <Lock className="w-4 h-4 text-[#1d6464] mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-[#1d6464]">Your Privacy is Protected</p>
-                <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">
-                  All documents are encrypted with AES-256-GCM in your browser before upload.
-                  Every access is recorded on Hyperledger Fabric blockchain. Your lawyer's team
-                  can only access documents you explicitly share with them.
-                </p>
+                <span className="text-[10px] text-text-secondary font-mono">
+                  {new Date(stats.nextHearing.hearingDate).toLocaleDateString()}
+                </span>
               </div>
             </div>
-          </div>
-        </div>
+          ) : (
+            <div className="card border-dashed border-gold-500/15 text-center py-16 flex flex-col justify-center bg-navy-950/20 min-h-[300px]">
+              <Calendar className="w-10 h-10 text-gold-500/20 mx-auto mb-3" />
+              <p className="text-xs text-text-secondary italic">No hearings currently scheduled on your docket.</p>
+            </div>
+          )}
+        </motion.div>
+
       </div>
-    </div>
+    </motion.div>
   )
 }

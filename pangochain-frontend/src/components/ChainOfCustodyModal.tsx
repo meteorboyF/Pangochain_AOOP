@@ -19,13 +19,13 @@ interface CustodyGraph {
 interface Props { docId: string; fileName: string; onClose: () => void }
 
 const CAT: Record<string, { color: string; ring: string; Icon: typeof Upload }> = {
-  UPLOAD:   { color: 'bg-[#1d6464]', ring: 'ring-[#1d6464]/20', Icon: Upload },
-  ACCESS:   { color: 'bg-blue-500', ring: 'ring-blue-200', Icon: Eye },
-  SHARE:    { color: 'bg-indigo-500', ring: 'ring-indigo-200', Icon: Share2 },
-  SIGN:     { color: 'bg-emerald-600', ring: 'ring-emerald-200', Icon: PenTool },
-  VERSION:  { color: 'bg-amber-500', ring: 'ring-amber-200', Icon: GitBranch },
-  ROTATION: { color: 'bg-red-500', ring: 'ring-red-200', Icon: KeyRound },
-  OTHER:    { color: 'bg-slate-400', ring: 'ring-slate-200', Icon: Dot },
+  UPLOAD:   { color: 'bg-gold-500 text-navy-950', ring: 'ring-gold-500/20', Icon: Upload },
+  ACCESS:   { color: 'bg-emerald-600 text-white', ring: 'ring-emerald-600/20', Icon: Eye },
+  SHARE:    { color: 'bg-blue-600 text-white', ring: 'ring-blue-600/20', Icon: Share2 },
+  SIGN:     { color: 'bg-gold-600 text-navy-950', ring: 'ring-gold-600/20', Icon: PenTool },
+  VERSION:  { color: 'bg-indigo-600 text-white', ring: 'ring-indigo-600/20', Icon: GitBranch },
+  ROTATION: { color: 'bg-rose-950 text-rose-300 border border-rose-500/30', ring: 'ring-rose-500/10', Icon: KeyRound },
+  OTHER:    { color: 'bg-slate-750 text-text-secondary', ring: 'ring-slate-700/20', Icon: Dot },
 }
 
 export function ChainOfCustodyModal({ docId, fileName, onClose }: Props) {
@@ -41,55 +41,72 @@ export function ChainOfCustodyModal({ docId, fileName, onClose }: Props) {
   }, [docId])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card w-full max-w-2xl max-h-[85vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2 min-w-0">
-            <Network className="w-5 h-5 text-[#1d6464] shrink-0" />
+            <Network className="w-5 h-5 text-gold-500 shrink-0" />
             <div className="min-w-0">
-              <h2 className="font-heading font-semibold text-text-primary truncate">Chain of Custody</h2>
-              <p className="text-xs text-text-muted truncate">{fileName}</p>
+              <h2 className="font-serif font-semibold text-lg text-gold-300 truncate">Chain of Custody</h2>
+              <p className="text-xs text-text-secondary truncate">{fileName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="p-5 overflow-y-auto scrollbar-thin flex-1">
           {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>
+            <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gold-500" /></div>
           ) : !graph || graph.events.length === 0 ? (
-            <p className="text-sm text-text-muted py-6 text-center">No custody events recorded yet.</p>
+            <p className="text-sm text-text-secondary py-6 text-center">No custody events recorded yet.</p>
           ) : (
-            <div className="flex gap-4">
-              <ol className="relative border-l-2 border-border ml-2 space-y-3 flex-1">
+            <div className="flex flex-col md:flex-row gap-5 items-stretch">
+              <ol className="relative border-l border-gold-500/10 ml-3.5 space-y-4 flex-1">
                 {graph.events.map((e, i) => {
                   const c = CAT[e.category] ?? CAT.OTHER
                   const Icon = c.Icon
                   return (
-                    <li key={i} className="ml-5">
-                      <span className={`absolute -left-[13px] w-6 h-6 rounded-full flex items-center justify-center ring-4 ring-white ${c.color}`}>
-                        <Icon className="w-3.5 h-3.5 text-white" />
+                    <li key={i} className="ml-5 relative">
+                      <span className={`absolute -left-[27px] top-1.5 w-5 h-5 rounded-full flex items-center justify-center ring-4 ring-navy-900 ${c.color}`}>
+                        <Icon className="w-3 h-3" />
                       </span>
                       <button onClick={() => setSelected(e)}
-                        className={`text-left w-full rounded-xl border px-3 py-2 hover:border-[#1d6464]/40 ${selected === e ? 'border-[#1d6464] ring-2 ring-[#1d6464]/20' : 'border-border'}`}>
+                        className={`text-left w-full rounded-xl border p-3 transition-all hover:border-gold-500/30 bg-navy-950/20 ${
+                          selected === e 
+                            ? 'border-gold-500/50 bg-gold-500/5 shadow-gold-sm' 
+                            : 'border-gold-500/10'
+                        }`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium text-text-primary">{e.eventType.replace(/_/g, ' ')}</span>
-                          <span className="text-[10px] text-text-muted">{new Date(e.timestamp).toLocaleString()}</span>
+                          <span className="text-[10px] text-text-muted font-mono">{new Date(e.timestamp).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-xs text-text-muted">{e.actorEmail}{e.fabricTxId && <span className="ml-2 font-mono text-[#1d6464]">tx {e.fabricTxId.slice(0, 10)}…</span>}</p>
+                        <p className="text-xs text-text-secondary mt-1">{e.actorEmail}{e.fabricTxId && <span className="ml-2 font-mono text-gold-400">tx {e.fabricTxId.slice(0, 10)}…</span>}</p>
                       </button>
                     </li>
                   )
                 })}
               </ol>
               {selected && (
-                <div className="w-64 shrink-0 self-start rounded-xl border border-border p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{selected.category}</p>
-                  <p className="font-medium text-text-primary text-sm mt-0.5">{selected.eventType.replace(/_/g, ' ')}</p>
-                  <p className="text-xs text-text-muted mt-1">{selected.actorEmail}</p>
-                  <p className="text-xs text-text-muted">{new Date(selected.timestamp).toLocaleString()}</p>
-                  {selected.fabricTxId && <p className="text-[11px] font-mono text-[#1d6464] mt-1 break-all">tx {selected.fabricTxId}</p>}
-                  {selected.detail && <pre className="text-[10px] text-text-secondary mt-2 whitespace-pre-wrap break-all bg-surface-muted rounded-lg p-2">{selected.detail}</pre>}
+                <div className="w-full md:w-64 shrink-0 rounded-xl border border-gold-500/15 bg-navy-950/40 p-4 self-start space-y-3.5">
+                  <div>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gold-500/60">{selected.category}</p>
+                    <p className="font-serif font-bold text-gold-300 text-sm mt-0.5">{selected.eventType.replace(/_/g, ' ')}</p>
+                  </div>
+                  <div className="space-y-1.5 text-xs text-text-secondary">
+                    <p className="truncate"><strong className="text-[10px] text-text-muted uppercase block">Actor</strong>{selected.actorEmail}</p>
+                    <p><strong className="text-[10px] text-text-muted uppercase block">Timestamp</strong>{new Date(selected.timestamp).toLocaleString()}</p>
+                    {selected.fabricTxId && (
+                      <p className="break-all font-mono text-[10px] text-gold-400">
+                        <strong className="text-[10px] text-text-muted uppercase block font-sans">Fabric TxID</strong>
+                        {selected.fabricTxId}
+                      </p>
+                    )}
+                  </div>
+                  {selected.detail && (
+                    <pre className="text-[10px] text-text-secondary whitespace-pre-wrap break-all bg-navy-950 border border-gold-500/10 rounded-lg p-2.5 font-mono max-h-40 overflow-y-auto scrollbar-thin">
+                      {selected.detail}
+                    </pre>
+                  )}
                 </div>
               )}
             </div>

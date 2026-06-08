@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { MessageSquare, Send, Lock, Loader2, AlertCircle, Eye, EyeOff, Key, CheckCircle, ChevronDown } from 'lucide-react'
+import { MessageSquare, Send, Lock, Loader2, AlertCircle, Eye, Key, CheckCircle, ChevronDown, User as UserIcon } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { encryptDocument, eciesWrapKey, eciesUnwrapKey, bytesToBase64, base64ToBytes, loadWrappedPrivateKey, unwrapPrivateKey } from '../lib/crypto'
 import api from '../lib/api'
@@ -40,9 +40,6 @@ export default function Messages() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
-  // Initial load (with spinner) + lightweight polling so new messages appear
-  // without a manual refresh. The poll is silent — it never toggles the spinner
-  // or surfaces transient errors, and it stops when the page unmounts.
   useEffect(() => {
     let cancelled = false
 
@@ -76,7 +73,7 @@ export default function Messages() {
       setPasswordUnlocked(true)
       setShowPasswordPanel(false)
       toast.success('Private key unlocked — messages can now be decrypted')
-    } catch {
+    } catch (e) {
       toast.error('Wrong password or corrupted key')
     } finally {
       setUnlocking(false)
@@ -158,50 +155,50 @@ export default function Messages() {
     return acc
   }, {})
 
-  const conversations = Object.entries(grouped).sort(
+  const conversationsList = Object.entries(grouped).sort(
     ([, a], [, b]) => new Date(b[b.length - 1].createdAt).getTime() - new Date(a[a.length - 1].createdAt).getTime()
   )
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in max-w-4xl mx-auto text-text-primary selection:bg-gold-500/20 selection:text-gold-300">
+      {/* Header bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gold-500/10 pb-6 shrink-0">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">Messages</h1>
-          <p className="text-text-muted text-sm mt-0.5">End-to-end encrypted · AES-256-GCM + ECIES P-256</p>
+          <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300">Encrypted Mailbox</h1>
+          <p className="text-xs text-text-secondary mt-0.5">End-to-end encrypted (AES-256-GCM + ECIES P-256 envelops).</p>
         </div>
-        <div className="flex items-center gap-2">
-          {!passwordUnlocked && (
+        
+        <div className="flex items-center gap-3">
+          {!passwordUnlocked ? (
             <button
               onClick={() => setShowPasswordPanel(!showPasswordPanel)}
-              className="btn border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 py-2 px-3 text-sm"
+              className="btn border border-gold-500/30 text-gold-300 bg-gold-500/5 hover:bg-gold-500/10 py-2 px-3 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300"
             >
-              <Key className="w-4 h-4" /> Unlock Key
+              <Key className="w-4 h-4 mr-1 text-gold-400" /> Unlock Key
             </button>
-          )}
-          {passwordUnlocked && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-medium">
-              <CheckCircle className="w-3.5 h-3.5" /> Key unlocked
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-success/15 border border-success/30 px-3 py-2 rounded-xl font-bold font-mono">
+              <CheckCircle className="w-4 h-4 text-emerald-500" /> Key Unlocked
             </div>
           )}
-          <button onClick={() => setShowCompose(!showCompose)} className="btn-primary">
-            <MessageSquare className="w-4 h-4" /> New Message
+          <button onClick={() => setShowCompose(!showCompose)} className="btn-primary text-xs uppercase tracking-wider font-bold py-2 px-4">
+            <MessageSquare className="w-4 h-4" /> Compose
           </button>
         </div>
       </div>
 
-      {/* Key unlock panel */}
+      {/* Private Key Unlock Panel */}
       {showPasswordPanel && !passwordUnlocked && (
-        <div className="card border border-amber-200 bg-amber-50/50">
-          <div className="flex items-center gap-2 mb-3">
-            <Key className="w-4 h-4 text-amber-600" />
-            <p className="font-medium text-amber-800 text-sm">Unlock your private key to decrypt messages</p>
+        <div className="card border-gold-500/30 bg-gold-500/5 p-6 rounded-2xl relative overflow-hidden">
+          <div className="flex items-center gap-3 mb-4">
+            <Key className="w-5 h-5 text-gold-400 animate-pulse" />
+            <p className="font-serif font-bold text-sm text-gold-300">Enter secure password to derive E2E key ring</p>
           </div>
           <div className="flex gap-2">
             <input
               type="password"
-              className="input flex-1"
-              placeholder="Your account password"
+              className="input flex-1 focus:border-gold-500"
+              placeholder="Your account passkey"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleUnlockKey()}
@@ -209,161 +206,167 @@ export default function Messages() {
             <button
               onClick={handleUnlockKey}
               disabled={unlocking || !password}
-              className="btn-primary py-2 px-4 disabled:opacity-50"
+              className="btn-primary py-3 px-6 uppercase tracking-wider text-xs font-bold disabled:opacity-50"
             >
-              {unlocking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unlock'}
+              {unlocking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Decrypt Ring'}
             </button>
           </div>
-          <p className="text-xs text-amber-700 mt-2">Your password never leaves this browser. Used only for PBKDF2 key derivation.</p>
+          <p className="text-[10px] text-text-muted mt-2 font-mono leading-relaxed">
+            * Derivation is computed client-side. The key digests are stored in session memory and never transmitted over network protocols.
+          </p>
         </div>
       )}
 
-      {/* Compose */}
+      {/* Compose Form */}
       {showCompose && (
-        <div className="card border-2 border-[#1d6464]/20">
-          <div className="flex items-center gap-2 mb-4">
-            <Lock className="w-4 h-4 text-[#1d6464]" />
-            <p className="font-medium text-text-primary text-sm">Compose Encrypted Message</p>
+        <div className="card border-gold-500/25 bg-navy-900/60 p-6 rounded-2xl space-y-4">
+          <div className="flex items-center gap-2 border-b border-gold-500/5 pb-3">
+            <Lock className="w-4 h-4 text-gold-400" />
+            <p className="font-serif font-bold text-sm text-gold-300">Compose E2E Encrypted Mail</p>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <label className="label">To (email)</label>
+              <label className="label">Recipient E-Mail</label>
               <input
                 className="input"
-                placeholder="recipient@firm.com or client@email.com"
+                placeholder="recipient@firm.com"
                 value={composeTo}
                 onChange={(e) => setComposeTo(e.target.value)}
               />
             </div>
             <div>
-              <label className="label">Message</label>
+              <label className="label">Encrypted Message Payload</label>
               <textarea
-                className="input min-h-[120px] resize-y"
-                placeholder="Your message is encrypted in this browser before sending…"
+                className="input min-h-[140px] resize-y"
+                placeholder="Write secure body..."
                 value={composeBody}
                 onChange={(e) => setComposeBody(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2 text-xs text-text-muted bg-surface-muted rounded-lg px-3 py-2">
-              <Lock className="w-3 h-3 text-[#1d6464] shrink-0" />
-              AES-256-GCM encrypted in browser · ECIES P-256 key wrap · plaintext never transmitted
+            <div className="flex items-center gap-2 text-[10px] text-text-secondary bg-navy-950/40 rounded-xl px-4 py-3 border border-gold-500/5 font-mono">
+              <Lock className="w-4 h-4 text-gold-500/40 shrink-0" />
+              Payload is encrypted in this session sandbox before network transmit.
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowCompose(false)} className="btn border border-border text-text-secondary py-2 px-4">Cancel</button>
+            <div className="flex gap-2 justify-end pt-2 border-t border-gold-500/5">
+              <button onClick={() => setShowCompose(false)} className="btn-secondary text-xs uppercase tracking-wider py-2 px-4">Cancel</button>
               <button
                 onClick={handleSend}
                 disabled={sending || !composeTo.trim() || !composeBody.trim()}
-                className="btn-primary py-2 px-4 disabled:opacity-50"
+                className="btn-primary text-xs uppercase tracking-wider font-bold py-2.5 px-4 disabled:opacity-50"
               >
-                {sending
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Encrypting…</>
-                  : <><Send className="w-4 h-4" /> Send Encrypted</>}
+                {sending ? (
+                  <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Encrypting...</>
+                ) : (
+                  <><Send className="w-4 h-4" /> Send Encrypted</>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Loading / error / empty */}
+      {/* Loading & error states */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
+        <div className="flex items-center justify-center py-16 text-gold-300">
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       )}
       {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
+        <div className="flex items-center gap-3 bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-xs text-rose-400">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
       {!loading && !error && messages.length === 0 && (
-        <div className="text-center py-16">
-          <Lock className="w-12 h-12 text-text-muted mx-auto mb-4" />
-          <p className="font-heading font-semibold text-text-primary">No messages yet</p>
-          <p className="text-text-muted text-sm mt-1">All messages are end-to-end encrypted. Start a conversation with a colleague or client.</p>
+        <div className="card text-center py-16 max-w-md mx-auto">
+          <Lock className="w-12 h-12 text-gold-500/20 mx-auto mb-4" />
+          <p className="font-serif text-lg font-bold text-gold-300">No decrypted records</p>
+          <p className="text-text-secondary text-xs mt-1">Start secure message threads with other council members.</p>
         </div>
       )}
 
-      {/* Conversation threads */}
-      {!loading && !error && conversations.length > 0 && (
-        <div className="space-y-3">
-          {conversations.map(([otherEmail, msgs]) => {
+      {/* Conversation Thread Folders list */}
+      {!loading && !error && conversationsList.length > 0 && (
+        <div className="space-y-4">
+          {conversationsList.map(([otherEmail, msgs]) => {
             const unread = msgs.filter((m) => m.senderId !== user?.id && !m.readAt).length
             const latest = msgs[msgs.length - 1]
             const isExpanded = expandedId === otherEmail
 
             return (
-              <div key={otherEmail} className="card">
-                {/* Conversation header */}
+              <div key={otherEmail} className="card bg-navy-900/60 border-gold-500/10 hover:border-gold-500/20 transition-all duration-300">
+                {/* Accordion trigger */}
                 <button
-                  className="w-full flex items-center justify-between"
+                  className="w-full flex items-center justify-between text-left"
                   onClick={() => setExpandedId(isExpanded ? null : otherEmail)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#1d6464]/10 flex items-center justify-center text-[#1d6464] font-bold text-sm">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gold-500/5 border border-gold-500/10 flex items-center justify-center text-gold-400 font-bold shrink-0 shadow-inner">
                       {otherEmail[0].toUpperCase()}
                     </div>
-                    <div className="text-left">
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-text-primary text-sm">{otherEmail}</p>
+                        <p className="font-serif font-bold text-sm text-gold-300 truncate">{otherEmail}</p>
                         {unread > 0 && (
-                          <span className="text-[10px] bg-[#1d6464] text-white font-bold px-1.5 py-0.5 rounded-full">{unread}</span>
+                          <span className="text-[10px] bg-gold-500 text-navy-950 font-bold px-2 py-0.5 rounded-full shadow-gold-sm">{unread} UNREAD</span>
                         )}
                       </div>
-                      <p className="text-xs text-text-muted">{msgs.length} message{msgs.length !== 1 ? 's' : ''} · {new Date(latest.createdAt).toLocaleDateString()}</p>
+                      <p className="text-[10px] font-mono text-text-secondary mt-1">{msgs.length} transactions · Last: {new Date(latest.createdAt).toLocaleDateString()}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-[10px] text-[#1d6464] font-semibold bg-[#1d6464]/10 px-2 py-0.5 rounded">
-                      <Lock className="w-3 h-3" /> E2E
-                    </div>
-                    <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                    <span className="flex items-center gap-1 text-[9px] font-mono font-bold text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5" /> E2E SECURE
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isExpanded ? 'rotate-180 text-gold-400' : ''}`} />
                   </div>
                 </button>
 
-                {/* Messages in thread */}
+                {/* Expanded Messages list */}
                 {isExpanded && (
-                  <div className="mt-4 space-y-3 border-t border-border pt-4">
+                  <div className="mt-5 space-y-4 border-t border-gold-500/10 pt-5">
                     {msgs.map((m) => {
                       const isOwn = m.senderId === user?.id
                       const dec = decrypted[m.id]
                       return (
                         <div key={m.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isOwn ? 'bg-[#1d6464] text-white' : 'bg-surface-muted'}`}>
-                            <div className="flex items-center gap-2 mb-1.5">
-                              <span className={`text-[10px] font-semibold ${isOwn ? 'text-white/70' : 'text-text-muted'}`}>
-                                {isOwn ? 'You' : m.senderName || m.senderEmail}
+                          <div className={`max-w-[80%] rounded-2xl p-4 shadow-glass ${
+                            isOwn ? 'bg-gradient-to-br from-gold-600 to-gold-500 text-navy-950 rounded-tr-none' : 'bg-slate-750 text-text-primary rounded-tl-none border border-gold-500/5'
+                          }`}>
+                            <div className="flex items-center gap-3 mb-2 font-mono text-[9px]">
+                              <span className={`font-bold ${isOwn ? 'text-navy-950/70' : 'text-gold-400'}`}>
+                                {isOwn ? 'OWN NODE' : m.senderName || m.senderEmail}
                               </span>
-                              <span className={`text-[10px] ${isOwn ? 'text-white/50' : 'text-text-muted'}`}>
-                                {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <span className={isOwn ? 'text-navy-950/50' : 'text-text-muted'}>
+                                {new Date(m.createdAt).toLocaleTimeString()}
                               </span>
                             </div>
 
                             {dec?.loading && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Decrypting…
+                              <div className="flex items-center gap-2 text-xs">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Decrypting payload...
                               </div>
                             )}
                             {dec?.text && (
-                              <p className={`text-sm whitespace-pre-wrap ${isOwn ? 'text-white' : 'text-text-primary'}`}>{dec.text}</p>
+                              <p className="text-xs whitespace-pre-wrap leading-relaxed">{dec.text}</p>
                             )}
                             {dec?.error && (
-                              <p className="text-xs text-red-400">{dec.error}</p>
+                              <p className="text-xs text-rose-400 font-mono">{dec.error}</p>
                             )}
                             {!dec && (
-                              <div className="space-y-1.5">
-                                <p className={`font-mono text-[10px] break-all ${isOwn ? 'text-white/50' : 'text-text-muted'}`}>
-                                  {m.encryptedPayload.slice(0, 40)}…
+                              <div className="space-y-2">
+                                <p className={`font-mono text-[9px] break-all opacity-55`}>
+                                  CIPHER: {m.encryptedPayload.slice(0, 60)}…
                                 </p>
                                 <button
                                   onClick={() => handleDecrypt(m)}
-                                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg transition-colors ${
+                                  className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg border transition-all ${
                                     isOwn
-                                      ? 'bg-white/20 text-white hover:bg-white/30'
-                                      : 'bg-[#1d6464]/10 text-[#1d6464] hover:bg-[#1d6464]/20'
+                                      ? 'bg-navy-950/30 border-navy-950/20 text-navy-950 hover:bg-navy-950/50'
+                                      : 'bg-gold-500/10 border-gold-500/20 text-gold-300 hover:bg-gold-500/20'
                                   }`}
                                 >
                                   {passwordUnlocked ? <Eye className="w-3.5 h-3.5" /> : <Key className="w-3.5 h-3.5" />}
-                                  {passwordUnlocked ? 'Decrypt' : 'Unlock key first'}
+                                  {passwordUnlocked ? 'Decrypt Payload' : 'Unlock private key ring'}
                                 </button>
                               </div>
                             )}
@@ -372,11 +375,11 @@ export default function Messages() {
                       )
                     })}
 
-                    {/* Quick reply */}
-                    <div className="pt-2 border-t border-border flex gap-2">
+                    {/* Fast Reply Input */}
+                    <div className="pt-4 border-t border-gold-500/5 flex gap-2">
                       <input
-                        className="input flex-1 text-sm py-2"
-                        placeholder={`Reply to ${otherEmail}…`}
+                        className="input flex-1 text-xs py-2 bg-navy-950"
+                        placeholder={`Compose quick reply to ${otherEmail}...`}
                         onKeyDown={async (e) => {
                           if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault()
@@ -389,7 +392,7 @@ export default function Messages() {
                       />
                       <button
                         onClick={() => { setComposeTo(otherEmail); setShowCompose(true) }}
-                        className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10 py-2 px-3 text-sm"
+                        className="btn-primary p-2.5 rounded-xl text-xs uppercase font-bold"
                       >
                         <Send className="w-4 h-4" />
                       </button>

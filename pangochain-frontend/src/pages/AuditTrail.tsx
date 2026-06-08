@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Search, Shield, ExternalLink, Filter, Loader2, AlertCircle } from 'lucide-react'
+import { Activity, Search, Shield, Filter, Loader2, AlertCircle, Check, Calendar, User as UserIcon } from 'lucide-react'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
 import { useAuthStore, canViewGlobalAudit } from '../store/authStore'
+import { ChainLinkSvg } from '../components/ui/SvgAssets'
 
 interface AuditLog {
   id: number
@@ -17,18 +18,6 @@ interface AuditLog {
 }
 
 interface Page<T> { content: T[]; totalElements: number; totalPages: number }
-
-const EVENT_COLORS: Record<string, string> = {
-  DOC_REGISTERED:      'bg-blue-50 text-blue-700 border border-blue-200',
-  ACCESS_GRANTED:      'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  ACCESS_REVOKED:      'bg-red-50 text-red-700 border border-red-200',
-  DOC_VIEWED:          'bg-purple-50 text-purple-700 border border-purple-200',
-  CASE_REGISTERED:     'bg-teal-50 text-teal-700 border border-teal-200',
-  USER_REGISTERED:     'bg-indigo-50 text-indigo-700 border border-indigo-200',
-  USER_LOGIN:          'bg-gray-50 text-gray-500 border border-gray-200',
-  CASE_CLOSED:         'bg-amber-50 text-amber-700 border border-amber-200',
-  ACL_FABRIC_FALLBACK: 'bg-amber-100 text-amber-800 border border-amber-400',
-}
 
 const EVENT_LABEL: Record<string, string> = {
   DOC_REGISTERED:      'Doc Registered',
@@ -71,24 +60,23 @@ export default function AuditTrail() {
     enabled: allowed,
   })
   const error = isError ? 'Failed to load audit log' : ''
-
   const entries = page?.content ?? []
 
   if (!allowed) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-6 animate-fade-in text-text-primary">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">Audit Trail</h1>
-          <p className="text-text-muted text-sm mt-0.5">Restricted administrative audit area</p>
+          <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300">Audit Registry</h1>
+          <p className="text-text-secondary text-xs mt-1">Restricted Administrative Audit Console</p>
         </div>
-        <div className="card border-amber-200 bg-amber-50/80">
-          <div className="flex items-start gap-3">
-            <Shield className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-            <div>
-              <p className="font-heading font-semibold text-amber-900">Global audit access is restricted</p>
-              <p className="mt-1 text-sm leading-6 text-amber-800">
-                Only Managing Partners, IT Admins, and Regulators can view the global audit trail.
-                Case and document activity remains protected through role-based access controls.
+        <div className="card border-error/20 bg-error/5 p-6 rounded-2xl">
+          <div className="flex items-start gap-4">
+            <Shield className="mt-0.5 h-6 w-6 shrink-0 text-rose-400" />
+            <div className="space-y-2">
+              <p className="font-serif text-lg font-bold text-gold-300">Access Privileges Required</p>
+              <p className="text-xs text-text-secondary leading-relaxed">
+                Global audit telemetry is reserved for Managing Partners, IT Administrators, and Regulatory auditors. 
+                Provenance data remains locked through Fabric access validation keys.
               </p>
             </div>
           </div>
@@ -98,41 +86,42 @@ export default function AuditTrail() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-8 animate-fade-in text-text-primary selection:bg-gold-500/20 selection:text-gold-300">
+      
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gold-500/10 pb-6">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">Audit Trail</h1>
+          <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300">Blockchain Audit Ledger</h1>
           {!loading && page && (
-            <p className="text-text-muted text-sm mt-0.5">{page.totalElements} events · immutable blockchain ledger</p>
+            <p className="text-xs text-text-secondary mt-1">{page.totalElements} block transactions anchored in Hyperledger Fabric.</p>
           )}
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0f3d3d] text-white text-xs font-semibold">
-          <Shield className="w-3.5 h-3.5 text-[#4ab8b8]" />
-          Channel: legal-channel
+        <div className="flex items-center gap-1.5 text-xs text-gold-300 font-semibold bg-gold-500/10 border border-gold-500/20 px-3 py-1.5 rounded-xl">
+          <Shield className="w-4 h-4 text-gold-400" />
+          Node: legal-channel
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+      {/* Filter panel */}
+      <div className="card p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="relative flex-1 w-full md:max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" />
           <input
             className="input pl-9"
-            placeholder="Search by resource ID…"
+            placeholder="Search by resource transaction block..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(0) }}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-text-muted" />
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Filter className="w-4 h-4 text-text-secondary" />
           <select
-            className="input py-2 pr-8 text-sm"
+            className="input py-2 text-xs font-bold uppercase tracking-wider bg-navy-950"
             value={typeFilter}
             onChange={(e) => { setTypeFilter(e.target.value); setCurrentPage(0) }}
           >
             {EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>{t === 'ALL' ? 'All Events' : (EVENT_LABEL[t] ?? t)}</option>
+              <option key={t} value={t} className="bg-navy-950">{t === 'ALL' ? 'All Events' : (EVENT_LABEL[t] ?? t)}</option>
             ))}
           </select>
         </div>
@@ -140,92 +129,116 @@ export default function AuditTrail() {
 
       {/* States */}
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" />
+        <div className="flex justify-center py-20 text-gold-300">
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
       )}
 
       {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
+        <div className="flex items-center gap-3 bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-xs text-rose-400">
           <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
       {!loading && !error && entries.length === 0 && (
-        <div className="text-center py-16">
-          <Activity className="w-12 h-12 text-text-muted mx-auto mb-4" />
-          <p className="font-heading font-semibold text-text-primary">No audit events yet</p>
-          <p className="text-text-muted text-sm mt-1">Events are recorded as you use the system.</p>
+        <div className="card text-center py-16 max-w-md mx-auto">
+          <Activity className="w-12 h-12 text-gold-500/20 mx-auto mb-4" />
+          <p className="font-serif text-lg font-bold text-gold-300">No events logged</p>
+          <p className="text-text-secondary text-xs mt-1">Audit log is currently empty.</p>
         </div>
       )}
 
+      {/* Blockchain Blocks List */}
       {!loading && !error && entries.length > 0 && (
-        <>
-          <div className="card p-0 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-surface-muted">
-                  <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide">Event</th>
-                  <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide">Resource</th>
-                  <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide hidden lg:table-cell">Fabric Tx</th>
-                  <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide">Timestamp</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {entries.map((e) => (
-                  <tr key={e.id} className={`hover:bg-surface-muted transition-colors group ${e.eventType === 'ACL_FABRIC_FALLBACK' ? 'bg-amber-50/50' : ''}`}>
-                    <td className="px-4 py-3.5">
-                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md whitespace-nowrap ${EVENT_COLORS[e.eventType] ?? 'bg-gray-100 text-gray-600'}`}>
+        <div className="space-y-6 relative max-w-3xl mx-auto">
+          {/* Vertical gold connecting line */}
+          <div className="absolute left-[24px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-gold-500/40 via-gold-500/15 to-transparent" />
+
+          {entries.map((e, index) => {
+            const isFallback = e.eventType === 'ACL_FABRIC_FALLBACK'
+            return (
+              <div key={e.id} className="relative flex gap-6 items-start group">
+                
+                {/* Node icon with ChainLink */}
+                <div className="w-12 h-12 rounded-xl border border-gold-500/20 bg-navy-950 flex items-center justify-center shrink-0 z-10 shadow-gold-sm transition-transform group-hover:scale-105 duration-300">
+                  <ChainLinkSvg className="w-5 h-5 text-gold-500" />
+                </div>
+
+                {/* Block Card */}
+                <div className={`card flex-1 bg-navy-900/60 p-5 border-gold-500/10 hover:border-gold-500/20 shadow-card transition-all duration-300 ${
+                  isFallback ? 'border-amber-500/30' : ''
+                }`}>
+                  <div className="flex justify-between items-start flex-wrap gap-2 pb-3 border-b border-gold-500/5 mb-3">
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-mono font-bold tracking-widest text-gold-400 bg-gold-500/10 border border-gold-500/20 px-2 py-0.5 rounded uppercase">
                         {EVENT_LABEL[e.eventType] ?? e.eventType}
                       </span>
-                    </td>
-                    <td className="px-4 py-3.5 max-w-[200px]">
-                      <p className="text-text-primary text-xs font-medium truncate">{e.resourceId}</p>
-                      <p className="text-text-muted text-[10px]">{e.resourceType}</p>
-                    </td>
-                    <td className="px-4 py-3.5 hidden lg:table-cell">
-                      {e.fabricTxId ? (
-                        <div className="flex items-center gap-1.5">
-                          <code className="text-[11px] text-[#1d6464] font-mono">{e.fabricTxId.slice(0, 14)}…</code>
-                          <ExternalLink className="w-3 h-3 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
-                        </div>
-                      ) : (
-                        <span className="text-text-muted text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="text-xs text-text-muted">
-                        <p>{new Date(e.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                        <p className="font-mono text-[10px]">{new Date(e.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      <p className="text-[10px] font-mono text-text-muted mt-1">RESOURCE: {e.resourceType}</p>
+                    </div>
+
+                    {/* Verified checkmark status with glow */}
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-success/10 border border-success/30 px-2 py-0.5 rounded-lg shadow-gold-sm">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Ledger Verified</span>
+                    </div>
+                  </div>
+
+                  {/* Hash / ID block in monospace gold */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Resource Node Hash</p>
+                    <code className="block text-xs font-mono text-gold-300 bg-navy-950 p-2.5 rounded-lg border border-gold-500/10 break-all select-all">
+                      {e.resourceId}
+                    </code>
+                  </div>
+
+                  {/* telemetery details */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gold-500/5 text-xs text-text-secondary">
+                    <div className="flex items-center gap-1.5">
+                      <UserIcon className="w-3.5 h-3.5 text-gold-500/50" />
+                      <span>Actor: {e.actorId || 'system-node'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 font-mono text-[10px]">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-gold-500/50" />
+                        {new Date(e.timestamp).toLocaleDateString()} · {new Date(e.timestamp).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fabric Tx */}
+                  {e.fabricTxId && (
+                    <div className="mt-3 pt-2 border-t border-gold-500/5 flex items-center justify-between text-[9px] font-mono text-text-muted">
+                      <span>Fabric Block ID:</span>
+                      <code className="text-gold-500/60 truncate max-w-xs">{e.fabricTxId}</code>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )
+          })}
 
           {/* Pagination */}
           {(page?.totalPages ?? 0) > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-3 pt-6 z-10 relative">
               <button
                 disabled={currentPage === 0}
                 onClick={() => setCurrentPage((p) => p - 1)}
-                className="px-3 py-1.5 text-sm rounded-lg border border-border disabled:opacity-40 hover:bg-surface-muted transition-colors"
+                className="btn-secondary text-xs uppercase tracking-wider font-bold py-2 px-4 disabled:opacity-40"
               >
-                Previous
+                Previous Block
               </button>
-              <span className="text-sm text-text-muted">Page {currentPage + 1} of {page?.totalPages}</span>
+              <span className="text-xs font-mono text-text-secondary">Page {currentPage + 1} of {page?.totalPages}</span>
               <button
                 disabled={currentPage + 1 >= (page?.totalPages ?? 1)}
                 onClick={() => setCurrentPage((p) => p + 1)}
-                className="px-3 py-1.5 text-sm rounded-lg border border-border disabled:opacity-40 hover:bg-surface-muted transition-colors"
+                className="btn-secondary text-xs uppercase tracking-wider font-bold py-2 px-4 disabled:opacity-40"
               >
-                Next
+                Next Block
               </button>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Filter, ChevronDown, ChevronRight, Shield, AlertCircle, Loader2 } from 'lucide-react'
 import api from '../lib/api'
@@ -42,7 +42,6 @@ export default function RegulatorView() {
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [resourceId, setResourceId] = useState('')
   const [eventType, setEventType] = useState('')
-  // Filters apply on submit (not per keystroke), so they live in the query key as a snapshot.
   const [applied, setApplied] = useState<{ resourceId: string; eventType: string }>({ resourceId: '', eventType: '' })
 
   const { data, isLoading: loading, isError } = useQuery({
@@ -66,25 +65,25 @@ export default function RegulatorView() {
   }
 
   const eventBadgeColor = (type: string) => {
-    if (type.includes('REVOK') || type.includes('FALLBACK')) return 'bg-red-100 text-red-700'
-    if (type.includes('SIGNED') || type.includes('ROTATION_COMPLETED')) return 'bg-green-100 text-green-700'
-    if (type.includes('GRANT') || type.includes('REGISTER')) return 'bg-blue-100 text-blue-700'
-    if (type.includes('LOGIN')) return 'bg-purple-100 text-purple-700'
-    return 'bg-gray-100 text-gray-600'
+    if (type.includes('REVOK') || type.includes('FALLBACK')) return 'bg-error/10 text-rose-400 border border-error/20'
+    if (type.includes('SIGNED') || type.includes('ROTATION_COMPLETED')) return 'bg-success/15 text-emerald-400 border border-success/30'
+    if (type.includes('GRANT') || type.includes('REGISTER')) return 'bg-blue-950/40 text-blue-400 border border-blue-500/20'
+    if (type.includes('LOGIN')) return 'bg-indigo-950/40 text-indigo-400 border border-indigo-500/25'
+    return 'bg-slate-800/40 text-slate-400 border border-slate-700/25'
   }
 
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Shield className="w-6 h-6 text-[#1d6464]" />
+        <Shield className="w-6 h-6 text-gold-500" />
         <div>
-          <h1 className="font-heading font-bold text-2xl text-text-primary">Regulatory Audit View</h1>
-          <p className="text-text-muted text-sm">Cross-firm audit trail — read-only visibility, no document content access</p>
+          <h1 className="font-serif font-bold text-2xl text-gold-300">Regulatory Audit View</h1>
+          <p className="text-text-secondary text-sm">Cross-firm audit trail — read-only visibility, no document content access</p>
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2 text-sm text-amber-800">
-        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+      <div className="bg-gold-500/10 border border-gold-500/20 rounded-xl px-4 py-3 flex items-start gap-2.5 text-sm text-gold-300">
+        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-gold-400" />
         <span>
           <strong>Regulator access:</strong> You can view audit metadata and blockchain transaction IDs
           for all firms. Document ciphertext and encryption key tokens are NOT accessible to this role.
@@ -106,7 +105,7 @@ export default function RegulatorView() {
         <div className="relative">
           <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
           <select
-            className="input pl-9 pr-8 appearance-none min-w-[200px]"
+            className="input pl-9 pr-8 appearance-none min-w-[200px] bg-navy-950 text-text-primary"
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
           >
@@ -123,87 +122,86 @@ export default function RegulatorView() {
       </form>
 
       {error && (
-        <div className="flex items-center gap-2 text-sm text-error bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-rose-400 bg-error/15 border border-error/30 rounded-xl px-4 py-3">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
           {error}
         </div>
       )}
 
-      <div className="text-sm text-text-muted">
+      <div className="text-sm text-text-secondary font-mono">
         {total > 0 ? `${total.toLocaleString()} audit events` : 'No results'}
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-border overflow-hidden">
+      <div className="card p-0 overflow-hidden border border-gold-500/10">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-surface-muted">
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide w-8"></th>
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide">Event</th>
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide">Resource</th>
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide">Actor Role</th>
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide">Timestamp</th>
-                <th className="text-left px-4 py-3 text-text-muted font-semibold text-xs uppercase tracking-wide">Fabric TxID</th>
+              <tr className="border-b border-gold-500/15 bg-navy-950/60">
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider w-8"></th>
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider">Event</th>
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider">Resource</th>
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider">Actor Role</th>
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider">Timestamp</th>
+                <th className="text-left px-4 py-3.5 text-gold-400 font-serif font-bold text-xs uppercase tracking-wider">Fabric TxID</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-text-muted">
-                    <Loader2 className="w-6 h-6 animate-spin inline-block" />
+                    <Loader2 className="w-6 h-6 animate-spin inline-block text-gold-500" />
                   </td>
                 </tr>
               ) : entries.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-text-muted text-sm">No audit events found</td>
+                  <td colSpan={6} className="text-center py-12 text-text-secondary text-sm">No audit events found</td>
                 </tr>
               ) : (
                 entries.map((entry) => (
-                  <>
+                  <React.Fragment key={entry.id}>
                     <tr
-                      key={entry.id}
-                      className="border-b border-border hover:bg-surface-muted/50 cursor-pointer"
+                      className="border-b border-gold-500/10 hover:bg-white/5 cursor-pointer transition-colors"
                       onClick={() => setExpandedId(expandedId === entry.id ? null : entry.id)}
                     >
                       <td className="px-4 py-3">
                         {expandedId === entry.id
-                          ? <ChevronDown className="w-4 h-4 text-text-muted" />
-                          : <ChevronRight className="w-4 h-4 text-text-muted" />}
+                          ? <ChevronDown className="w-4 h-4 text-gold-400" />
+                          : <ChevronRight className="w-4 h-4 text-gold-400" />}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${eventBadgeColor(entry.eventType)}`}>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${eventBadgeColor(entry.eventType)}`}>
                           {entry.eventType}
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-text-secondary max-w-[180px] truncate">
                         {entry.resourceId ?? '—'}
                       </td>
-                      <td className="px-4 py-3 text-text-secondary">{entry.actorRole ?? '—'}</td>
+                      <td className="px-4 py-3 text-text-secondary font-medium">{entry.actorRole ?? '—'}</td>
                       <td className="px-4 py-3 text-text-secondary text-xs">
                         {new Date(entry.timestamp).toLocaleString()}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-text-muted max-w-[140px] truncate">
+                      <td className="px-4 py-3 font-mono text-xs text-gold-500/60 max-w-[140px] truncate">
                         {entry.fabricTxId ?? '—'}
                       </td>
                     </tr>
                     {expandedId === entry.id && (
-                      <tr key={`${entry.id}-detail`} className="bg-surface-muted/30">
+                      <tr className="bg-navy-950/40">
                         <td />
-                        <td colSpan={5} className="px-4 py-3">
-                          <div className="grid grid-cols-2 gap-3 text-xs">
+                        <td colSpan={5} className="px-6 py-4 border-b border-gold-500/10">
+                          <div className="grid grid-cols-2 gap-4 text-xs">
                             <div>
-                              <p className="text-text-muted font-semibold mb-0.5">Actor ID</p>
-                              <code className="font-mono text-text-secondary">{entry.actorId ?? '—'}</code>
+                              <p className="text-gold-400/70 font-semibold mb-1 uppercase tracking-wider text-[10px]">Actor ID</p>
+                              <code className="font-mono text-text-secondary break-all bg-navy-950/60 px-2 py-1 rounded border border-gold-500/10">{entry.actorId ?? '—'}</code>
                             </div>
                             <div>
-                              <p className="text-text-muted font-semibold mb-0.5">Fabric TxID (full)</p>
-                              <code className="font-mono text-text-secondary break-all">{entry.fabricTxId ?? '—'}</code>
+                              <p className="text-gold-400/70 font-semibold mb-1 uppercase tracking-wider text-[10px]">Fabric TxID (full)</p>
+                              <code className="font-mono text-text-secondary break-all bg-navy-950/60 px-2 py-1 rounded border border-gold-500/10">{entry.fabricTxId ?? '—'}</code>
                             </div>
                             {entry.metadataJson && (
-                              <div className="col-span-2">
-                                <p className="text-text-muted font-semibold mb-0.5">Metadata</p>
-                                <pre className="bg-white border border-border rounded-lg p-2 text-text-secondary overflow-x-auto">
+                              <div className="col-span-2 mt-2">
+                                <p className="text-gold-400/70 font-semibold mb-1 uppercase tracking-wider text-[10px]">Metadata</p>
+                                <pre className="bg-navy-950 border border-gold-500/15 rounded-lg p-3 text-text-secondary overflow-x-auto font-mono text-[11px] leading-relaxed">
                                   {JSON.stringify(JSON.parse(entry.metadataJson), null, 2)}
                                 </pre>
                               </div>
@@ -212,7 +210,7 @@ export default function RegulatorView() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -221,19 +219,19 @@ export default function RegulatorView() {
 
         {/* Pagination */}
         {total > 50 && (
-          <div className="flex justify-between items-center px-4 py-3 border-t border-border">
+          <div className="flex justify-between items-center px-4 py-3 border-t border-gold-500/10 bg-navy-950/20">
             <button
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={page === 0 || loading}
-              className="btn border border-border py-1.5 px-3 text-sm disabled:opacity-40"
+              className="btn-secondary py-1 px-3 text-xs disabled:opacity-40"
             >
               Previous
             </button>
-            <span className="text-sm text-text-muted">Page {page + 1} of {Math.ceil(total / 50)}</span>
+            <span className="text-xs text-text-secondary font-mono">Page {page + 1} of {Math.ceil(total / 50)}</span>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page >= Math.ceil(total / 50) - 1 || loading}
-              className="btn border border-border py-1.5 px-3 text-sm disabled:opacity-40"
+              className="btn-secondary py-1 px-3 text-xs disabled:opacity-40"
             >
               Next
             </button>

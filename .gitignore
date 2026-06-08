@@ -45,3 +45,8 @@ logs/
 
 # Docker
 *.override.yml
+
+# Agent State
+.claude/
+.claire/
+.gemini/

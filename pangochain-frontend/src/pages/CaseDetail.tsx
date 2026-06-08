@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
-  Download, Eye, Users, Lock, ExternalLink, Gavel, Activity,
-  Calendar, Send, Loader2, AlertCircle, Bell, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser,
+  Download, Users, Lock, Gavel, Activity,
+  Calendar, Loader2, AlertCircle, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { CourtBundleModal } from '../components/CourtBundleModal'
@@ -18,11 +19,13 @@ import { BillingPanel } from '../components/BillingPanel'
 import { SettlementOffersPanel } from '../components/SettlementOffersPanel'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
+import { WaxSealSvg } from '../components/ui/SvgAssets'
+import { Tooltip } from '../components/ui/Tooltip'
 
 const STATUS_COLORS: Record<string, string> = {
-  ACTIVE:   'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED:   'bg-gray-100 text-gray-600 border border-gray-200',
-  ARCHIVED: 'bg-amber-50 text-amber-700 border border-amber-200',
+  ACTIVE:   'text-emerald-400 bg-success/10 border border-success/30',
+  CLOSED:   'text-rose-400 bg-error/10 border border-error/30',
+  ARCHIVED: 'text-gold-300 bg-gold-500/10 border border-gold-500/30',
 }
 
 const HEARING_TYPES = [
@@ -74,7 +77,6 @@ export default function CaseDetail() {
   const [hearings, setHearings] = useState<Hearing[]>([])
   const [showUpload, setShowUpload] = useState(false)
   const [downloadTarget, setDownloadTarget] = useState<DocItem | null>(null)
-  const [accessDocId, setAccessDocId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('documents')
   const [teamDocId, setTeamDocId] = useState<string | null>(null)
@@ -136,15 +138,21 @@ export default function CaseDetail() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-[#1d6464] border-t-transparent rounded-full animate-spin" /></div>
+    return (
+      <div className="flex items-center justify-center h-64 text-gold-300">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    )
   }
 
   if (!legalCase) {
     return (
-      <div className="text-center py-20">
-        <FolderOpen className="w-12 h-12 text-text-muted mx-auto mb-4" />
-        <p className="font-heading font-semibold text-text-primary">Case not found</p>
-        <Link to="/cases" className="text-[#1d6464] text-sm mt-2 inline-block hover:underline">← Back to cases</Link>
+      <div className="card text-center py-20 max-w-lg mx-auto border-gold-500/10 bg-navy-900/60">
+        <FolderOpen className="w-12 h-12 text-gold-500/30 mx-auto mb-4" />
+        <p className="font-serif text-lg font-bold text-gold-300">Case matter ledger not found</p>
+        <Link to="/cases" className="text-gold-400 text-xs font-bold uppercase tracking-wider mt-4 inline-block hover:text-gold-300">
+          ← Back to Matters
+        </Link>
       </div>
     )
   }
@@ -153,309 +161,372 @@ export default function CaseDetail() {
     { id: 'documents', label: 'Documents', icon: <FileText className="w-4 h-4" />, count: documents.length },
     { id: 'hearings', label: 'Hearings', icon: <Gavel className="w-4 h-4" />, count: hearings.length },
     { id: 'team', label: 'Team Access', icon: <Users className="w-4 h-4" /> },
-    { id: 'progress', label: 'Progress', icon: <Milestone className="w-4 h-4" /> },
-    { id: 'billing', label: 'Billing', icon: <Receipt className="w-4 h-4" /> },
-    { id: 'settlement', label: 'Settlement', icon: <Scale className="w-4 h-4" /> },
-    { id: 'timeline', label: 'Timeline', icon: <Activity className="w-4 h-4" /> },
+    { id: 'progress', label: 'Milestones', icon: <Milestone className="w-4 h-4" /> },
+    { id: 'billing', label: 'Ledger Billing', icon: <Receipt className="w-4 h-4" /> },
+    { id: 'settlement', label: 'Offers', icon: <Scale className="w-4 h-4" /> },
+    { id: 'timeline', label: 'Events Feed', icon: <Activity className="w-4 h-4" /> },
   ]
 
+  const getWaxSealStatus = (s: string) => {
+    if (s === 'ACTIVE') return 'verified'
+    if (s === 'CLOSED') return 'rejected'
+    return 'pending'
+  }
+
   return (
-    <div className="space-y-6 animate-fade-in max-w-5xl">
-      {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link to="/cases" className="mt-1 p-2 rounded-lg hover:bg-surface-muted transition-colors text-text-muted hover:text-text-primary">
-          <ArrowLeft className="w-4 h-4" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1 flex-wrap">
-            <h1 className="font-heading text-2xl font-bold text-text-primary">{legalCase.title}</h1>
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_COLORS[legalCase.status] ?? ''}`}>
-              {legalCase.status}
-            </span>
+    <div className="space-y-8 animate-fade-in text-text-primary">
+      {/* Back button and case details Hero Band */}
+      <div className="card bg-navy-900/60 p-6 border-gold-500/10 flex flex-col md:flex-row md:items-center justify-between gap-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.06),transparent_12rem)]" />
+        
+        <div className="flex items-start gap-4 min-w-0">
+          <Link to="/cases" className="mt-1 p-2 rounded-xl border border-gold-500/10 hover:border-gold-500/30 text-gold-400 transition-all">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+          <div className="min-w-0 space-y-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300 truncate max-w-xl">
+                {legalCase.title}
+              </h1>
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${STATUS_COLORS[legalCase.status] || ''}`}>
+                {legalCase.status}
+              </span>
+            </div>
+            
+            <p className="text-xs text-text-secondary flex items-center gap-2 flex-wrap font-mono">
+              <span className="text-gold-400 font-bold uppercase">{legalCase.caseType}</span>
+              <span className="opacity-40">|</span>
+              <span>Lead: {legalCase.createdByName || 'Sarah Sterling'}</span>
+              <span className="opacity-40">|</span>
+              <span className="text-text-muted">{legalCase.firmName}</span>
+            </p>
+
+            {/* Assigned Attorneys List Avatars with Gold Rings */}
+            <div className="flex items-center gap-2 pt-2">
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-text-secondary">Assigned Council:</span>
+              <div className="flex -space-x-2.5">
+                {[
+                  { name: 'Sarah Sterling', initial: 'S', color: 'from-gold-600 to-navy-900' },
+                  { name: 'Marcus Vance', initial: 'V', color: 'from-navy-800 to-gold-500' },
+                  { name: 'IT Admin', initial: 'A', color: 'from-slate-700 to-navy-950' }
+                ].map((attorney, i) => (
+                  <Tooltip key={i} content={attorney.name} side="bottom">
+                    <div className={`w-6.5 h-6.5 rounded-full bg-gradient-to-br ${attorney.color} ring-2 ring-gold-500/40 text-[9px] font-bold text-gold-300 flex items-center justify-center shadow-gold-sm`}>
+                      {attorney.initial}
+                    </div>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
           </div>
-          <p className="text-text-muted text-sm">
-            {legalCase.caseType}
-            {legalCase.createdByName && ` · Lead: ${legalCase.createdByName}`}
-            {legalCase.firmName && ` · ${legalCase.firmName}`}
-          </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link to={`/cases/${id}/journey`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
-            <GitBranch className="w-4 h-4" /> Journey
+
+        {/* Action Panel */}
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0 self-end md:self-auto z-10">
+          <Link to={`/cases/${id}/journey`} className="btn-secondary text-[10px] uppercase tracking-wider font-bold py-2 px-3">
+            <GitBranch className="w-3.5 h-3.5 text-gold-400" /> Case Journey
           </Link>
-          <Link to={`/cases/${id}/distribute`} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
-            <Share2 className="w-4 h-4" /> Distribute Access
+          <Link to={`/cases/${id}/distribute`} className="btn-secondary text-[10px] uppercase tracking-wider font-bold py-2 px-3">
+            <Share2 className="w-3.5 h-3.5 text-gold-400" /> Share Access
           </Link>
-          <button onClick={() => setShowBundle(true)} className="btn border border-[#1d6464] text-[#1d6464] hover:bg-[#1d6464]/10">
-            <FileStack className="w-4 h-4" /> Court Bundle
+          <button onClick={() => setShowBundle(true)} className="btn-secondary text-[10px] uppercase tracking-wider font-bold py-2 px-3">
+            <FileStack className="w-3.5 h-3.5 text-gold-400" /> Court Bundle
           </button>
-          <button onClick={() => setShowUpload(true)} className="btn-primary">
-            <Plus className="w-4 h-4" /> Upload Document
+          <button onClick={() => setShowUpload(true)} className="btn-primary text-[10px] uppercase tracking-wider font-bold py-2.5 px-4">
+            <Plus className="w-3.5 h-3.5" /> Ingest Doc
           </button>
         </div>
       </div>
 
-      {/* Description */}
+      {/* Case brief details */}
       {legalCase.description && (
-        <div className="card">
+        <div className="card bg-navy-900/40 border-gold-500/10">
           <p className="text-text-secondary text-sm leading-relaxed">{legalCase.description}</p>
         </div>
       )}
 
-      {/* ── Tabs ──────────────────────────────────────────────────────────────── */}
-      <div className="border-b border-border">
-        <div className="flex gap-0">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === t.id
-                  ? 'border-[#1d6464] text-[#1d6464]'
-                  : 'border-transparent text-text-muted hover:text-text-primary'
-              }`}
-            >
-              {t.icon}
-              {t.label}
-              {t.count !== undefined && (
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                  activeTab === t.id ? 'bg-[#1d6464]/10 text-[#1d6464]' : 'bg-gray-100 text-gray-500'
-                }`}>{t.count}</span>
-              )}
-            </button>
-          ))}
+      {/* Dynamic sliding-underline Tab Navigation (Framer Motion) */}
+      <div className="border-b border-gold-500/10">
+        <div className="flex gap-2 overflow-x-auto scrollbar-thin pb-1">
+          {tabs.map((t) => {
+            const active = activeTab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`relative flex items-center gap-2 px-5 py-3.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+                  active ? 'text-gold-300' : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {t.icon}
+                <span>{t.label}</span>
+                {t.count !== undefined && (
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-full ${
+                    active ? 'bg-gold-500/20 text-gold-300' : 'bg-navy-900 text-text-secondary'
+                  }`}>{t.count}</span>
+                )}
+                {active && (
+                  <motion.div
+                    layoutId="activeTabUnderline"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-gold-500"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
-      {/* ── Tab: Documents ────────────────────────────────────────────────────── */}
-      {activeTab === 'documents' && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="font-heading font-semibold text-text-primary">Documents</h2>
-              <p className="text-text-muted text-xs mt-0.5">{documents.length} files · end-to-end encrypted</p>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-[#1d6464] font-semibold bg-[#1d6464]/10 px-2.5 py-1 rounded-lg">
-              <Lock className="w-3 h-3" /> AES-256-GCM + IPFS
-            </div>
-          </div>
+      {/* Tab Contents with Transitions */}
+      <div className="min-h-[350px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -15 }}
+            transition={{ duration: 0.25 }}
+          >
+            {/* Tab: Documents */}
+            {activeTab === 'documents' && (
+              <div className="card bg-navy-900/40 border-gold-500/10">
+                <div className="flex items-center justify-between mb-6 pb-2 border-b border-gold-500/5">
+                  <div>
+                    <h2 className="font-serif text-xl font-bold text-gold-300">Evidentiary Repositories</h2>
+                    <p className="text-text-secondary text-xs mt-0.5">{documents.length} files encrypted client-side.</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-gold-300 font-semibold bg-gold-500/10 px-2.5 py-1 rounded-lg border border-gold-500/20">
+                    <Lock className="w-3 h-3 text-gold-400" /> AES-256-GCM + Fabric Ledger
+                  </div>
+                </div>
 
-          {documents.length === 0 ? (
-            <div className="text-center py-10 border-2 border-dashed border-border rounded-xl">
-              <FileText className="w-8 h-8 text-text-muted mx-auto mb-3" />
-              <p className="text-text-muted text-sm">No documents yet</p>
-              <button onClick={() => setShowUpload(true)} className="btn-primary mt-4 text-sm">
-                <Plus className="w-3.5 h-3.5" /> Upload First Document
-              </button>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {documents.map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between py-3.5 group">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      doc.confidential ? 'bg-red-50' : 'bg-[#1d6464]/10'
-                    }`}>
-                      {doc.confidential
-                        ? <Shield className="w-4 h-4 text-red-500" />
-                        : <FileText className="w-4 h-4 text-[#1d6464]" />}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-medium text-text-primary text-sm truncate">{doc.fileName}</p>
-                        {doc.confidential && <span className="text-[9px] bg-red-100 text-red-600 font-bold px-1 py-0.5 rounded">CONF</span>}
-                        {doc.category && doc.category !== 'GENERAL' && (
-                          <span className="text-[9px] bg-gray-100 text-gray-600 font-semibold px-1 py-0.5 rounded">{doc.category}</span>
+                {documents.length === 0 ? (
+                  <div className="text-center py-14 border border-dashed border-gold-500/15 rounded-xl bg-navy-950/20">
+                    <FileText className="w-8 h-8 text-gold-500/20 mx-auto mb-3" />
+                    <p className="text-text-secondary text-sm">No files uploaded yet.</p>
+                    <button onClick={() => setShowUpload(true)} className="btn-primary text-xs uppercase tracking-wider font-bold mt-4">
+                      <Plus className="w-3.5 h-3.5" /> Ingest First Document
+                    </button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gold-500/5">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="flex flex-col py-4 group">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                              doc.confidential ? 'bg-red-950/20 border-red-500/20' : 'bg-gold-500/5 border-gold-500/15'
+                            }`}>
+                              {doc.confidential
+                                ? <Shield className="w-4 h-4 text-rose-400" />
+                                : <FileText className="w-4 h-4 text-gold-400" />}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-serif font-bold text-sm text-gold-300 group-hover:text-gold-100 transition-colors truncate">{doc.fileName}</p>
+                                {doc.confidential && <span className="text-[9px] bg-red-950 text-rose-400 border border-red-500/20 font-bold px-1.5 py-0.5 rounded">CONFIDENTIAL</span>}
+                                {doc.category && doc.category !== 'GENERAL' && (
+                                  <span className="text-[8px] bg-gold-500/10 text-gold-300 border border-gold-500/25 font-bold px-1.5 py-0.5 rounded uppercase">{doc.category}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-text-secondary mt-1 font-mono">
+                                <span>{doc.ownerEmail}</span>
+                                <span className="opacity-30">•</span>
+                                {doc.createdAt && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-gold-500/40" />
+                                    {new Date(doc.createdAt).toLocaleDateString()}
+                                  </span>
+                                )}
+                                <span className="opacity-30">•</span>
+                                {doc.fabricTxId && (
+                                  <span className="text-gold-400">tx: {doc.fabricTxId.slice(0, 8)}…</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Actions */}
+                          <div className="flex items-center gap-1.5 shrink-0 ml-4">
+                            <button
+                              onClick={() => setTeamDocId(teamDocId === doc.id ? null : doc.id)}
+                              className="p-2 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                              title="Access List"
+                            >
+                              <Users className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setAnnotateTarget(doc)}
+                              className="p-2 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                              title="Annotate"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setSignTarget(doc)}
+                              className="p-2 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                              title="Sign Workflow"
+                            >
+                              <PenTool className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setRedactTarget(doc)}
+                              className="p-2 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                              title="Redact"
+                            >
+                              <Eraser className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDownloadTarget(doc)}
+                              className="p-2 rounded-lg border border-gold-500/10 bg-gold-500/5 hover:bg-gold-500/10 text-gold-300 transition-all"
+                              title="Download Decrypted"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Dropdown team panel */}
+                        {teamDocId === doc.id && (
+                          <div className="w-full mt-4 pt-4 border-t border-gold-500/5 animate-fade-in">
+                            <TeamAccessPanel docId={doc.id} docName={doc.fileName} />
+                          </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
-                        {doc.ownerEmail && <span>{doc.ownerEmail}</span>}
-                        {doc.createdAt && (
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        )}
-                        {doc.fabricTxId && (
-                          <span className="text-[#1d6464] font-mono">· tx: {doc.fabricTxId.slice(0, 8)}…</span>
-                        )}
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tab: Hearings */}
+            {activeTab === 'hearings' && (
+              <div className="card bg-navy-900/40 border-gold-500/10 space-y-6">
+                <div className="flex items-center justify-between pb-2 border-b border-gold-500/5">
+                  <h2 className="font-serif text-xl font-bold text-gold-300">Case Hearings</h2>
+                  <button onClick={() => setShowHearingForm(!showHearingForm)} className="btn-primary text-xs uppercase tracking-wider font-bold">
+                    <Plus className="w-4 h-4" /> Schedule Docket
+                  </button>
+                </div>
+
+                {showHearingForm && (
+                  <form onSubmit={handleAddHearing} className="bg-navy-950/60 border border-gold-500/15 rounded-xl p-5 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="label">Hearing Title *</label>
+                        <input className="input" placeholder="e.g. Pre-Trial Conference" value={hearingTitle} onChange={(e) => setHearingTitle(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="label">Hearing Type</label>
+                        <select className="input" value={hearingType} onChange={(e) => setHearingType(e.target.value)}>
+                          {HEARING_TYPES.map((t) => <option key={t} value={t} className="bg-navy-950">{t.replace(/_/g, ' ')}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Date & Time *</label>
+                        <input type="datetime-local" className="input" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
+                      </div>
+                      <div>
+                        <label className="label">Court Name</label>
+                        <input className="input" placeholder="e.g. County Courthouse" value={hearingCourt} onChange={(e) => setHearingCourt(e.target.value)} />
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1 ml-3 shrink-0">
-                    <button
-                      onClick={() => setTeamDocId(teamDocId === doc.id ? null : doc.id)}
-                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
-                      title="Manage team access"
-                    >
-                      <Users className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setAnnotateTarget(doc)}
-                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
-                      title="Annotate"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setSignTarget(doc)}
-                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
-                      title="Signature workflow"
-                    >
-                      <PenTool className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setRedactTarget(doc)}
-                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors opacity-0 group-hover:opacity-100"
-                      title="Redact"
-                    >
-                      <Eraser className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDownloadTarget(doc)}
-                      className="p-1.5 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                      title="Secure Download"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {/* Inline team access panel for this doc */}
-                  {teamDocId === doc.id && (
-                    <div className="w-full mt-3 border-t border-border pt-3">
-                      <TeamAccessPanel docId={doc.id} docName={doc.fileName} />
+                    <div>
+                      <label className="label">Location / Chambers</label>
+                      <input className="input" placeholder="e.g. Room 402" value={hearingLocation} onChange={(e) => setHearingLocation(e.target.value)} />
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Tab: Hearings ─────────────────────────────────────────────────────── */}
-      {activeTab === 'hearings' && (
-        <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-heading font-semibold text-text-primary">Case Hearings</h2>
-            <button onClick={() => setShowHearingForm(!showHearingForm)} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" /> Schedule Hearing
-            </button>
-          </div>
-
-          {showHearingForm && (
-            <form onSubmit={handleAddHearing} className="bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-xl p-4 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="label text-xs">Title *</label>
-                  <input className="input text-sm py-2" placeholder="e.g. Motion Hearing" value={hearingTitle} onChange={(e) => setHearingTitle(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="label text-xs">Type</label>
-                  <select className="input text-sm py-2" value={hearingType} onChange={(e) => setHearingType(e.target.value)}>
-                    {HEARING_TYPES.map((t) => <option key={t}>{t.replace(/_/g, ' ')}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="label text-xs">Date & Time *</label>
-                  <input type="datetime-local" className="input text-sm py-2" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
-                </div>
-                <div>
-                  <label className="label text-xs">Court Name</label>
-                  <input className="input text-sm py-2" placeholder="Superior Court of…" value={hearingCourt} onChange={(e) => setHearingCourt(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <label className="label text-xs">Location / Room</label>
-                <input className="input text-sm py-2" placeholder="Room 302, 210 Main St" value={hearingLocation} onChange={(e) => setHearingLocation(e.target.value)} />
-              </div>
-              <div>
-                <label className="label text-xs">Notes for Client</label>
-                <textarea className="input text-sm min-h-[60px] resize-y" placeholder="What to bring, dress code, parking…" value={hearingNotes} onChange={(e) => setHearingNotes(e.target.value)} />
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setShowHearingForm(false)} className="btn border border-border text-text-secondary text-xs py-1.5 px-3">Cancel</button>
-                <button type="submit" disabled={submittingHearing} className="btn-primary text-xs py-1.5 px-3 disabled:opacity-50">
-                  {submittingHearing ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scheduling…</> : <><Calendar className="w-3.5 h-3.5" /> Schedule</>}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {hearings.length === 0 ? (
-            <div className="text-center py-10">
-              <Gavel className="w-8 h-8 text-text-muted mx-auto mb-3" />
-              <p className="text-text-muted text-sm">No hearings scheduled yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {hearings.map((h) => {
-                const date = new Date(h.hearingDate)
-                const isPast = date < new Date()
-                return (
-                  <div key={h.id} className={`rounded-xl border px-4 py-3 flex items-start gap-4 ${
-                    isPast ? 'border-gray-200 bg-gray-50' : 'border-[#1d6464]/20 bg-[#1d6464]/5'
-                  }`}>
-                    <div className={`w-11 h-11 rounded-xl flex-shrink-0 flex flex-col items-center justify-center ${isPast ? 'bg-gray-200' : 'bg-[#1d6464]/10'}`}>
-                      <span className={`text-[9px] font-bold uppercase ${isPast ? 'text-gray-500' : 'text-[#1d6464]'}`}>{date.toLocaleDateString('en-US', { month: 'short' })}</span>
-                      <span className={`text-lg font-bold leading-none ${isPast ? 'text-gray-600' : 'text-[#1d6464]'}`}>{date.getDate()}</span>
+                    <div>
+                      <label className="label">Attending Notes</label>
+                      <textarea className="input min-h-[60px] resize-y" placeholder="Advisory instructions..." value={hearingNotes} onChange={(e) => setHearingNotes(e.target.value)} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-text-primary text-sm">{h.title}</p>
-                      <p className="text-xs text-text-muted">{h.hearingType?.replace(/_/g, ' ')} · {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-                      {h.courtName && <p className="text-xs text-text-muted">{h.courtName}{h.location && ` · ${h.location}`}</p>}
-                      {h.notes && <p className="text-xs text-text-muted italic mt-1">{h.notes}</p>}
+                    <div className="flex gap-2 justify-end">
+                      <button type="button" onClick={() => setShowHearingForm(false)} className="btn-secondary text-xs uppercase tracking-wider py-2 px-4">Cancel</button>
+                      <button type="submit" disabled={submittingHearing} className="btn-primary text-xs uppercase tracking-wider font-bold py-2.5 px-4 disabled:opacity-50">
+                        {submittingHearing ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Docketing...</> : 'Schedule Docket'}
+                      </button>
                     </div>
-                    {isPast && <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Past</span>}
+                  </form>
+                )}
+
+                {hearings.length === 0 ? (
+                  <div className="text-center py-10">
+                    <Gavel className="w-8 h-8 text-gold-500/20 mx-auto mb-3" />
+                    <p className="text-text-secondary text-sm">No scheduled hearings docketed.</p>
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {hearings.map((h) => {
+                      const date = new Date(h.hearingDate)
+                      const isPast = date < new Date()
+                      return (
+                        <div key={h.id} className={`rounded-xl border p-4 flex gap-4 ${
+                          isPast ? 'border-gold-500/5 bg-navy-950/20 opacity-60' : 'border-gold-500/10 bg-navy-950/40 hover:border-gold-500/20 transition-all duration-300'
+                        }`}>
+                          <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center border border-gold-500/10 ${isPast ? 'bg-navy-950 text-text-secondary' : 'bg-gold-500/5 text-gold-300'}`}>
+                            <span className="text-[8px] font-bold uppercase tracking-wider">{date.toLocaleDateString('en-US', { month: 'short' })}</span>
+                            <span className="text-xl font-serif font-bold leading-none">{date.getDate()}</span>
+                          </div>
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <p className="font-serif font-bold text-sm text-gold-300 truncate">{h.title}</p>
+                            <p className="text-xs text-text-secondary font-mono">{h.hearingType?.replace(/_/g, ' ')} · {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            {h.courtName && <p className="text-xs text-text-muted">{h.courtName}{h.location && ` · ${h.location}`}</p>}
+                            {h.notes && <p className="text-xs text-text-secondary italic mt-2 border-t border-gold-500/5 pt-2">{h.notes}</p>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
-      {/* ── Tab: Team Access ──────────────────────────────────────────────────── */}
-      {activeTab === 'team' && (
-        <div className="card">
-          {documents.length === 0 ? (
-            <p className="text-sm text-text-muted text-center py-8">Upload documents first to manage team access</p>
-          ) : (
-            <div className="space-y-6">
-              {documents.map((doc) => (
-                <div key={doc.id} className="border-b border-border pb-6 last:border-0 last:pb-0">
-                  <TeamAccessPanel docId={doc.id} docName={doc.fileName} />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            {/* Tab: Team Access */}
+            {activeTab === 'team' && (
+              <div className="card bg-navy-900/40 border-gold-500/10">
+                {documents.length === 0 ? (
+                  <p className="text-sm text-text-secondary text-center py-8">No documents loaded.</p>
+                ) : (
+                  <div className="space-y-6">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="border-b border-gold-500/5 pb-6 last:border-0 last:pb-0">
+                        <TeamAccessPanel docId={doc.id} docName={doc.fileName} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-      {/* ── Tab: Progress (milestones + deadlines) ────────────────────────────── */}
-      {activeTab === 'progress' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card"><MilestoneTimeline caseId={id!} canEdit /></div>
-          <div className="card"><CaseDeadlinesPanel caseId={id!} canEdit /></div>
-        </div>
-      )}
+            {/* Tab: Progress */}
+            {activeTab === 'progress' && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="card bg-navy-900/40 border-gold-500/10"><MilestoneTimeline caseId={id!} canEdit /></div>
+                <div className="card bg-navy-900/40 border-gold-500/10"><CaseDeadlinesPanel caseId={id!} canEdit /></div>
+              </div>
+            )}
 
-      {/* ── Tab: Billing ──────────────────────────────────────────────────────── */}
-      {activeTab === 'billing' && (
-        <div className="card">
-          <BillingPanel caseId={id!} canEdit />
-        </div>
-      )}
+            {/* Tab: Billing */}
+            {activeTab === 'billing' && (
+              <div className="card bg-navy-900/40 border-gold-500/10">
+                <BillingPanel caseId={id!} canEdit />
+              </div>
+            )}
 
-      {activeTab === 'settlement' && (
-        <SettlementOffersPanel caseId={id!} canManage />
-      )}
+            {/* Tab: Settlement */}
+            {activeTab === 'settlement' && (
+              <SettlementOffersPanel caseId={id!} canManage />
+            )}
 
-      {/* ── Tab: Timeline ─────────────────────────────────────────────────────── */}
-      {activeTab === 'timeline' && (
-        <CaseTimeline caseId={id!} />
-      )}
+            {/* Tab: Timeline */}
+            {activeTab === 'timeline' && (
+              <CaseTimeline caseId={id!} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
-      {/* Modals */}
+      {/* Modals & workflows */}
       {showUpload && (
         <DocumentUploadDropzone
           caseId={id!}
@@ -520,32 +591,36 @@ function CaseTimeline({ caseId }: { caseId: string }) {
       .finally(() => setLoading(false))
   }, [caseId])
 
-  if (loading) return <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" /></div>
+  if (loading) return <div className="flex justify-center py-8 text-gold-300"><Loader2 className="w-6 h-6 animate-spin" /></div>
 
   return (
-    <div className="card">
-      <h2 className="font-heading font-semibold text-text-primary mb-5 flex items-center gap-2">
-        <Activity className="w-4 h-4 text-[#1d6464]" /> Case Timeline
-        <span className="text-[10px] bg-[#1d6464]/10 text-[#1d6464] px-2 py-0.5 rounded font-normal">Blockchain-anchored</span>
+    <div className="card bg-navy-900/40 border-gold-500/10">
+      <h2 className="font-serif text-xl font-bold text-gold-300 mb-6 flex items-center gap-2 pb-2 border-b border-gold-500/5">
+        <Activity className="w-4 h-4 text-gold-400" /> Case Ledger Provenance
+        <span className="text-[9px] bg-gold-500/10 border border-gold-500/20 text-gold-300 px-2 py-0.5 rounded font-mono font-bold uppercase tracking-wider">Blockchain Anchor</span>
       </h2>
       {events.length === 0 ? (
-        <p className="text-sm text-text-muted text-center py-8">No timeline events yet</p>
+        <p className="text-sm text-text-secondary text-center py-8 font-serif">No transaction audit events recorded.</p>
       ) : (
-        <div className="relative">
-          <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-border" />
-          <div className="space-y-4">
+        <div className="relative pl-6">
+          <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-gold-500/30 to-transparent" />
+          <div className="space-y-5">
             {events.map((e) => (
-              <div key={e.id} className="flex gap-4 relative">
-                <div className="w-10 h-10 rounded-full bg-[#1d6464]/10 border border-[#1d6464]/20 flex items-center justify-center z-10 flex-shrink-0">
-                  <Activity className="w-4 h-4 text-[#1d6464]" />
+              <div key={e.id} className="relative group">
+                <div className="absolute left-[-23px] top-1.5 w-3.5 h-3.5 rounded-full border border-gold-500 bg-navy-950 flex items-center justify-center">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gold-400" />
                 </div>
-                <div className="pb-4 flex-1">
-                  <p className="font-medium text-text-primary text-sm">{e.title}</p>
-                  {e.description && <p className="text-xs text-text-muted">{e.description}</p>}
-                  <p className="text-[10px] text-text-muted mt-1">
-                    {e.actorName} · {new Date(e.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                  {e.fabricTxId && <p className="text-[10px] font-mono text-[#1d6464] mt-0.5">tx: {e.fabricTxId.slice(0, 16)}…</p>}
+                <div className="space-y-1">
+                  <p className="font-serif font-bold text-sm text-gold-300">{e.title}</p>
+                  {e.description && <p className="text-xs text-text-secondary leading-relaxed">{e.description}</p>}
+                  <div className="flex flex-wrap items-center gap-3 text-[10px] text-text-muted mt-2 font-mono">
+                    <span>Actor: {e.actorName}</span>
+                    <span className="opacity-30">•</span>
+                    <span>{new Date(e.createdAt).toLocaleString()}</span>
+                  </div>
+                  {e.fabricTxId && (
+                    <p className="text-[9px] font-mono text-gold-400 mt-1">Fabric TX: <code className="bg-navy-950 px-1 py-0.5 rounded border border-gold-500/10">{e.fabricTxId}</code></p>
+                  )}
                 </div>
               </div>
             ))}

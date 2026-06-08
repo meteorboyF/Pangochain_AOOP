@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   FileText, Upload, Download, Lock, Shield, AlertCircle,
-  Loader2, PenTool, AlertTriangle, Search, Sparkles,
+  Loader2, PenTool, AlertTriangle, Search, Sparkles, X, Check
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import api from '../../lib/api'
@@ -26,14 +27,30 @@ interface DocumentDto {
 }
 
 const CATEGORIES = ['ALL', 'GENERAL', 'EVIDENCE', 'CONTRACT', 'CORRESPONDENCE', 'CONFESSION', 'MEDICAL', 'FINANCIAL']
+
 const CATEGORY_COLORS: Record<string, string> = {
-  EVIDENCE: 'bg-blue-50 text-blue-700',
-  CONTRACT: 'bg-purple-50 text-purple-700',
-  CORRESPONDENCE: 'bg-gray-100 text-gray-700',
-  CONFESSION: 'bg-red-50 text-red-700',
-  MEDICAL: 'bg-emerald-50 text-emerald-700',
-  FINANCIAL: 'bg-amber-50 text-amber-700',
-  GENERAL: 'bg-gray-100 text-gray-600',
+  EVIDENCE: 'bg-blue-500/10 text-blue-300 border border-blue-500/20',
+  CONTRACT: 'bg-purple-500/10 text-purple-300 border border-purple-500/20',
+  CORRESPONDENCE: 'bg-slate-800 text-slate-300 border border-slate-700/50',
+  CONFESSION: 'bg-red-500/10 text-rose-350 border border-red-500/20',
+  MEDICAL: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20',
+  FINANCIAL: 'bg-amber-500/10 text-amber-300 border border-amber-500/20',
+  GENERAL: 'bg-slate-800 text-slate-400 border border-slate-700/40',
+}
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.05
+    }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  show: { opacity: 1, y: 0, transition: { ease: 'easeOut' as const, duration: 0.4 } }
 }
 
 export default function ClientDocuments() {
@@ -53,8 +70,7 @@ export default function ClientDocuments() {
   const [uploadNote, setUploadNote] = useState('')
   const [suggestion, setSuggestion] = useState<{ category: string; confidence: number; rationale: string } | null>(null)
 
-  // AI auto-tagging: on file select, read a plaintext-side preview (text files only) and ask the
-  // classifier to suggest a category. Ciphertext is never sent — only filename + this preview.
+  // AI auto-tagging
   const onPickFile = async (file: File | null) => {
     setUploadFile(file)
     setSuggestion(null)
@@ -74,7 +90,6 @@ export default function ClientDocuments() {
     queryKey: queryKeys.myDocuments(),
     queryFn: async () => {
       const { data } = await api.get('/documents')
-      // /documents returns a Spring Data Page ({ content: [...] }); tolerate a bare array too.
       return (Array.isArray(data) ? data : data?.content ?? []) as DocumentDto[]
     },
   })
@@ -128,207 +143,277 @@ export default function ClientDocuments() {
   })
 
   return (
-    <div className="space-y-6 animate-fade-in max-w-4xl">
-      <div className="flex items-center justify-between">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="show"
+      className="space-y-6 text-text-primary selection:bg-gold-500/20 selection:text-gold-300 max-w-4xl font-sans"
+      id="client-documents-page"
+    >
+      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">My Document Vault</h1>
-          <p className="text-text-muted text-sm mt-0.5">
+          <h1 className="font-serif text-3xl font-bold text-gold-300 tracking-wide">My Document Vault</h1>
+          <p className="text-text-secondary text-sm mt-1">
             End-to-end encrypted · stored on IPFS · anchored on Hyperledger Fabric
           </p>
         </div>
-        <button onClick={() => setUploadModalOpen(true)} className="btn-primary">
+        <button
+          id="open-upload-btn"
+          onClick={() => setUploadModalOpen(true)}
+          className="btn-primary shrink-0 font-semibold"
+        >
           <Upload className="w-4 h-4" /> Upload Document
         </button>
-      </div>
+      </motion.div>
 
       {/* Category tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <motion.div variants={itemVariants} className="flex gap-2 flex-wrap" id="client-documents-categories">
         {CATEGORIES.map((cat) => (
           <button
             key={cat}
+            id={`category-tab-${cat}`}
             onClick={() => setActiveCategory(cat)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all duration-200 border ${
               activeCategory === cat
-                ? 'bg-[#1d6464] text-white'
-                : 'bg-surface-muted text-text-secondary hover:bg-[#1d6464]/10'
+                ? 'bg-gold-500 border-gold-400 text-navy-950 shadow-gold-sm'
+                : 'bg-navy-900/40 border-gold-500/10 text-text-secondary hover:bg-gold-500/10 hover:text-gold-300'
             }`}
           >
             {cat}
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+      <motion.div variants={itemVariants} className="relative" id="client-documents-search">
+        <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted" />
         <input
-          className="input pl-9"
-          placeholder="Search documents…"
+          id="search-doc-input"
+          className="input pl-10"
+          placeholder="Search documents by name…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-      </div>
+      </motion.div>
 
-      {loading && <ListSkeleton />}
-      {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
-          <AlertCircle className="w-4 h-4" /> {error}
+      {loading && (
+        <div id="documents-skeleton-loader">
+          <ListSkeleton />
         </div>
+      )}
+      {error && !loading && (
+        <motion.div
+          variants={itemVariants}
+          className="flex items-center gap-3 bg-red-950/40 border border-error/30 rounded-xl px-4 py-3 text-sm text-rose-400"
+          id="documents-error-banner"
+        >
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        </motion.div>
       )}
 
       {!loading && !error && filtered.length === 0 && (
-        <div className="text-center py-16">
-          <Lock className="w-12 h-12 text-text-muted mx-auto mb-4" />
-          <p className="font-heading font-semibold text-text-primary">No documents yet</p>
-          <p className="text-text-muted text-sm mt-1">Upload your first document — it will be encrypted before leaving your device.</p>
-          <button onClick={() => setUploadModalOpen(true)} className="btn-primary mt-4 inline-flex">
+        <motion.div variants={itemVariants} className="card border-dashed border-gold-500/15 text-center py-20 bg-navy-950/20" id="documents-empty-state">
+          <Lock className="w-16 h-16 text-gold-500/20 mx-auto mb-4" />
+          <h3 className="font-serif font-bold text-lg text-gold-300">No documents found</h3>
+          <p className="text-text-secondary text-sm mt-1 max-w-sm mx-auto leading-relaxed">
+            Upload your first document. It will be encrypted and signed before leaving your browser.
+          </p>
+          <button
+            id="empty-state-upload-btn"
+            onClick={() => setUploadModalOpen(true)}
+            className="btn-primary mt-6 inline-flex font-semibold"
+          >
             <Upload className="w-4 h-4" /> Upload First Document
           </button>
-        </div>
+        </motion.div>
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <div className="space-y-2">
-          {filtered.map((doc) => (
-            <div key={doc.id} className={`card ${doc.confidential ? 'border-red-200 bg-red-50/30' : ''}`}>
-              <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                  doc.confidential ? 'bg-red-100' : 'bg-[#1d6464]/10'
-                }`}>
-                  {doc.confidential
-                    ? <Shield className="w-5 h-5 text-red-600" />
-                    : <FileText className="w-5 h-5 text-[#1d6464]" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-text-primary text-sm truncate">{doc.fileName}</p>
-                    {doc.confidential && (
-                      <span className="text-[10px] bg-red-100 text-red-700 font-bold px-1.5 py-0.5 rounded">
-                        CONFIDENTIAL
-                      </span>
-                    )}
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${CATEGORY_COLORS[doc.category] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {doc.category}
-                    </span>
+        <motion.div variants={itemVariants} className="space-y-3" id="documents-list-container">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((doc) => (
+              <motion.div
+                key={doc.id}
+                layoutId={`doc-card-${doc.id}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className={`card hover:border-gold-500/20 bg-navy-900/60 border border-gold-500/10 shadow-sm relative overflow-hidden group ${
+                  doc.confidential ? 'border-red-500/20 bg-red-950/5' : ''
+                }`}
+              >
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    doc.confidential
+                      ? 'bg-red-500/10 border border-red-500/20'
+                      : 'bg-gold-500/5 border border-gold-500/10 group-hover:bg-gold-500/10 transition-colors'
+                  }`}>
+                    {doc.confidential
+                      ? <Shield className="w-5 h-5 text-rose-400" />
+                      : <FileText className="w-5 h-5 text-gold-400" />}
                   </div>
-                  <p className="text-text-muted text-xs mt-0.5">
-                    Uploaded {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    {doc.fabricTxId && (
-                      <span className="ml-2 text-[#1d6464]">· Blockchain: {doc.fabricTxId.slice(0, 8)}…</span>
-                    )}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-serif font-bold text-gold-200 text-sm truncate leading-snug">{doc.fileName}</p>
+                      {doc.confidential && (
+                        <span className="text-[9px] bg-red-500/10 border border-red-500/20 text-rose-450 font-bold font-mono px-2 py-0.5 rounded uppercase tracking-wider">
+                          CONFIDENTIAL
+                        </span>
+                      )}
+                      <span className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded border uppercase tracking-wider ${CATEGORY_COLORS[doc.category] ?? 'bg-slate-800 text-slate-400 border-slate-700/50'}`}>
+                        {doc.category}
+                      </span>
+                    </div>
+                    <p className="text-text-muted text-[11px] mt-1 font-mono">
+                      Uploaded {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {doc.fabricTxId && (
+                        <span className="ml-3 text-gold-500/60 border-l border-gold-500/20 pl-3">
+                          Blockchain Block: {doc.fabricTxId.slice(0, 10)}…
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      id={`doc-sign-btn-${doc.id}`}
+                      onClick={() => setSignDoc(doc)}
+                      className="p-2 rounded-xl border border-gold-500/10 bg-navy-950/40 text-text-secondary hover:text-gold-300 hover:border-gold-500/30 hover:bg-gold-500/5 transition-all duration-200"
+                      title="Sign document (ECDSA P-256)"
+                    >
+                      <PenTool className="w-4 h-4" />
+                    </button>
+                    <button
+                      id={`doc-download-btn-${doc.id}`}
+                      onClick={() => setDownloadDoc(doc)}
+                      className="p-2 rounded-xl border border-gold-500/10 bg-navy-950/40 text-text-secondary hover:text-gold-300 hover:border-gold-500/30 hover:bg-gold-500/5 transition-all duration-200"
+                      title="Decrypt and download"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setSignDoc(doc)}
-                    className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                    title="Sign document (ECDSA P-256)"
-                  >
-                    <PenTool className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDownloadDoc(doc)}
-                    className="p-2 rounded-lg hover:bg-[#1d6464]/10 text-text-muted hover:text-[#1d6464] transition-colors"
-                    title="Decrypt and download"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </motion.div>
       )}
 
       {/* ── Upload Modal ───────────────────────────────────────────────────────── */}
       {uploadModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#1d6464]/10 flex items-center justify-center">
-                <Lock className="w-5 h-5 text-[#1d6464]" />
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm" id="upload-document-modal">
+          <div className="bg-navy-900/95 border border-gold-500/20 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-text-primary backdrop-blur-lg">
+            <div className="flex items-center justify-between border-b border-gold-500/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gold-500/5 border border-gold-500/20 flex items-center justify-center">
+                  <Lock className="w-5 h-5 text-gold-400" />
+                </div>
+                <div>
+                  <h2 className="font-serif font-bold text-lg text-gold-300">Secure Document Upload</h2>
+                  <p className="text-[10px] text-text-secondary font-mono">Browser-side encryption active</p>
+                </div>
               </div>
+              <button
+                id="close-upload-modal-btn"
+                onClick={() => { setUploadModalOpen(false); setUploadFile(null) }}
+                className="text-text-muted hover:text-text-primary p-1 rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
               <div>
-                <h2 className="font-heading font-bold text-text-primary">Secure Document Upload</h2>
-                <p className="text-xs text-text-muted">Encrypted in your browser · server never sees plaintext</p>
+                <label className="label">Select Document File</label>
+                <input
+                  id="file-upload-input"
+                  type="file"
+                  className="input cursor-pointer"
+                  onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                />
               </div>
-            </div>
 
-            <div>
-              <label className="label">Select File</label>
-              <input
-                type="file"
-                className="input"
-                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
+              <div>
+                <label className="label">Document Category</label>
+                <select
+                  id="file-category-select"
+                  className="input py-2.5 bg-navy-950 border-gold-500/20 focus:border-gold-500"
+                  value={uploadCategory}
+                  onChange={(e) => setUploadCategory(e.target.value)}
+                >
+                  {CATEGORIES.filter((c) => c !== 'ALL').map((c) => <option key={c} value={c} className="bg-navy-950 text-text-primary">{c}</option>)}
+                </select>
+                {suggestion && (
+                  <div className="mt-2 flex items-start gap-2.5 text-xs text-gold-350 bg-gold-500/5 border border-gold-500/20 rounded-xl p-3">
+                    <Sparkles className="w-4 h-4 shrink-0 text-gold-450 mt-0.5 animate-pulse" />
+                    <div className="space-y-1">
+                      <p className="leading-none">
+                        AI suggestion: <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
+                        {uploadCategory !== suggestion.category && (
+                          <button
+                            type="button"
+                            onClick={() => setUploadCategory(suggestion.category)}
+                            className="ml-2 text-[10px] uppercase font-mono tracking-widest text-gold-400 hover:text-gold-250 underline font-bold"
+                          >
+                            apply suggestion
+                          </button>
+                        )}
+                      </p>
+                      <p className="text-[10px] text-text-secondary leading-relaxed">{suggestion.rationale}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-            <div>
-              <label className="label">Category</label>
-              <select className="input" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value)}>
-                {CATEGORIES.filter((c) => c !== 'ALL').map((c) => <option key={c}>{c}</option>)}
-              </select>
-              {suggestion && (
-                <div className="mt-1.5 flex items-center gap-2 text-xs text-[#1d6464] bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-lg px-2.5 py-1.5">
-                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    Suggested: <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
-                    {uploadCategory !== suggestion.category && (
-                      <button type="button" onClick={() => setUploadCategory(suggestion.category)} className="ml-1 underline">apply</button>
-                    )}
-                    <span className="block text-text-muted">{suggestion.rationale}</span>
-                  </span>
+              <div className="flex items-center gap-3 bg-red-950/20 border border-red-500/25 rounded-xl px-4 py-3">
+                <input
+                  type="checkbox"
+                  id="confidential"
+                  checked={uploadConfidential}
+                  onChange={(e) => setUploadConfidential(e.target.checked)}
+                  className="w-4 h-4 accent-red-650 cursor-pointer rounded border-red-500/20 bg-navy-950"
+                />
+                <label htmlFor="confidential" className="text-sm font-semibold text-rose-350 cursor-pointer select-none">
+                  Mark as Confidential
+                </label>
+                <Shield className="w-4 h-4 text-rose-450 ml-auto shrink-0" />
+              </div>
+
+              {uploadConfidential && (
+                <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-[11px] text-amber-300 leading-relaxed">
+                    Confidential files undergo multi-recipient key wrapping. Only your legal advisory board 
+                    retains delegation rights. An immutable access event will register on the Fabric ledger.
+                  </p>
+                </div>
+              )}
+
+              {uploading && (
+                <div className="bg-gold-500/5 border border-gold-500/25 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-gold-450" />
+                  <p className="text-xs text-gold-300 font-mono">{uploadStage}</p>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <input
-                type="checkbox"
-                id="confidential"
-                checked={uploadConfidential}
-                onChange={(e) => setUploadConfidential(e.target.checked)}
-                className="w-4 h-4 accent-red-600"
-              />
-              <label htmlFor="confidential" className="text-sm font-medium text-red-800 cursor-pointer">
-                Mark as Confidential
-              </label>
-              <Shield className="w-4 h-4 text-red-600 ml-auto" />
-            </div>
-
-            {uploadConfidential && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                <p className="text-xs text-amber-800">
-                  Confidential documents are encrypted with highest priority. Only your assigned lawyer
-                  can be granted access. This upload will be flagged in the blockchain audit trail.
-                </p>
-              </div>
-            )}
-
-            {uploading && (
-              <div className="bg-[#1d6464]/5 rounded-xl px-4 py-3 flex items-center gap-3">
-                <Loader2 className="w-4 h-4 animate-spin text-[#1d6464]" />
-                <p className="text-sm text-[#1d6464] font-medium">{uploadStage}</p>
-              </div>
-            )}
-
-            <div className="flex gap-3">
+            <div className="flex gap-3 pt-3">
               <button
+                id="upload-cancel-btn"
                 onClick={() => { setUploadModalOpen(false); setUploadFile(null) }}
                 disabled={uploading}
-                className="flex-1 btn border border-border text-text-secondary py-2.5 justify-center"
+                className="flex-1 btn-secondary py-2.5 justify-center text-xs"
               >
                 Cancel
               </button>
               <button
+                id="upload-submit-btn"
                 onClick={handleUpload}
                 disabled={!uploadFile || uploading}
-                className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50"
+                className="flex-1 btn-primary py-2.5 justify-center text-xs font-bold disabled:opacity-50"
               >
                 {uploading
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Encrypting…</>
-                  : <><Lock className="w-4 h-4" /> Encrypt & Upload</>}
+                  : <><Lock className="w-4 h-4 text-navy-950" /> Encrypt & Upload</>}
               </button>
             </div>
           </div>
@@ -353,6 +438,6 @@ export default function ClientDocuments() {
           onClose={() => setSignDoc(null)}
         />
       )}
-    </div>
+    </motion.div>
   )
 }

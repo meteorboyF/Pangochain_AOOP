@@ -123,8 +123,8 @@ export default function HearingManager() {
     <div className="space-y-6 animate-fade-in max-w-4xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-2xl font-bold text-text-primary">Hearing Manager</h1>
-          <p className="text-text-muted text-sm mt-0.5">Schedule hearings and send reminders to clients</p>
+          <h1 className="font-serif text-2xl font-bold text-gold-300">Hearing Manager</h1>
+          <p className="text-text-secondary text-sm mt-0.5">Schedule hearings and send reminders to clients</p>
         </div>
         <button onClick={() => setShowForm(!showForm)} className="btn-primary">
           <Plus className="w-4 h-4" /> Schedule Hearing
@@ -133,22 +133,22 @@ export default function HearingManager() {
 
       {/* ── Create Form ───────────────────────────────────────────────────────── */}
       {showForm && (
-        <div className="card border-2 border-[#1d6464]/20">
-          <h2 className="font-heading font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Gavel className="w-4 h-4 text-[#1d6464]" /> New Hearing
+        <div className="card border border-gold-500/30 shadow-gold-sm">
+          <h2 className="font-serif font-semibold text-gold-300 mb-4 flex items-center gap-2">
+            <Gavel className="w-4 h-4 text-gold-500" /> New Hearing
           </h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Case *</label>
-                <select className="input" value={caseId} onChange={(e) => setCaseId(e.target.value)} required>
+                <select className="input bg-navy-950 text-text-primary" value={caseId} onChange={(e) => setCaseId(e.target.value)} required>
                   <option value="">— Select case —</option>
                   {cases.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
                 </select>
               </div>
               <div>
                 <label className="label">Hearing Type</label>
-                <select className="input" value={hearingType} onChange={(e) => setHearingType(e.target.value)}>
+                <select className="input bg-navy-950 text-text-primary" value={hearingType} onChange={(e) => setHearingType(e.target.value)}>
                   {HEARING_TYPES.map((t) => <option key={t}>{t.replace(/_/g, ' ')}</option>)}
                 </select>
               </div>
@@ -162,7 +162,7 @@ export default function HearingManager() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Date & Time *</label>
-                <input type="datetime-local" className="input" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
+                <input type="datetime-local" className="input text-text-primary" value={hearingDate} onChange={(e) => setHearingDate(e.target.value)} required />
               </div>
               <div>
                 <label className="label">Court Name</label>
@@ -181,7 +181,7 @@ export default function HearingManager() {
             </div>
 
             <div className="flex gap-3 pt-1">
-              <button type="button" onClick={() => setShowForm(false)} className="flex-1 btn border border-border text-text-secondary py-2.5 justify-center">Cancel</button>
+              <button type="button" onClick={() => setShowForm(false)} className="flex-1 btn-secondary py-2.5 justify-center">Cancel</button>
               <button type="submit" disabled={submitting || !caseId || !title || !hearingDate} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
                 {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Scheduling…</> : <><Calendar className="w-4 h-4" /> Schedule</>}
               </button>
@@ -190,10 +190,10 @@ export default function HearingManager() {
         </div>
       )}
 
-      {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>}
+      {loading && <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-gold-500" /></div>}
       {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+        <div className="flex items-center gap-3 bg-error/15 border border-error/30 rounded-xl px-4 py-3 text-sm text-rose-400">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" /> {error}
         </div>
       )}
 
@@ -201,11 +201,11 @@ export default function HearingManager() {
       {!loading && (
         <>
           <div className="space-y-3">
-            <h2 className="font-heading font-semibold text-text-primary text-sm uppercase tracking-wide text-text-muted">
+            <h2 className="font-sans font-bold text-xs uppercase tracking-widest text-gold-500/60 mb-2">
               Upcoming ({upcoming.length})
             </h2>
             {upcoming.length === 0 && (
-              <p className="text-sm text-text-muted py-4 text-center">No upcoming hearings scheduled</p>
+              <p className="text-sm text-text-secondary py-4 text-center">No upcoming hearings scheduled</p>
             )}
             {upcoming.map((h) => (
               <HearingCard
@@ -218,8 +218,8 @@ export default function HearingManager() {
           </div>
 
           {past.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="font-heading font-semibold text-sm uppercase tracking-wide text-text-muted">
+            <div className="space-y-3 mt-8">
+              <h2 className="font-sans font-bold text-xs uppercase tracking-widest text-text-muted mb-2">
                 Past ({past.length})
               </h2>
               {past.slice(0, 5).map((h) => (
@@ -232,15 +232,15 @@ export default function HearingManager() {
 
       {/* ── Reminder Modal ────────────────────────────────────────────────────── */}
       {reminderHearing && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="card w-full max-w-md p-6 border border-gold-500/20 shadow-gold-md space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Bell className="w-5 h-5 text-amber-600" />
+              <div className="w-10 h-10 rounded-xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center">
+                <Bell className="w-5 h-5 text-gold-400" />
               </div>
               <div>
-                <h2 className="font-heading font-bold text-text-primary">Send Hearing Reminder</h2>
-                <p className="text-xs text-text-muted">{reminderHearing.title}</p>
+                <h2 className="font-serif font-bold text-lg text-gold-300">Send Hearing Reminder</h2>
+                <p className="text-xs text-text-secondary truncate max-w-[260px]">{reminderHearing.title}</p>
               </div>
             </div>
 
@@ -260,7 +260,7 @@ export default function HearingManager() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={() => setReminderHearing(null)} className="flex-1 btn border border-border text-text-secondary py-2.5 justify-center">Cancel</button>
+              <button onClick={() => setReminderHearing(null)} className="flex-1 btn-secondary py-2.5 justify-center">Cancel</button>
               <button
                 onClick={handleSendReminder}
                 disabled={sendingReminder || !reminderRecipient.trim()}
@@ -284,13 +284,17 @@ function HearingCard({ hearing, onDelete, onRemind, past }: {
 }) {
   const date = new Date(hearing.hearingDate)
   return (
-    <div className={`card ${past ? 'opacity-60' : ''}`}>
+    <div className={`card ${past ? 'opacity-50' : 'card-glow-hover'}`}>
       <div className="flex items-start gap-4">
-        <div className={`w-11 h-11 rounded-xl flex-shrink-0 flex flex-col items-center justify-center text-center ${past ? 'bg-gray-100' : 'bg-[#1d6464]/10'}`}>
-          <span className={`text-[10px] font-bold uppercase ${past ? 'text-gray-500' : 'text-[#1d6464]'}`}>
+        <div className={`w-11 h-11 rounded-xl flex-shrink-0 flex flex-col items-center justify-center text-center border ${
+          past 
+            ? 'bg-navy-950/40 border-gold-500/10 text-text-secondary' 
+            : 'bg-gold-500/10 border-gold-500/20 text-gold-300'
+        }`}>
+          <span className={`text-[9px] font-bold uppercase ${past ? 'text-text-muted' : 'text-gold-400'}`}>
             {date.toLocaleDateString('en-US', { month: 'short' })}
           </span>
-          <span className={`text-lg font-bold leading-none ${past ? 'text-gray-600' : 'text-[#1d6464]'}`}>
+          <span className={`text-base font-bold leading-none ${past ? 'text-text-muted' : 'text-gold-300'}`}>
             {date.getDate()}
           </span>
         </div>
@@ -298,38 +302,38 @@ function HearingCard({ hearing, onDelete, onRemind, past }: {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-text-primary text-sm">{hearing.title}</p>
-            <span className="text-[10px] bg-[#1d6464]/10 text-[#1d6464] font-semibold px-1.5 py-0.5 rounded">
+            <span className="text-[10px] bg-gold-500/10 text-gold-300 border border-gold-500/20 font-semibold px-2 py-0.5 rounded-full">
               {hearing.hearingType.replace(/_/g, ' ')}
             </span>
           </div>
-          <p className="text-xs text-text-muted mt-0.5">
+          <p className="text-xs text-text-secondary mt-0.5">
             {hearing.caseTitle} · {date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
           </p>
           {hearing.courtName && (
-            <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5">
-              <Scale className="w-3 h-3" /> {hearing.courtName}
+            <p className="text-xs text-text-secondary flex items-center gap-1 mt-0.5">
+              <Scale className="w-3 h-3 text-gold-500/70" /> {hearing.courtName}
               {hearing.location && ` · ${hearing.location}`}
             </p>
           )}
           {hearing.notes && <p className="text-xs text-text-muted italic mt-1 line-clamp-2">{hearing.notes}</p>}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {!past && onRemind && (
             <button
               onClick={onRemind}
-              className="p-2 rounded-lg hover:bg-amber-50 text-text-muted hover:text-amber-600 transition-colors"
+              className="p-2 rounded-lg hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-colors"
               title="Send reminder to client"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4.5 h-4.5" />
             </button>
           )}
           <button
             onClick={() => onDelete(hearing.id)}
-            className="p-2 rounded-lg hover:bg-red-50 text-text-muted hover:text-error transition-colors"
+            className="p-2 rounded-lg hover:bg-rose-500/10 text-text-secondary hover:text-rose-400 transition-colors"
             title="Delete hearing"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-4.5 h-4.5" />
           </button>
         </div>
       </div>

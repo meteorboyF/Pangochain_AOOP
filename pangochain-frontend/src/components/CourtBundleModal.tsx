@@ -85,31 +85,33 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-lg max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2">
-            <FileStack className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">Court-Ready Bundle</h2>
+            <FileStack className="w-5 h-5 text-gold-500" />
+            <h2 className="font-serif font-semibold text-lg text-gold-300">Court-Ready Bundle</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="p-5 space-y-4 overflow-y-auto">
+        <div className="p-5 space-y-4 overflow-y-auto scrollbar-thin">
           <div>
             <label className="label">Bundle type</label>
-            <select className="input" value={bundleType} onChange={(e) => setBundleType(e.target.value)}>
+            <select className="input bg-navy-950 text-text-primary border-gold-500/20" value={bundleType} onChange={(e) => setBundleType(e.target.value)}>
               {BUNDLE_TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
           </div>
 
           <div>
             <label className="label">Documents ({selected.size} selected)</label>
-            <div className="border border-border rounded-xl divide-y divide-border max-h-52 overflow-y-auto">
-              {documents.length === 0 && <p className="text-text-muted text-sm p-3">No documents on this case.</p>}
+            <div className="border border-gold-500/15 rounded-xl divide-y divide-gold-500/10 bg-navy-950/40 max-h-52 overflow-y-auto scrollbar-thin">
+              {documents.length === 0 && <p className="text-text-secondary text-sm p-3">No documents on this case.</p>}
               {documents.map((d) => (
-                <label key={d.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-muted">
-                  <input type="checkbox" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
+                <label key={d.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-navy-900/40 transition-colors">
+                  <input type="checkbox" className="rounded border-gold-500/30 text-gold-500 focus:ring-gold-500/30 bg-navy-950" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
                   <span className="text-sm text-text-primary truncate">{d.fileName}</span>
                 </label>
               ))}
@@ -118,23 +120,23 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
 
           <div>
             <label className="label">Password (to unlock your key for decryption)</label>
-            <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <input type="password" className="input font-mono" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
 
-          <div className="flex items-start gap-1.5 text-[11px] text-text-muted">
-            <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#1d6464]" />
+          <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
             Documents are decrypted in your browser. The integrity appendix lists each document SHA-256 hash and Fabric tx ID for independent ledger verification.
           </div>
 
-          {progress && <div className="flex items-center gap-2 text-sm text-[#1d6464]"><Loader2 className="w-4 h-4 animate-spin" /> {progress}</div>}
-          {done && <div className="flex items-center gap-2 text-sm text-success"><CheckCircle className="w-4 h-4" /> Bundle downloaded.</div>}
-          {error && <div className="flex items-center gap-2 text-error text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2"><AlertCircle className="w-3.5 h-3.5" /> {error}</div>}
+          {progress && <div className="flex items-center gap-2 text-sm text-gold-400"><Loader2 className="w-4 h-4 animate-spin text-gold-500" /> {progress}</div>}
+          {done && <div className="flex items-center gap-2 text-sm text-emerald-400"><CheckCircle className="w-4 h-4 text-emerald-500" /> Bundle downloaded.</div>}
+          {error && <div className="flex items-center gap-2 text-rose-400 text-xs bg-error/15 border border-error/30 rounded-lg px-3 py-2"><AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" /> {error}</div>}
         </div>
 
-        <div className="flex gap-3 p-5 pt-0">
-          <button onClick={onClose} className="flex-1 btn border border-border text-text-secondary hover:bg-surface-muted py-2.5">Close</button>
+        <div className="flex gap-3 p-5 pt-0 bg-navy-950/20">
+          <button onClick={onClose} className="flex-1 btn-secondary py-2.5">Close</button>
           <button onClick={generate} disabled={busy || selected.size === 0 || !password} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
-            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</> : <><Lock className="w-4 h-4" /> Generate Bundle</>}
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin text-navy-950" /> Generating…</> : <><Lock className="w-4 h-4" /> Generate Bundle</>}
           </button>
         </div>
       </div>

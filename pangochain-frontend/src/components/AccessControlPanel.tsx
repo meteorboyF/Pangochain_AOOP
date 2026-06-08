@@ -19,9 +19,9 @@ interface Props {
 }
 
 const CAP_ICON: Record<string, React.ReactNode> = {
-  owner: <Crown className="w-3.5 h-3.5 text-amber-500" />,
-  write: <Edit className="w-3.5 h-3.5 text-blue-500" />,
-  read:  <Eye className="w-3.5 h-3.5 text-teal-500" />,
+  owner: <Crown className="w-3.5 h-3.5 text-gold-500" />,
+  write: <Edit className="w-3.5 h-3.5 text-gold-400" />,
+  read:  <Eye className="w-3.5 h-3.5 text-emerald-400" />,
 }
 
 const CAP_LABEL: Record<string, string> = {
@@ -77,41 +77,41 @@ export function AccessControlPanel({ docId, fileName, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card w-full max-w-lg p-0 border border-gold-500/20 shadow-gold-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <Shield className="w-4 h-4 text-[#1d6464]" />
-              <h2 className="font-heading font-semibold text-text-primary">Access Control</h2>
+              <Shield className="w-4 h-4 text-gold-500" />
+              <h2 className="font-serif font-semibold text-lg text-gold-300">Access Control</h2>
             </div>
-            <p className="text-text-muted text-xs truncate max-w-[300px]">{fileName}</p>
+            <p className="text-text-secondary text-xs truncate max-w-[300px]">{fileName}</p>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
-            <X className="w-4 h-4 text-text-muted" />
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-5">
           {/* Current ACL */}
           <div>
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Who has access</p>
+            <p className="text-xs font-bold text-gold-500/60 uppercase tracking-widest mb-3">Who has access</p>
             <div className="space-y-2">
               {entries.map((entry) => (
-                <div key={entry.id} className="flex items-center justify-between bg-surface-muted rounded-xl px-3.5 py-2.5 group">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-full bg-[#1d6464]/10 flex items-center justify-center text-[#1d6464] text-xs font-bold shrink-0">
+                <div key={entry.id} className="flex items-center justify-between bg-navy-950/60 border border-gold-500/10 rounded-xl px-3.5 py-2.5 group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-gold-300 text-xs font-bold shrink-0">
                       {entry.userEmail[0].toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-text-primary truncate">{entry.userEmail}</p>
-                      <div className="flex items-center gap-1.5 text-xs text-text-muted">
+                      <div className="flex items-center gap-1.5 text-xs text-text-secondary">
                         {CAP_ICON[entry.capability]}
                         <span>{CAP_LABEL[entry.capability]}</span>
                         {entry.expiresAt && (
-                          <span className="flex items-center gap-0.5 text-amber-600">
-                            <Clock className="w-3 h-3" />
+                          <span className="flex items-center gap-0.5 text-gold-400">
+                            <Clock className="w-3.5 h-3.5" />
                             Expires {new Date(entry.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                           </span>
                         )}
@@ -122,7 +122,7 @@ export function AccessControlPanel({ docId, fileName, onClose }: Props) {
                     <button
                       onClick={() => handleRevoke(entry.id, entry.userEmail)}
                       disabled={revoking === entry.id}
-                      className="p-1.5 rounded-lg text-text-muted hover:text-error hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50"
+                      className="p-1.5 rounded-lg text-text-secondary hover:text-rose-400 hover:bg-rose-500/10 transition-all opacity-0 group-hover:opacity-100 disabled:opacity-50"
                       title="Revoke access"
                     >
                       {revoking === entry.id
@@ -136,9 +136,9 @@ export function AccessControlPanel({ docId, fileName, onClose }: Props) {
           </div>
 
           {/* Grant new access */}
-          <div className="border-t border-border pt-4">
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-3">Grant access</p>
-            <p className="text-xs text-text-muted mb-3">
+          <div className="border-t border-gold-500/10 pt-4">
+            <p className="text-xs font-bold text-gold-500/60 uppercase tracking-widest mb-3">Grant access</p>
+            <p className="text-xs text-text-secondary mb-3 leading-relaxed">
               The document key is re-encrypted with the recipient's public key (ECIES P-256) — they can decrypt without your password.
             </p>
             <div className="flex gap-2">
@@ -150,7 +150,7 @@ export function AccessControlPanel({ docId, fileName, onClose }: Props) {
                 onKeyDown={(e) => e.key === 'Enter' && handleGrant()}
               />
               <select
-                className="input w-28 text-sm py-2"
+                className="input w-28 text-sm py-2 bg-navy-950 text-text-primary"
                 value={capability}
                 onChange={(e) => setCapability(e.target.value as 'read' | 'write')}
               >

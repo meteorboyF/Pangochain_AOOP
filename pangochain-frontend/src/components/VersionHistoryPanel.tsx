@@ -60,53 +60,70 @@ export function VersionHistoryPanel({ docId, fileName, onClose, onChanged }: Pro
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card border border-gold-500/20 shadow-gold-md w-full max-w-lg max-h-[85vh] flex flex-col p-0 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2 min-w-0">
-            <History className="w-5 h-5 text-[#1d6464] shrink-0" />
+            <History className="w-5 h-5 text-gold-500 shrink-0" />
             <div className="min-w-0">
-              <h2 className="font-heading font-semibold text-text-primary truncate">Version History</h2>
-              <p className="text-xs text-text-muted truncate">{fileName}</p>
+              <h2 className="font-serif font-semibold text-gold-300 truncate text-base">Version History</h2>
+              <p className="text-xs text-text-secondary truncate">{fileName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="p-5 overflow-y-auto scrollbar-thin flex-1">
           {loading ? (
-            <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>
+            <div className="flex justify-center py-10"><Loader2 className="w-6 h-6 animate-spin text-gold-500" /></div>
           ) : error ? (
-            <p className="text-sm text-error">{error}</p>
+            <p className="text-sm text-rose-400">{error}</p>
           ) : (
-            <ol className="relative border-l-2 border-border ml-2 space-y-4">
+            <ol className="relative border-l border-gold-500/10 ml-2 space-y-4">
               {ordered.map((v) => {
                 const isHead = v.id === head?.id
                 // A version is unchanged from its predecessor if the plaintext hash matches.
                 const prev = versions.find((p) => p.id === v.previousVersionId)
                 const sameAsPrev = prev && prev.documentHash === v.documentHash
                 return (
-                  <li key={v.id} className="ml-5">
-                    <span className={`absolute -left-[9px] w-4 h-4 rounded-full border-2 border-white ${isHead ? 'bg-[#1d6464]' : 'bg-slate-300'}`} />
-                    <div className={`rounded-xl border p-3 ${isHead ? 'border-[#1d6464]/40 bg-[#1d6464]/5' : 'border-border'}`}>
+                  <li key={v.id} className="ml-5 relative">
+                    <span className={`absolute -left-[25px] top-1.5 w-2.5 h-2.5 rounded-full border ${
+                      isHead 
+                        ? 'bg-gold-500 border-gold-400 shadow-gold-sm' 
+                        : 'bg-navy-950 border-gold-500/30'
+                    }`} />
+                    <div className={`rounded-xl border p-3.5 ${
+                      isHead 
+                        ? 'border-gold-500/30 bg-gold-500/5 shadow-gold-sm' 
+                        : 'border-gold-500/10 bg-navy-950/40'
+                    }`}>
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-text-primary text-sm">Version {v.version}</span>
-                          {isHead && <span className="text-[10px] font-bold uppercase tracking-wide text-[#1d6464] bg-[#1d6464]/10 px-1.5 py-0.5 rounded">Current</span>}
+                          {isHead && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-gold-300 bg-gold-500/10 border border-gold-500/20 px-1.5 py-0.5 rounded">
+                              Current
+                            </span>
+                          )}
                           {sameAsPrev && <span className="text-[10px] text-text-muted">· identical content</span>}
                         </div>
                         {!isHead && (
-                          <button onClick={() => handleRestore(v)} disabled={restoringId === v.id}
-                            className="inline-flex items-center gap-1 text-xs text-[#1d6464] hover:bg-[#1d6464]/10 rounded-lg px-2 py-1 disabled:opacity-50">
-                            {restoringId === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />} Restore
+                          <button 
+                            onClick={() => handleRestore(v)} 
+                            disabled={restoringId === v.id}
+                            className="inline-flex items-center gap-1 text-xs text-gold-400 hover:text-gold-300 bg-gold-500/5 hover:bg-gold-500/10 border border-gold-500/10 rounded-lg px-2 py-1 transition-all disabled:opacity-50"
+                          >
+                            {restoringId === v.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />} Restore
                           </button>
                         )}
                       </div>
-                      <div className="mt-1.5 space-y-0.5 text-xs text-text-muted">
-                        <p className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(v.createdAt).toLocaleString()}</p>
-                        <p className="flex items-center gap-1"><UserIcon className="w-3 h-3" /> {v.ownerEmail}</p>
-                        <p className="flex items-center gap-1"><ShieldCheck className="w-3 h-3 text-[#1d6464]" /> <span className="font-mono truncate">SHA-256 {v.documentHash?.slice(0, 16)}…</span></p>
-                        {v.fabricTxId && <p className="flex items-center gap-1"><CheckCircle className="w-3 h-3 text-emerald-600" /> <span className="font-mono truncate">tx {v.fabricTxId.slice(0, 14)}…</span></p>}
+                      <div className="mt-2 space-y-0.5 text-xs text-text-secondary">
+                        <p className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 text-gold-500/60" /> {new Date(v.createdAt).toLocaleString()}</p>
+                        <p className="flex items-center gap-1.5"><UserIcon className="w-3.5 h-3.5 text-gold-500/60" /> {v.ownerEmail}</p>
+                        <p className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-gold-500/80" /> <span className="font-mono truncate">SHA-256 {v.documentHash?.slice(0, 16)}…</span></p>
+                        {v.fabricTxId && <p className="flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5 text-emerald-400" /> <span className="font-mono truncate">tx {v.fabricTxId.slice(0, 14)}…</span></p>}
                       </div>
                     </div>
                   </li>
@@ -116,7 +133,7 @@ export function VersionHistoryPanel({ docId, fileName, onClose, onChanged }: Pro
           )}
         </div>
 
-        <div className="p-5 pt-3 border-t border-border">
+        <div className="p-5 border-t border-gold-500/10 bg-navy-950/20">
           <button onClick={() => setShowUpload(true)} disabled={!head} className="btn-primary w-full justify-center py-2.5 disabled:opacity-50">
             <Upload className="w-4 h-4" /> Upload New Version
           </button>

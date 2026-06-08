@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Eye, EyeOff, Loader2, ShieldCheck, FileCheck, BarChart3, Zap } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, Loader2, ShieldCheck, Lock, Zap } from 'lucide-react'
+import { motion } from 'framer-motion'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { DEMO_USER } from '../lib/mockData'
 import { ensureUserKeys } from '../lib/provisionKeys'
+import { ScalesSvg, ChainLinkSvg } from '../components/ui/SvgAssets'
 
 type LoginStage = 'password' | 'mfa_code' | 'mfa_setup_required'
 
@@ -41,8 +43,6 @@ export default function Login() {
       firmId: data.firmId,
       mfaEnabled: data.mfaEnabled,
     })
-    // First-login key provisioning — makes the account E2E-capable on this device.
-    // Never block login on failure; provisioning retries on the next login.
     try {
       const provisioned = await ensureUserKeys(data.userId, password)
       if (provisioned) toast.success('Security keys generated for this device')
@@ -56,7 +56,7 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    // Demo shortcut — works without backend
+    // Demo shortcut
     if (email === 'demo@pangochain.com' && password === 'demo123') {
       setAuth('demo-access-token', 'demo-refresh-token', DEMO_USER)
       toast.success('Welcome to the demo!')
@@ -66,7 +66,6 @@ export default function Login() {
 
     try {
       if (loginStage === 'mfa_code') {
-        // Stage 2: submit TOTP code — or a single-use recovery code — against the challenge token
         if (useRecovery) {
           const { data } = await api.post('/auth/mfa/recovery', { challengeToken, recoveryCode })
           toast('Recovery code used — please set up MFA again from your profile', { icon: '🔑' })
@@ -78,11 +77,9 @@ export default function Login() {
         return
       }
 
-      // Stage 1: password login
       const { data } = await api.post('/auth/login', { email, password })
 
       if (data.requiresMfaCode) {
-        // HTTP 202 — challenge token issued, need TOTP code
         setChallengeToken(data.challengeToken)
         setLoginStage('mfa_code')
         setTotpCode('')
@@ -111,225 +108,232 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex bg-stone-100">
-      {/* ── Left panel ─────────────────────────────────────────────────── */}
-      <div className="hidden lg:flex w-[52%] relative flex-col justify-between p-14 overflow-hidden bg-black">
-        <img
-          src="/legal/law-library-gavel.png"
-          alt="Legal library and gavel"
-          className="absolute inset-0 h-full w-full object-cover opacity-70"
-        />
-        <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(0,0,0,0.96),rgba(24,24,27,0.82)_46%,rgba(41,37,36,0.46)),radial-gradient(circle_at_74%_18%,rgba(212,175,55,0.30),transparent_28rem)]" />
-        <div className="absolute inset-x-14 top-10 h-px bg-gradient-to-r from-amber-200/80 via-white/20 to-transparent" />
-
-        <div className="relative z-10">
-          <Link to="/" className="inline-flex rounded-2xl focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-black">
-            <img src="/logo.png" alt="PangoChain" className="h-16 w-auto brightness-0 invert" />
-          </Link>
+    <div className="min-h-screen flex bg-navy-950 text-text-primary selection:bg-gold-500/20 selection:text-gold-300">
+      
+      {/* ── Left panel: Abstract breathing geometric art ─────────────────── */}
+      <div className="hidden lg:flex w-[50%] relative flex-col justify-between p-16 overflow-hidden border-r border-gold-500/10 bg-navy-900/40">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(201,168,76,0.08),transparent_30rem)]" />
+        
+        {/* Subtle grid */}
+        <div className="absolute inset-0 opacity-[0.02] bg-[linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] bg-[size:40px_40px]" />
+        
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-950 border border-gold-500/20 p-1.5 overflow-hidden">
+            <img src="/logo-mark.png" alt="PangoChain Logo" className="h-full w-auto filter-gold" />
+          </div>
+          <p className="font-serif text-sm font-bold text-gold-300 tracking-wide">PangoChain</p>
         </div>
 
-        <div className="relative z-10 max-w-lg">
-          <p className="mb-4 text-xs font-bold uppercase tracking-[0.24em] text-amber-200">Secure legal command</p>
-          <h2 className="font-heading text-5xl font-extrabold text-white leading-tight">
-            Evidence, access, and audit in one polished workspace.
-          </h2>
-          <p className="mt-5 max-w-md text-base leading-7 text-white/75">
-            PangoChain protects legal documents client-side, records critical events on Fabric, and keeps case teams moving without losing custody context.
-          </p>
-
-          <div className="mt-10 grid gap-3">
-            {[
-              { icon: <ShieldCheck className="w-4 h-4" />, text: 'End-to-end document security' },
-              { icon: <FileCheck className="w-4 h-4" />, text: 'Immutable blockchain audit trail' },
-              { icon: <BarChart3 className="w-4 h-4" />, text: 'Role-based access control' },
-            ].map((f) => (
-              <div key={f.text} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white/85 backdrop-blur-md">
-                <div className="text-amber-200">{f.icon}</div>
-                {f.text}
-              </div>
-            ))}
+        {/* Parallax breathing SVG Scales of Justice */}
+        <div className="relative z-10 flex flex-col items-center justify-center py-12">
+          <motion.div
+            animate={{
+              y: [0, -12, 0],
+              rotate: [0, 0.5, -0.5, 0],
+              scale: [1, 1.01, 1]
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+            className="w-80 h-80 flex items-center justify-center"
+          >
+            <ScalesSvg className="w-full h-full text-gold-500/45 stroke-[1] drop-shadow-[0_0_15px_rgba(201,168,76,0.25)]" />
+          </motion.div>
+          
+          <div className="max-w-md text-center mt-8">
+            <h2 className="font-serif text-3xl font-medium text-gold-300 mb-4">Integrity, Sealed.</h2>
+            <p className="text-text-secondary text-sm leading-relaxed">
+              Every case ledger transaction is cryptographically registered to prevent tampering and preserve courtroom chain-of-custody.
+            </p>
           </div>
         </div>
 
-        <div className="relative z-10 flex items-center gap-3 text-xs font-mono text-white/50">
-          <span className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_18px_rgba(251,191,36,0.75)]" />
-          AES-256-GCM · IPFS · Hyperledger Fabric
+        <div className="relative z-10 flex items-center gap-2 text-xs font-mono text-text-secondary">
+          <Lock className="w-3.5 h-3.5 text-gold-500" />
+          AES-256-GCM · IPFS EVMAT MATTERS CUSTODY
         </div>
       </div>
 
-      {/* ── Right panel ─────────────────────────────────────────────────── */}
-      <div className="flex-1 relative flex items-center justify-center p-8 bg-[radial-gradient(circle_at_20%_10%,rgba(212,175,55,0.16),transparent_32rem),linear-gradient(160deg,#f3f1ed,#e8e6e1)] overflow-hidden">
+      {/* ── Right panel: Login form ─────────────────────────────────────── */}
+      <div className="flex-1 relative flex items-center justify-center p-8 bg-navy-950">
+        
+        {/* Decorative elements */}
         <div className="pointer-events-none absolute inset-0">
-          {/* Subtle dot grid */}
-          <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(rgba(0,0,0,1)_1px,transparent_1px)] bg-[size:24px_24px]" />
-          {/* Elegant geometric accents */}
-          <div className="absolute right-0 top-0 w-64 h-64 rounded-bl-[8rem] bg-gradient-to-bl from-amber-100/40 to-transparent" />
-          <div className="absolute left-0 bottom-0 w-48 h-48 rounded-tr-[6rem] bg-gradient-to-tr from-stone-200/30 to-transparent" />
-          <div className="absolute left-1/2 top-[15%] h-px w-32 -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-          <div className="absolute right-[20%] bottom-[20%] h-2 w-2 rounded-full bg-amber-400/50 shadow-[0_0_20px_rgba(217,119,6,0.3)]" />
+          <div className="absolute right-0 top-0 w-80 h-80 rounded-bl-[10rem] bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.06),transparent_24rem)]" />
+          <div className="absolute left-0 bottom-0 w-64 h-64 rounded-tr-[8rem] bg-[radial-gradient(circle_at_bottom_left,rgba(26,92,74,0.04),transparent_20rem)]" />
         </div>
 
         <Link
           to="/"
-          className="absolute left-8 top-8 z-20 inline-flex items-center gap-2 rounded-full border border-stone-300/60 bg-white/70 px-4 py-2 text-sm font-semibold text-stone-700 shadow-sm backdrop-blur-md transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-stone-950"
+          className="absolute left-8 top-8 z-20 inline-flex items-center gap-2 rounded-xl border border-gold-500/20 bg-navy-900/60 px-4 py-2 text-xs font-semibold text-gold-400 hover:text-gold-300 transition-all duration-300 hover:border-gold-500/40"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Landing page
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to Portal
         </Link>
 
-        <div className="relative z-10 w-full max-w-sm rounded-2xl border border-slate-200/70 bg-white/[0.92] p-7 shadow-[0_2px_8px_rgba(0,0,0,0.04),0_16px_48px_-12px_rgba(15,23,42,0.16)] backdrop-blur-sm">
+        {/* Form panel card */}
+        <div className="relative z-10 w-full max-w-md rounded-2xl border border-gold-500/10 border-t-2 border-t-gold-500 bg-navy-900/50 p-8 shadow-card backdrop-blur-md">
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
+          <div className="flex justify-center lg:hidden mb-6">
+            <img src="/logo.png" alt="PangoChain" className="h-9 w-auto filter-gold" />
           </div>
-
-          <h1 className="font-heading text-2xl font-bold text-text-primary mb-1">
-            {loginStage === 'mfa_code' ? 'Two-Factor Authentication'
+          
+          <h1 className="font-serif text-2xl font-bold text-gold-300 mb-1">
+            {loginStage === 'mfa_code' ? 'Multi-Factor Verification'
               : loginStage === 'mfa_setup_required' ? 'MFA Required'
-              : 'Welcome back'}
+              : 'Enterprise Access'}
           </h1>
-          <p className="text-text-muted text-sm mb-6">
+          <p className="text-text-secondary text-sm mb-6">
             {loginStage === 'mfa_code'
-              ? 'Enter the 6-digit code from your authenticator app.'
+              ? 'Enter the 6-digit verification code from your device.'
               : loginStage === 'mfa_setup_required'
-              ? 'Your role requires multi-factor authentication before you can log in.'
-              : 'Sign in to your secure workspace.'}
+              ? 'Your high-clearance role requires authenticator binding.'
+              : 'Sign in to access your secure matters ledger.'}
           </p>
 
           {loginStage === 'mfa_setup_required' ? (
             <div className="space-y-4">
-              <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+              <div className="rounded-xl bg-gold-500/5 border border-gold-500/20 px-4 py-3 text-xs text-gold-300 leading-relaxed">
                 For security, Managing Partners and IT Admins must enroll in Google Authenticator before accessing the system.
               </div>
               <button
                 type="button"
                 onClick={() => navigate('/mfa/setup')}
-                className="btn-primary w-full justify-center py-2.5"
+                className="btn-primary w-full justify-center py-3"
               >
                 Set up MFA now
               </button>
               <button
                 type="button"
                 onClick={() => setLoginStage('password')}
-                className="w-full text-sm text-text-muted hover:text-text-primary text-center"
+                className="w-full text-xs text-text-secondary hover:text-text-primary text-center font-semibold mt-2"
               >
-                Back to login
+                Return to Login
               </button>
             </div>
           ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {loginStage === 'password' ? (
-              <>
-                <div>
-                  <label className="label">Email address</label>
-                  <input
-                    type="email"
-                    className="input"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@firm.com"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-
-                <div>
-                  <label className="label">Password</label>
-                  <div className="relative">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {loginStage === 'password' ? (
+                <>
+                  <div>
+                    <label className="label">E-Mail Address</label>
                     <input
-                      type={showPassword ? 'text' : 'password'}
-                      className="input pr-10"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      type="email"
+                      className="input"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="attorney@firm.com"
                       required
-                      autoComplete="current-password"
+                      autoComplete="email"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((v) => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
                   </div>
+
+                  <div>
+                    <label className="label">Passphrase</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        className="input pr-10"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        required
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-gold-400"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : useRecovery ? (
+                <div>
+                  <label className="label">Fabric Recovery Code</label>
+                  <input
+                    type="text"
+                    className="input text-center text-lg tracking-widest font-mono border-gold-500/30"
+                    value={recoveryCode}
+                    onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().slice(0, 16))}
+                    placeholder="XXXXX-XXXXX"
+                    autoFocus
+                    autoComplete="one-time-code"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setUseRecovery(false); setError(''); setRecoveryCode('') }}
+                    className="mt-2 text-xs text-gold-400 hover:text-gold-300 font-semibold"
+                  >
+                    Use authenticator code instead
+                  </button>
                 </div>
-              </>
-            ) : useRecovery ? (
-              <div>
-                <label className="label">Recovery Code</label>
-                <input
-                  type="text"
-                  className="input text-center text-lg tracking-widest font-mono"
-                  value={recoveryCode}
-                  onChange={(e) => setRecoveryCode(e.target.value.toUpperCase().slice(0, 16))}
-                  placeholder="XXXXX-XXXXX"
-                  autoFocus
-                  autoComplete="one-time-code"
-                />
-                <button
-                  type="button"
-                  onClick={() => { setUseRecovery(false); setError(''); setRecoveryCode('') }}
-                  className="mt-2 text-xs text-amber-800 hover:underline"
-                >
-                  Use authenticator code instead
-                </button>
-              </div>
-            ) : (
-              <div>
-                <label className="label">Authenticator Code</label>
-                <input
-                  type="text"
-                  className="input text-center text-2xl tracking-widest"
-                  value={totpCode}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/\D/g, '').slice(0, 6)
-                    setTotpCode(v)
-                  }}
-                  placeholder="000000"
-                  maxLength={6}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  onClick={() => { setUseRecovery(true); setError(''); setTotpCode('') }}
-                  className="mt-2 text-xs text-amber-800 hover:underline"
-                >
-                  Lost your device? Use a recovery code
-                </button>
-              </div>
-            )}
+              ) : (
+                <div>
+                  <label className="label">Authenticator Pin</label>
+                  <input
+                    type="text"
+                    className="input text-center text-2xl tracking-widest font-mono border-gold-500/30"
+                    value={totpCode}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                      setTotpCode(v)
+                    }}
+                    placeholder="000000"
+                    maxLength={6}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setUseRecovery(true); setError(''); setTotpCode('') }}
+                    className="mt-2 text-xs text-gold-400 hover:text-gold-300 font-semibold"
+                  >
+                    Lost device? Use emergency recovery pin
+                  </button>
+                </div>
+              )}
 
-            {error && (
-              <p className="text-sm text-error bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                {error}
-              </p>
-            )}
+              {error && (
+                <p className="text-xs text-rose-400 bg-error/10 border border-error/30 rounded-xl px-4 py-3 leading-relaxed">
+                  {error}
+                </p>
+              )}
 
-            <button type="submit" className="btn-primary w-full justify-center py-2.5" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {mfaStep ? 'Verify Code' : 'Sign In'}
-            </button>
-          </form>
+              <button type="submit" className="btn-primary w-full justify-center py-3 font-semibold uppercase tracking-wider text-xs shimmer-sweep" disabled={loading}>
+                {loading && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                {mfaStep ? 'Confirm Identity' : 'Secure Entry'}
+              </button>
+            </form>
           )}
 
-          <div className="mt-6 pt-5 border-t border-slate-100">
+          {/* Quick Demo Access */}
+          <div className="mt-6 pt-5 border-t border-gold-500/10">
             <button
               type="button"
               onClick={handleDemo}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-amber-200 bg-amber-50/80 text-amber-900 text-sm font-semibold hover:bg-amber-100 hover:border-amber-300 transition-all"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-gold-500/20 bg-gold-500/5 text-gold-300 text-xs font-bold uppercase tracking-wider hover:bg-gold-500/10 transition-all duration-300"
             >
-              <Zap className="w-4 h-4 text-amber-600" />
-              Demo Login
+              <Zap className="w-4 h-4 text-gold-500 fill-current" />
+              Demo Portal Access
             </button>
           </div>
 
-          <p className="mt-4 text-center text-sm text-text-muted">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-amber-800 font-medium hover:underline">
-              Register
+          <p className="mt-5 text-center text-xs text-text-secondary font-semibold">
+            Unregistered?{' '}
+            <Link to="/register" className="text-gold-400 hover:text-gold-300 transition-colors duration-300">
+              Establish Credentials
             </Link>
           </p>
+
+          {/* Blockchain stamp */}
+          <div className="mt-6 flex items-center justify-center gap-1.5 text-[10px] font-mono text-gold-500/50 uppercase tracking-widest border-t border-gold-500/5 pt-4">
+            <ChainLinkSvg className="w-3.5 h-3.5 text-gold-500/30" />
+            Secured by PangoChain Blockchain
+          </div>
         </div>
       </div>
     </div>

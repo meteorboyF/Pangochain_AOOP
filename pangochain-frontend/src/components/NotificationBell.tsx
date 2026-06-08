@@ -74,12 +74,12 @@ export function NotificationBell() {
     <div className="relative">
       <button
         onClick={() => { setOpen((v) => !v); if (!open && unread > 0) markAllRead() }}
-        className="relative p-2 rounded-xl bg-white/90 border border-border shadow-card hover:bg-surface-muted transition-colors"
+        className="relative p-2 rounded-xl text-text-secondary hover:text-gold-400 transition-colors duration-200"
         aria-label="Notifications"
       >
-        <Bell className="w-5 h-5 text-text-secondary" />
+        <Bell className="w-5 h-5" />
         {unread > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-gold-500 text-navy-950 text-[9px] font-bold flex items-center justify-center shadow-gold-sm">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -88,30 +88,30 @@ export function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto scrollbar-thin bg-white rounded-2xl shadow-2xl border border-border z-40">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-white">
-              <span className="font-semibold text-sm text-text-primary">Notifications</span>
-              <div className="flex items-center gap-2">
-                <button onClick={markAllRead} className="text-xs text-[#1d6464] hover:underline flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Mark all read
+          <div className="absolute right-0 mt-3 w-80 max-h-96 overflow-y-auto scrollbar-thin bg-navy-900 border border-gold-500/20 rounded-2xl shadow-gold-md z-40 p-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gold-500/10 sticky top-0 bg-navy-900/95 backdrop-blur-md z-10">
+              <span className="font-serif font-bold text-sm text-gold-300">Notifications</span>
+              <div className="flex items-center gap-3">
+                <button onClick={markAllRead} className="text-xs text-gold-400 hover:text-gold-300 font-semibold flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" /> Mark read
                 </button>
-                <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
+                <button onClick={() => setOpen(false)} className="text-text-secondary hover:text-text-primary"><X className="w-4 h-4" /></button>
               </div>
             </div>
             {loading ? (
-              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-[#1d6464]" /></div>
+              <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-gold-500" /></div>
             ) : items.length === 0 ? (
-              <p className="text-center text-sm text-text-muted py-10">You're all caught up.</p>
+              <p className="text-center text-sm text-text-secondary py-10">You're all caught up.</p>
             ) : (
-              <ul className="divide-y divide-border">
+              <ul className="divide-y divide-gold-500/10">
                 {items.map((n) => (
-                  <li key={n.id} className={`px-4 py-3 ${n.read ? '' : 'bg-[#1d6464]/5'}`}>
-                    <div className="flex items-start gap-2">
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-[#1d6464] mt-1.5 shrink-0" />}
+                  <li key={n.id} className={`px-4 py-3 transition-colors ${n.read ? 'hover:bg-navy-950/20' : 'bg-gold-500/5 hover:bg-gold-500/10'}`}>
+                    <div className="flex items-start gap-2.5">
+                      {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-gold-400 mt-2 shrink-0 shadow-gold-sm" />}
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{n.type.replace(/_/g, ' ')}</p>
-                        <p className="text-sm text-text-primary">{n.message}</p>
-                        <p className="text-[11px] text-text-muted mt-0.5">{new Date(n.createdAt).toLocaleString()}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-gold-500/60">{n.type.replace(/_/g, ' ')}</p>
+                        <p className="text-sm text-text-primary mt-0.5 leading-relaxed">{n.message}</p>
+                        <p className="text-[10px] text-text-secondary font-mono mt-1">{new Date(n.createdAt).toLocaleString()}</p>
                       </div>
                     </div>
                   </li>

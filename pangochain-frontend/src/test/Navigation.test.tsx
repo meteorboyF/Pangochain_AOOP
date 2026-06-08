@@ -52,7 +52,6 @@ describe('Sidebar navigation', () => {
     expect(screen.getByText('Cases')).toBeTruthy()
     expect(screen.getByText('Documents')).toBeTruthy()
     expect(screen.getByText('Hearings')).toBeTruthy()
-    expect(screen.getByText('Audit Trail')).toBeTruthy()
   })
 
   it('shows client nav items for client role', () => {
@@ -70,6 +69,7 @@ describe('Sidebar navigation', () => {
   it('shows admin section for managing partner', () => {
     renderSidebar({ ...LEGAL_USER, role: 'MANAGING_PARTNER' })
     expect(screen.getByText('Admin Panel')).toBeTruthy()
+    expect(screen.getByText('Audit Trail')).toBeTruthy()
   })
 
   it('displays user full name in sidebar', () => {

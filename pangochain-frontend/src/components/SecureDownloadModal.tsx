@@ -156,51 +156,54 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">Secure Download</h2>
+            <Shield className="w-5 h-5 text-gold-500" />
+            <h2 className="font-serif font-semibold text-lg text-gold-300">Secure Download</h2>
           </div>
-          <button onClick={onClose} disabled={isProcessing} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors disabled:opacity-40">
-            <X className="w-4 h-4 text-text-muted" />
+          <button onClick={onClose} disabled={isProcessing} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors disabled:opacity-40">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
           {/* File */}
-          <div className="bg-surface-muted rounded-xl px-4 py-3 flex items-center gap-3">
-            <Lock className="w-4 h-4 text-[#1d6464] shrink-0" />
+          <div className="bg-navy-950/60 border border-gold-500/10 rounded-xl px-4 py-3 flex items-center gap-3">
+            <Lock className="w-4 h-4 text-gold-500 shrink-0" />
             <div className="min-w-0">
               <p className="font-medium text-text-primary text-sm truncate">{fileName}</p>
-              <p className="text-text-muted text-xs">AES-256-GCM encrypted · IPFS stored</p>
+              <p className="text-text-secondary text-xs">AES-256-GCM encrypted · IPFS stored</p>
             </div>
           </div>
 
           {/* Password */}
           {stage === 'idle' && !isDemo && (
             <div>
-              <label className="label flex items-center gap-1.5"><Key className="w-3.5 h-3.5" /> Account Password</label>
-              <input type="password" className="input" placeholder="To decrypt your private key"
+              <label className="label flex items-center gap-1.5"><Key className="w-3.5 h-3.5 text-gold-500/70" /> Account Password</label>
+              <input type="password" className="input font-mono" placeholder="To decrypt your private key"
                 value={password} onChange={(e) => setPassword(e.target.value)} />
               <p className="text-text-muted text-xs mt-1">Used only in-browser for PBKDF2 key derivation. Never sent to the server.</p>
             </div>
           )}
 
           {/* Numbered stages */}
-          <div className="space-y-2.5">
+          <div className="space-y-3.5">
             {ORDER.map((s, i) => {
               const st = stageState(s)
               const meta = STAGE_META[s]
               return (
-                <div key={s} className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                    st === 'done' ? 'bg-[#1d6464] text-white'
-                    : st === 'active' ? 'bg-[#1E3A5F] text-white'
-                    : st === 'error' ? 'bg-red-600 text-white'
-                    : 'bg-slate-200 text-slate-500'
+                <div key={s} className="flex items-start gap-3.5">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border ${
+                    st === 'done' 
+                      ? 'bg-gold-500 border-gold-400 text-navy-950 shadow-gold-sm'
+                      : st === 'active' 
+                      ? 'bg-navy-800 border-gold-500/30 text-gold-300'
+                      : st === 'error' 
+                      ? 'bg-error/20 border-error/50 text-rose-300'
+                      : 'bg-navy-950 border-gold-500/10 text-text-muted'
                   }`}>
                     {st === 'done' ? <Check className="w-3.5 h-3.5" />
                       : st === 'error' ? <X className="w-3.5 h-3.5" />
@@ -211,11 +214,11 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
                     <div className="flex items-center justify-between gap-2">
                       <span className={`text-sm font-medium ${st === 'pending' ? 'text-text-muted' : 'text-text-primary'}`}>{meta.label}</span>
                       {durations[s] != null && st === 'done' && (
-                        <span className="text-[10px] text-[#1d6464] font-medium shrink-0">Completed in {durations[s]}ms</span>
+                        <span className="text-[10px] text-gold-400 font-mono shrink-0">Completed in {durations[s]}ms</span>
                       )}
                     </div>
                     {(st === 'active' || st === 'error') && (
-                      <p className={`text-xs mt-0.5 ${st === 'error' ? 'text-red-600' : 'text-text-muted'}`}>{meta.detail}</p>
+                      <p className={`text-xs mt-0.5 leading-relaxed ${st === 'error' ? 'text-rose-400' : 'text-text-secondary'}`}>{meta.detail}</p>
                     )}
                   </div>
                 </div>
@@ -225,29 +228,29 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
 
           {/* Integrity failure — serious security event */}
           {stage === 'error' && errorKind === 'integrity' && (
-            <div className="bg-red-50 border-2 border-red-300 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-2 mb-1 text-red-700 font-bold text-sm">
-                <AlertTriangle className="w-4 h-4" /> Integrity check failed
+            <div className="bg-red-50 !bg-error/15 border border-error/40 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 mb-1 text-rose-400 font-bold text-sm">
+                <AlertTriangle className="w-4 h-4 text-rose-500" /> Integrity check failed
               </div>
-              <p className="text-xs text-red-700 leading-relaxed">{INTEGRITY_MSG}</p>
+              <p className="text-xs text-rose-300 leading-relaxed">{INTEGRITY_MSG}</p>
             </div>
           )}
 
           {/* Other failures */}
           {stage === 'error' && errorKind !== 'integrity' && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-3 text-sm text-red-600">
-              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2 bg-red-50 !bg-error/15 border border-error/30 rounded-xl px-3.5 py-3 text-sm text-rose-400">
+              <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0 text-rose-500" />
               <span>{errorMsg}</span>
             </div>
           )}
 
           {/* Success */}
           {stage === 'done' && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-2 text-success font-medium text-sm">
-                <CheckCircle className="w-4 h-4 shrink-0" /> Document verified and ready
+            <div className="bg-success/15 border border-success/30 rounded-xl px-4 py-3 text-emerald-400">
+              <div className="flex items-center gap-2 font-bold text-sm">
+                <CheckCircle className="w-4 h-4 shrink-0 text-emerald-500" /> Document verified and ready
               </div>
-              <p className="text-xs text-text-muted mt-1">
+              <p className="text-xs text-text-secondary mt-1">
                 {fileName}{fileSize != null && ` · ${formatBytes(fileSize)}`} — download starting…
               </p>
             </div>
@@ -255,8 +258,8 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 p-5 pt-0">
-          <button onClick={onClose} className="flex-1 btn border border-border text-text-secondary hover:bg-surface-muted py-2.5">
+        <div className="flex gap-3 p-5 pt-0 bg-navy-950/20">
+          <button onClick={onClose} className="flex-1 btn-secondary py-2.5">
             {stage === 'done' ? 'Close' : 'Cancel'}
           </button>
           {stage !== 'done' && (
@@ -264,7 +267,7 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
               disabled={isProcessing || (!isDemo && !password)}
               className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
               {isProcessing
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Decrypting…</>
+                ? <><Loader2 className="w-4 h-4 animate-spin text-navy-950" /> Decrypting…</>
                 : stage === 'error'
                   ? <><Download className="w-4 h-4" /> Retry</>
                   : <><Download className="w-4 h-4" /> Decrypt & Download</>}

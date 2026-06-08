@@ -122,18 +122,18 @@ export function CaseArchiveModal({ caseId, caseTitle, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between p-5 border-b border-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2">
-            <Archive className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">Download Case Archive</h2>
+            <Archive className="w-5 h-5 text-gold-500" />
+            <h2 className="font-serif font-semibold text-lg text-gold-300">Download Case Archive</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg"><X className="w-4 h-4 text-text-muted" /></button>
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="p-5 space-y-4">
-          <p className="text-sm text-text-secondary">
+          <p className="text-sm text-text-secondary leading-relaxed">
             A portable ZIP of your {documents.length} case document(s), a case summary, and an
             On-Chain Permanence Certificate listing every Fabric transaction ID for independent
             verification.
@@ -141,27 +141,27 @@ export function CaseArchiveModal({ caseId, caseTitle, onClose }: Props) {
 
           <div>
             <label className="label">Password (to unlock your key for decryption)</label>
-            <input type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <input type="password" className="input font-mono" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
           <div>
             <label className="label">Archive passphrase (optional — encrypts the documents)</label>
-            <input type="password" className="input" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder="Leave blank to store decrypted" />
+            <input type="password" className="input font-mono" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder="Leave blank to store decrypted" />
           </div>
 
-          <div className="flex items-start gap-1.5 text-[11px] text-text-muted">
-            <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-[#1d6464]" />
+          <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
             Documents are decrypted in your browser and verified against the ledger hash before bundling. The server never receives plaintext.
           </div>
 
-          {progress && <div className="flex items-center gap-2 text-sm text-[#1d6464]"><Loader2 className="w-4 h-4 animate-spin" /> {progress}</div>}
-          {done && <div className="flex items-center gap-2 text-sm text-success"><CheckCircle className="w-4 h-4" /> Archive downloaded.</div>}
-          {error && <div className="flex items-center gap-2 text-error text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2"><AlertCircle className="w-3.5 h-3.5" /> {error}</div>}
+          {progress && <div className="flex items-center gap-2 text-sm text-gold-400"><Loader2 className="w-4 h-4 animate-spin text-gold-500" /> {progress}</div>}
+          {done && <div className="flex items-center gap-2 text-sm text-emerald-400"><CheckCircle className="w-4 h-4 text-emerald-500" /> Archive downloaded.</div>}
+          {error && <div className="flex items-center gap-2 text-rose-400 text-xs bg-error/15 border border-error/30 rounded-lg px-3 py-2"><AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" /> {error}</div>}
         </div>
 
-        <div className="flex gap-3 p-5 pt-0">
-          <button onClick={onClose} className="flex-1 btn border border-border text-text-secondary hover:bg-surface-muted py-2.5">Close</button>
+        <div className="flex gap-3 p-5 pt-0 bg-navy-950/20">
+          <button onClick={onClose} className="flex-1 btn-secondary py-2.5">Close</button>
           <button onClick={build} disabled={busy || !password} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
-            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Building…</> : <><Lock className="w-4 h-4" /> Download Archive</>}
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin text-navy-950" /> Building…</> : <><Lock className="w-4 h-4" /> Download Archive</>}
           </button>
         </div>
       </div>

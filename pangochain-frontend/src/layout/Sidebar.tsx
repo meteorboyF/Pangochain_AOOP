@@ -4,14 +4,15 @@ import {
   LayoutDashboard, FolderOpen, FileText, MessageSquare,
   ClipboardList, Settings, LogOut, Users,
   Activity, Key, Home, ChevronRight, Scale,
-  Gavel, Shield, ShieldCheck, Search, X, FileSignature,
-  Bot, TrendingUp, DoorOpen, Video, MessagesSquare,
+  Shield, ShieldCheck, Search, X, FileSignature,
+  Bot, TrendingUp, DoorOpen, Video, MessagesSquare, Gavel
 } from 'lucide-react'
 import { useAuthStore, isClient, roleLabel, canViewGlobalAudit } from '../store/authStore'
 import toast from 'react-hot-toast'
 import { clsx } from 'clsx'
 import api from '../lib/api'
 import { Tooltip } from '../components/ui/Tooltip'
+import { WaxSealSvg } from '../components/ui/SvgAssets'
 
 interface NavItem {
   to: string
@@ -90,6 +91,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
     !searchNeedle ||
     item.label.toLowerCase().includes(searchNeedle) ||
     item.description.toLowerCase().includes(searchNeedle)
+  
   const filteredNavItems = navItems.filter(matchesSearch)
   const filteredPlannedItems = plannedItems.filter(matchesSearch)
   const filteredAdminItems = adminItems.filter(matchesSearch)
@@ -100,12 +102,18 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
         to={item.to}
         end={item.end}
         onClick={onClose}
-        className={({ isActive }) => clsx('sidebar-link group/nav w-full', isActive && 'active')}
+        className={({ isActive }) => clsx(
+          'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300',
+          'text-text-secondary hover:bg-white/5 hover:text-text-primary hover:translate-x-1 group/item',
+          isActive && 'bg-gold-500/10 text-gold-300 border-l-2 border-gold-500 shadow-gold-sm font-semibold'
+        )}
       >
-        <span className="shrink-0 opacity-80 group-[.active]/nav:opacity-100">{item.icon}</span>
+        <span className="shrink-0 text-text-secondary group-hover/item:text-gold-400 group-[.active]/item:text-gold-300 transition-colors duration-300">
+          {item.icon}
+        </span>
         <span className="min-w-0 flex-1 truncate">{item.label}</span>
         {(item.badge ?? 0) > 0 && (
-          <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-bold text-slate-950">
+          <span className="ml-auto flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-bold text-navy-950 shadow-gold-sm">
             {item.badge! > 99 ? '99+' : item.badge}
           </span>
         )}
@@ -121,64 +129,60 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
   }
 
   const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="pt-4 pb-1.5 px-3">
-      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.16em]">{children}</p>
+    <div className="pt-5 pb-1.5 px-4">
+      <p className="text-[10px] font-bold text-gold-500/40 uppercase tracking-[0.18em]">{children}</p>
     </div>
   )
 
   const sidebarContent = (
-    <aside className="w-64 flex-shrink-0 border-r border-white/[0.07] bg-[#0e0e0f] flex flex-col h-screen sticky top-0 z-20">
-
-      {/* Logo */}
-      <div className="relative h-[68px] overflow-hidden border-b border-white/[0.08] px-5 flex-shrink-0">
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(0,0,0,0.97),rgba(20,18,16,0.90)),url('/legal/providentia-engraving.png')] bg-cover bg-[center_38%]" />
-        {/* Gold separator line */}
-        <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400/30 to-transparent" />
-        <div className="relative flex h-full items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/95 shadow-lg shadow-black/50 ring-1 ring-white/20">
-            <img src="/logo-mark.png" alt="PangoChain" className="h-7 w-auto" onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none'
-            }} />
+    <aside className="w-64 flex-shrink-0 border-r border-gold-500/20 bg-navy-950 flex flex-col h-screen sticky top-0 z-20 transition-all duration-300">
+      {/* Brand Header */}
+      <div className="relative h-[72px] px-5 flex items-center justify-between border-b border-gold-500/10 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-900 border border-gold-500/20 shadow-gold-sm p-1.5 overflow-hidden">
+            <img src="/logo-mark.png" alt="PangoChain" className="h-full w-auto filter-gold" />
           </div>
           <div>
-            <p className="font-heading text-[13px] font-bold text-white tracking-tight">PangoChain</p>
-            <p className="text-[10px] font-semibold text-amber-400/70 tracking-wide">Legal command</p>
+            <p className="font-serif text-sm font-bold text-gold-300 tracking-wide">PangoChain</p>
+            <p className="text-[9px] font-semibold text-text-secondary uppercase tracking-widest">Justice Platform</p>
           </div>
         </div>
       </div>
 
-      {/* User info */}
-      <div className="px-4 py-3.5 border-b border-white/[0.07]">
+      {/* User profile details at top */}
+      <div className="px-4 py-4 border-b border-gold-500/10 bg-navy-900/30">
         <div className="flex items-center gap-3">
           <div className="relative flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 via-amber-600 to-stone-800 flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-black/40 ring-1 ring-amber-400/25">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-gold-600 to-navy-950 flex items-center justify-center text-gold-300 font-bold text-sm shadow-gold-sm ring-1 ring-gold-500/30">
               {user.fullName.charAt(0).toUpperCase()}
             </div>
-            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-[1.5px] border-[#0e0e0f]" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-navy-950" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-white/90 truncate leading-tight">{user.fullName}</p>
-            <p className="text-[11px] text-slate-500 truncate">{roleLabel(user.role)}</p>
+            <div className="flex items-center gap-1">
+              <p className="text-[13px] font-semibold text-text-primary truncate leading-tight">{user.fullName}</p>
+              <WaxSealSvg status="verified" className="w-3.5 h-3.5 text-emerald-500" />
+            </div>
+            <p className="text-[11px] text-text-secondary truncate mt-0.5">{roleLabel(user.role)}</p>
           </div>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
         </div>
       </div>
 
-      {/* Search */}
-      <div className="px-3 py-2.5 border-b border-white/[0.07]">
+      {/* Internal Navigation Search */}
+      <div className="px-3 py-3 border-b border-gold-500/10">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-600" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-secondary" />
           <input
-            className="w-full h-9 rounded-lg border border-white/[0.08] bg-white/[0.05] pl-8 pr-3 text-xs text-slate-300 placeholder-slate-600
-                       focus:border-amber-400/30 focus:bg-white/[0.08] focus:outline-none transition-all"
-            placeholder="Find a feature..."
+            className="w-full h-9 rounded-lg border border-gold-500/15 bg-navy-900/50 pl-9 pr-3 text-xs text-text-primary placeholder-text-muted
+                       focus:border-gold-500/40 focus:bg-navy-900 focus:outline-none transition-all duration-200"
+            placeholder="Search commands..."
             value={navSearch}
             onChange={(e) => setNavSearch(e.target.value)}
           />
           {navSearch && (
             <button
               onClick={() => setNavSearch('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-300 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
             >
               <X className="w-3 h-3" />
             </button>
@@ -186,38 +190,46 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* Scrollable Navigation Menu */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-2 px-2 space-y-0.5">
-        {isClient(user.role) && (
-          <SectionLabel>Client Portal</SectionLabel>
+        {isClient(user.role) ? (
+          <SectionLabel>Client Workspace</SectionLabel>
+        ) : (
+          <SectionLabel>Case Management</SectionLabel>
         )}
 
         {filteredNavItems.map((item) => renderNavItem(item))}
 
         {filteredPlannedItems.length > 0 && (
           <>
-            <SectionLabel>Coming Soon</SectionLabel>
+            <SectionLabel>Intelligence</SectionLabel>
             {filteredPlannedItems.map((item) => renderNavItem(item,
-              <span className="ml-auto rounded-full bg-amber-400/15 px-1.5 py-0.5 text-[8px] font-bold uppercase text-amber-400/70">Soon</span>
+              <span className="ml-auto rounded bg-gold-500/10 px-1 py-0.5 text-[8px] font-bold uppercase text-gold-400 border border-gold-500/20">AI</span>
             ))}
           </>
         )}
 
         {showRegulator && (
           <>
-            <SectionLabel>Regulatory</SectionLabel>
+            <SectionLabel>Regulatory Watch</SectionLabel>
             <NavLink
               to="/regulator"
-              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+              className={({ isActive }) => clsx(
+                'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 text-text-secondary hover:bg-white/5 hover:text-text-primary',
+                isActive && 'bg-gold-500/10 text-gold-300 border-l-2 border-gold-500 shadow-gold-sm font-semibold'
+              )}
             >
-              <Search className="w-4 h-4 opacity-80" />
+              <Search className="w-4 h-4 text-gold-500" />
               Cross-Firm Audit
             </NavLink>
             <NavLink
               to="/ledger"
-              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+              className={({ isActive }) => clsx(
+                'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 text-text-secondary hover:bg-white/5 hover:text-text-primary',
+                isActive && 'bg-gold-500/10 text-gold-300 border-l-2 border-gold-500 shadow-gold-sm font-semibold'
+              )}
             >
-              <Activity className="w-4 h-4 opacity-80" />
+              <Activity className="w-4 h-4 text-gold-500" />
               Ledger Explorer
             </NavLink>
           </>
@@ -232,32 +244,38 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
         {showMfa && (
           <>
-            <SectionLabel>Security</SectionLabel>
+            <SectionLabel>Admin Security</SectionLabel>
             <NavLink
               to="/profile/mfa"
-              className={({ isActive }) => clsx('sidebar-link', isActive && 'active')}
+              className={({ isActive }) => clsx(
+                'flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 text-text-secondary hover:bg-white/5 hover:text-text-primary',
+                isActive && 'bg-gold-500/10 text-gold-300 border-l-2 border-gold-500 shadow-gold-sm font-semibold'
+              )}
             >
-              <Shield className="w-4 h-4 opacity-80" />
-              {user.mfaEnabled ? 'MFA Enabled ✓' : 'Enable MFA'}
+              <Shield className="w-4 h-4 text-gold-500" />
+              {user.mfaEnabled ? 'MFA Enabled ✓' : 'Setup MFA'}
             </NavLink>
           </>
         )}
       </nav>
 
-      {/* Footer actions */}
-      <div className="p-2 border-t border-white/[0.07] space-y-0.5">
+      {/* Profile & Settings shortcuts */}
+      <div className="p-2 border-t border-gold-500/10 space-y-0.5">
         {renderNavItem({ to: '/profile', icon: <Settings className="w-4 h-4" />, label: 'Profile & Keys', description: 'Manage your account, keys, and personal security settings.' })}
-        <button onClick={handleLogout} className="sidebar-link w-full text-left !text-red-400/80 hover:!text-red-300 hover:!bg-red-400/10">
+        <button onClick={handleLogout} className="flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-300 text-rose-400/80 hover:bg-rose-500/10 hover:text-rose-300 w-full text-left">
           <LogOut className="w-4 h-4" />
           Sign Out
         </button>
       </div>
 
-      {/* Tech footer */}
-      <div className="px-5 py-3 border-t border-white/[0.07]">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400 flex-shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.75)]" />
-          <p className="text-[10px] text-slate-600 font-mono">Fabric 2.4 · AES-256-GCM</p>
+      {/* Tech stamp footer */}
+      <div className="px-5 py-3 border-t border-gold-500/10 bg-navy-900/30">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-gold-400 flex-shrink-0 animate-pulse" />
+            <p className="text-[10px] text-text-secondary font-mono">Fabric 2.4 · E2E</p>
+          </div>
+          <span className="text-[9px] font-mono text-gold-500/60 uppercase">Secure</span>
         </div>
       </div>
     </aside>
@@ -265,21 +283,21 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose
 
   return (
     <>
-      {/* Desktop — always visible */}
+      {/* Desktop sidebar */}
       <div className="hidden lg:flex">{sidebarContent}</div>
 
-      {/* Mobile — overlay drawer */}
+      {/* Mobile sidebar overlay drawer */}
       {mobileOpen && (
         <>
           <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
             onClick={onClose}
           />
           <div className="fixed inset-y-0 left-0 z-40 lg:hidden flex">
             {sidebarContent}
             <button
               onClick={onClose}
-              className="absolute top-4 right-[-40px] w-9 h-9 rounded-full bg-white/90 flex items-center justify-center text-slate-600 shadow-md"
+              className="absolute top-4 right-[-44px] w-9 h-9 rounded-xl bg-navy-900 border border-gold-500/20 flex items-center justify-center text-gold-300 shadow-gold-sm"
               aria-label="Close menu"
             >
               <X className="w-4 h-4" />

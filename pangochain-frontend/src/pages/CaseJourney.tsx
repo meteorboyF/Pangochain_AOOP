@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   GitBranch, Plus, Loader2, AlertCircle, ArrowLeft, X, FileText, User as UserIcon, Calendar,
-  GitMerge, Check,
+  GitMerge, Check
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -23,20 +24,25 @@ interface Node {
   merged: boolean
   mergedAt: string | null
 }
+
 interface Doc { id: string; fileName: string }
 
 const TYPE_STYLE: Record<string, { dot: string; chip: string }> = {
-  ROOT:     { dot: '#1E3A5F', chip: 'bg-[#1E3A5F]/10 text-[#1E3A5F]' },
-  FINDING:  { dot: '#1d6464', chip: 'bg-[#1d6464]/10 text-[#1d6464]' },
-  EVIDENCE: { dot: '#2563EB', chip: 'bg-blue-50 text-blue-700' },
-  RESEARCH: { dot: '#6366F1', chip: 'bg-indigo-50 text-indigo-700' },
-  LOOPHOLE: { dot: '#D97706', chip: 'bg-amber-50 text-amber-700' },
-  HEARING:  { dot: '#DC2626', chip: 'bg-red-50 text-red-700' },
-  FILING:   { dot: '#059669', chip: 'bg-emerald-50 text-emerald-700' },
+  ROOT:     { dot: '#C9A84C', chip: 'bg-gold-500/10 text-gold-300 border border-gold-500/20' },
+  FINDING:  { dot: '#1A5C4A', chip: 'bg-success/10 text-emerald-400 border border-success/30' },
+  EVIDENCE: { dot: '#C9A84C', chip: 'bg-gold-500/10 text-gold-300 border border-gold-500/20' },
+  RESEARCH: { dot: '#8A9BB0', chip: 'bg-slate-800/50 text-text-secondary border border-gold-500/10' },
+  LOOPHOLE: { dot: '#8B1A1A', chip: 'bg-error/10 text-rose-400 border border-error/30' },
+  HEARING:  { dot: '#C9A84C', chip: 'bg-gold-500/10 text-gold-300 border border-gold-500/20' },
+  FILING:   { dot: '#1A5C4A', chip: 'bg-success/10 text-emerald-400 border border-success/30' },
 }
+
 const TYPES = ['FINDING', 'EVIDENCE', 'RESEARCH', 'LOOPHOLE', 'HEARING', 'FILING']
 
-const NW = 210, NH = 76, GAP_X = 36, ROW = 150, PAD = 24
+const toRoman = (num: number) => {
+  const romanArray = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+  return romanArray[num] || (num + 1).toString()
+}
 
 export default function CaseJourney() {
   const { id: caseId } = useParams<{ id: string }>()
@@ -60,65 +66,31 @@ export default function CaseJourney() {
   const load = () => {
     if (!caseId) return
     api.get<Node[]>(`/cases/${caseId}/nodes`)
-      .then((r) => setNodes(r.data))
+      .then((r) => {
+        // Sort chronologically
+        const sorted = r.data.sort((a, b) => new Date(a.nodeDate).getTime() - new Date(b.nodeDate).getTime())
+        setNodes(sorted)
+      })
       .catch((e) => setError(e.response?.data?.detail ?? 'Failed to load journey'))
       .finally(() => setLoading(false))
   }
+  
   useEffect(load, [caseId])
 
   useEffect(() => {
     if (!caseId) return
-    api.get<Doc[]>(`/documents/by-case/${caseId}`).then((r) => setDocs(r.data)).catch(() => setDocs([]))
+    api.get<Doc[]>(`/documents/by-case/${caseId}`)
+      .then((r) => setDocs(r.data))
+      .catch(() => setDocs([]))
   }, [caseId])
 
   const docName = (id: string | null) => (id ? docs.find((d) => d.id === id)?.fileName ?? 'document' : null)
-
-  // ── Layout: assign each node a depth level (BFS via parentId), lay levels top→bottom.
-  const { positions, width, height } = useMemo(() => {
-    const byId = new Map(nodes.map((n) => [n.id, n]))
-    const depth = new Map<string, number>()
-    const getDepth = (n: Node, guard = 0): number => {
-      if (depth.has(n.id)) return depth.get(n.id)!
-      if (!n.parentId || !byId.has(n.parentId) || guard > 100) { depth.set(n.id, 0); return 0 }
-      const d = getDepth(byId.get(n.parentId)!, guard + 1) + 1
-      depth.set(n.id, d); return d
-    }
-    nodes.forEach((n) => getDepth(n))
-
-    const levels = new Map<number, Node[]>()
-    nodes.forEach((n) => {
-      const d = depth.get(n.id) ?? 0
-      if (!levels.has(d)) levels.set(d, [])
-      levels.get(d)!.push(n)
-    })
-
-    const pos = new Map<string, { x: number; y: number }>()
-    let maxCols = 0
-    for (const [d, ns] of levels) {
-      ns.sort((a, b) => new Date(a.nodeDate).getTime() - new Date(b.nodeDate).getTime())
-      ns.forEach((n, i) => pos.set(n.id, { x: PAD + i * (NW + GAP_X), y: PAD + d * ROW }))
-      maxCols = Math.max(maxCols, ns.length)
-    }
-    return {
-      positions: pos,
-      width: Math.max(maxCols * (NW + GAP_X) + PAD, 600),
-      height: (levels.size || 1) * ROW + PAD,
-    }
-  }, [nodes])
-
-  const center = (id: string) => {
-    const p = positions.get(id)
-    return p ? { x: p.x + NW / 2, y: p.y + NH / 2 } : null
-  }
-
-  // Branch nodes that converge into a given hearing/filing node.
-  const contributorsOf = (targetId: string) => nodes.filter((n) => n.mergeIntoId === targetId)
 
   const handleConsolidate = async (target: Node) => {
     setMerging(true)
     try {
       const { data } = await api.post<Node[]>(`/cases/${caseId}/nodes/${target.id}/merge`)
-      setNodes(data)
+      setNodes(data.sort((a, b) => new Date(a.nodeDate).getTime() - new Date(b.nodeDate).getTime()))
       setSelected(data.find((n) => n.id === target.id) ?? null)
       toast.success('Branch consolidated into ' + target.title)
     } catch (e: any) {
@@ -133,8 +105,12 @@ export default function CaseJourney() {
     setSaving(true)
     try {
       await api.post(`/cases/${caseId}/nodes`, {
-        title: title.trim(), nodeType, description: description.trim() || null,
-        parentId: parentId || null, mergeIntoId: mergeIntoId || null, linkedDocId: linkedDocId || null,
+        title: title.trim(),
+        nodeType,
+        description: description.trim() || null,
+        parentId: parentId || null,
+        mergeIntoId: mergeIntoId || null,
+        linkedDocId: linkedDocId || null,
       })
       toast.success('Added to case journey')
       setShowAdd(false); setTitle(''); setDescription(''); setParentId(''); setMergeIntoId(''); setNodeType('FINDING'); setLinkedDocId('')
@@ -146,202 +122,291 @@ export default function CaseJourney() {
     }
   }
 
-  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-[#1d6464]" /></div>
-  if (error) return (
-    <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
-      <AlertCircle className="w-4 h-4" /> {error}
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="flex justify-center py-20 text-gold-300">
+        <Loader2 className="w-8 h-8 animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-3 bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-xs text-rose-400">
+        <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-5 animate-fade-in">
-      <div className="flex items-start justify-between">
+    <div className="space-y-8 animate-fade-in text-text-primary">
+      {/* Header bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gold-500/10 pb-6">
         <div>
-          <Link to={`/cases/${caseId}`} className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-[#1d6464] mb-2">
-            <ArrowLeft className="w-4 h-4" /> Back to case
+          <Link to={`/cases/${caseId}`} className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-text-secondary hover:text-gold-300 mb-2 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Return to Matter
           </Link>
-          <div className="flex items-center gap-2">
-            <GitBranch className="w-5 h-5 text-[#1d6464]" />
-            <h1 className="font-heading text-2xl font-bold text-text-primary">Case Journey</h1>
+          <div className="flex items-center gap-3">
+            <GitBranch className="w-6 h-6 text-gold-400" />
+            <h1 className="font-serif text-3xl font-bold tracking-wide text-gold-300">Evidentiary Journey</h1>
           </div>
-          <p className="text-text-muted text-sm mt-0.5">
-            The branching record of findings, evidence and research — from case opening, converging on the hearing.
+          <p className="text-xs text-text-secondary mt-1">
+            Chronological audit of findings, court filings, and milestones verified on Hyperledger.
           </p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="btn-primary shrink-0">
-          <Plus className="w-4 h-4" /> Add Finding
+        <button onClick={() => setShowAdd(true)} className="btn-primary text-xs uppercase tracking-wider font-bold px-4 py-2.5">
+          <Plus className="w-4 h-4" /> Add Milestone
         </button>
       </div>
 
-      <div className="flex gap-4">
-        {/* Graph */}
-        <div className="card flex-1 overflow-auto">
-          <div className="relative" style={{ width, height, minWidth: '100%' }}>
-            <svg className="absolute inset-0 pointer-events-none" width={width} height={height}>
-              {nodes.map((n) => {
-                const c = center(n.id)
-                if (!c) return null
-                const elems = []
-                if (n.parentId && center(n.parentId)) {
-                  const p = center(n.parentId)!
-                  elems.push(<line key={`p-${n.id}`} x1={p.x} y1={p.y + NH / 2} x2={c.x} y2={c.y - NH / 2}
-                    stroke="#94a3b8" strokeWidth={1.5} />)
-                }
-                if (n.mergeIntoId && center(n.mergeIntoId)) {
-                  const m = center(n.mergeIntoId)!
-                  elems.push(<line key={`m-${n.id}`} x1={c.x} y1={c.y} x2={m.x} y2={m.y}
-                    stroke="#DC2626" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.6} />)
-                }
-                return elems
-              })}
-            </svg>
-            {nodes.map((n) => {
-              const p = positions.get(n.id)!
-              const style = TYPE_STYLE[n.nodeType] ?? TYPE_STYLE.FINDING
-              return (
-                <button key={n.id} onClick={() => setSelected(n)}
-                  className={`absolute text-left bg-white border rounded-xl p-3 shadow-card hover:shadow-card-hover transition-all hover:-translate-y-0.5 ${
-                    selected?.id === n.id ? 'border-[#1d6464] ring-2 ring-[#1d6464]/20' : 'border-border'
-                  }`}
-                  style={{ left: p.x, top: p.y, width: NW, height: NH }}>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: style.dot }} />
-                    <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${style.chip}`}>{n.nodeType}</span>
-                    {n.merged && (
-                      <span className="ml-auto inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-600" title="Consolidated">
-                        <Check className="w-3 h-3" /> merged
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm font-medium text-text-primary truncate">{n.title}</p>
-                  <p className="text-[10px] text-text-muted truncate">{n.authorName} · {new Date(n.nodeDate).toLocaleDateString()}</p>
-                </button>
-              )
-            })}
-          </div>
-        </div>
+      {/* Main timeline canvas */}
+      <div className="card bg-navy-900/60 p-6 border-gold-500/10 relative overflow-hidden">
+        
+        {/* Horizontal timeline on Desktop, vertical on Mobile */}
+        <div className="relative flex flex-col md:flex-row items-stretch md:items-center gap-12 md:gap-16 py-10 overflow-x-auto scrollbar-thin px-4">
+          
+          {/* Animated path line (Desktop) */}
+          <div className="hidden md:block absolute left-8 right-8 top-1/2 h-0.5 bg-gold-500/10 -translate-y-1/2 z-0" />
+          
+          {/* Animated path line (Mobile) */}
+          <div className="block md:hidden absolute left-10 top-8 bottom-8 w-0.5 bg-gold-500/10 z-0" />
 
-        {/* Detail panel */}
-        {selected && (
-          <div className="card w-80 shrink-0 self-start">
-            <div className="flex items-start justify-between mb-2">
-              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded ${(TYPE_STYLE[selected.nodeType] ?? TYPE_STYLE.FINDING).chip}`}>{selected.nodeType}</span>
-              <button onClick={() => setSelected(null)} className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
-            </div>
-            <p className="text-xs text-text-muted flex items-center gap-1 mb-1"><Calendar className="w-3 h-3" /> {new Date(selected.nodeDate).toLocaleString()}</p>
-            <h2 className="font-heading font-semibold text-text-primary">{selected.title}</h2>
-            <p className="text-xs text-text-muted flex items-center gap-1 mt-1"><UserIcon className="w-3 h-3" /> {selected.authorName}</p>
-            {selected.description && <p className="text-sm text-text-secondary mt-3 whitespace-pre-wrap">{selected.description}</p>}
-            {selected.linkedDocId && (
-              <Link to={`/documents/${selected.linkedDocId}`} className="mt-3 inline-flex items-center gap-1.5 text-xs text-[#1d6464] hover:underline">
-                <FileText className="w-3.5 h-3.5" /> {docName(selected.linkedDocId)}
-              </Link>
-            )}
+          {nodes.map((node, index) => {
+            const completed = !node.merged
+            const typeStyle = TYPE_STYLE[node.nodeType] || TYPE_STYLE.FINDING
+            const isSelected = selected?.id === node.id
 
-            {/* Consolidation bundle — only for hearing/filing nodes that branches converge into */}
-            {(selected.nodeType === 'HEARING' || selected.nodeType === 'FILING') && (() => {
-              const contributors = contributorsOf(selected.id)
-              const unmerged = contributors.filter((c) => !c.merged)
-              return (
-                <div className="mt-4 pt-3 border-t border-border">
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <GitMerge className="w-4 h-4 text-[#1d6464]" />
-                    <span className="text-xs font-semibold text-text-primary">Consolidated bundle</span>
-                    <span className="text-[10px] text-text-muted">· {contributors.length} branch{contributors.length !== 1 ? 'es' : ''}</span>
-                  </div>
-                  {contributors.length === 0 ? (
-                    <p className="text-xs text-text-muted">No branches converge here yet. Set this node as “Converges into” when adding a finding.</p>
-                  ) : (
-                    <>
-                      <ul className="space-y-1.5 mb-3">
-                        {contributors.map((c) => (
-                          <li key={c.id} className="flex items-center gap-2 text-xs">
-                            {c.merged
-                              ? <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                              : <span className="w-3.5 h-3.5 rounded-full border border-amber-400 shrink-0" />}
-                            <button onClick={() => setSelected(c)} className="text-text-secondary hover:text-[#1d6464] truncate text-left flex-1">{c.title}</button>
-                            {c.linkedDocId && (
-                              <span className="shrink-0" title={docName(c.linkedDocId) ?? 'document'}>
-                                <FileText className="w-3 h-3 text-text-muted" />
-                              </span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                      <button onClick={() => handleConsolidate(selected)} disabled={merging || unmerged.length === 0}
-                        className="btn-primary w-full py-2 text-xs disabled:opacity-50">
-                        {merging ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Consolidating…</>
-                          : unmerged.length === 0 ? <><Check className="w-3.5 h-3.5" /> All branches consolidated</>
-                          : <><GitMerge className="w-3.5 h-3.5" /> Consolidate {unmerged.length} branch{unmerged.length !== 1 ? 'es' : ''}</>}
-                      </button>
-                    </>
-                  )}
+            return (
+              <div
+                key={node.id}
+                className="relative flex flex-col md:items-center z-10 shrink-0 cursor-pointer group"
+                onClick={() => setSelected(node)}
+              >
+                {/* Milestone Node Badge */}
+                <motion.div
+                  whileHover={{ scale: 1.08 }}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center font-serif text-sm font-bold transition-all duration-300 select-none ${
+                    completed
+                      ? 'bg-gradient-to-br from-gold-600 via-gold-500 to-gold-400 text-navy-950 shadow-gold-md'
+                      : 'bg-navy-950 border-2 border-gold-500/30 text-gold-300/60 hover:border-gold-500'
+                  } ${isSelected ? 'ring-4 ring-gold-500/30 border-gold-400' : ''}`}
+                >
+                  {toRoman(index)}
+                </motion.div>
+
+                {/* Micro pulse indicator for active node */}
+                {!node.merged && (
+                  <span className="absolute top-0 right-0 md:right-1/3 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-gold-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-gold-500"></span>
+                  </span>
+                )}
+
+                {/* Node info box */}
+                <div className="mt-4 md:text-center max-w-[150px] pl-16 md:pl-0">
+                  <p className="font-serif text-xs font-bold text-gold-300 truncate group-hover:text-gold-100 transition-colors">
+                    {node.title}
+                  </p>
+                  <p className="text-[9px] font-mono text-text-secondary mt-1">
+                    {new Date(node.nodeDate).toLocaleDateString()}
+                  </p>
+                  <span className={`inline-block text-[8px] font-bold px-1.5 py-0.5 rounded uppercase mt-2 ${typeStyle.chip}`}>
+                    {node.nodeType}
+                  </span>
                 </div>
-              )
-            })()}
-          </div>
-        )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      {/* Add modal */}
+      {/* Expanded detail panel with Framer Motion */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="card bg-navy-900/60 border-gold-500/20 p-6 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-36 h-36 bg-[radial-gradient(circle_at_top_right,rgba(201,168,76,0.04),transparent_10rem)]" />
+            
+            <div className="flex items-start justify-between mb-4 border-b border-gold-500/5 pb-4">
+              <div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${(TYPE_STYLE[selected.nodeType] || TYPE_STYLE.FINDING).chip}`}>
+                  {selected.nodeType}
+                </span>
+                <h2 className="font-serif text-2xl font-bold text-gold-300 mt-2">{selected.title}</h2>
+              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="p-1.5 rounded-xl border border-gold-500/10 hover:border-gold-500/30 text-text-secondary hover:text-text-primary transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+              <div className="md:col-span-2 space-y-4">
+                <div className="text-xs text-text-secondary font-mono flex flex-wrap items-center gap-4">
+                  <span className="flex items-center gap-1">
+                    <UserIcon className="w-3.5 h-3.5 text-gold-400" /> Lodged by: {selected.authorName}
+                  </span>
+                  <span className="opacity-30">|</span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-gold-400" /> Event Date: {new Date(selected.nodeDate).toLocaleString()}
+                  </span>
+                </div>
+
+                {selected.description && (
+                  <p className="text-sm text-text-secondary leading-relaxed bg-navy-950/40 p-4 rounded-xl border border-gold-500/5 whitespace-pre-wrap">
+                    {selected.description}
+                  </p>
+                )}
+
+                {selected.linkedDocId && (
+                  <div className="pt-2">
+                    <span className="text-[10px] font-bold text-text-secondary uppercase tracking-widest block mb-2">LINKED EVIDENTIARY DEED</span>
+                    <Link
+                      to={`/documents`}
+                      className="inline-flex items-center gap-2 rounded-xl border border-gold-500/15 bg-navy-950/60 px-4 py-2.5 text-xs text-gold-300 font-semibold hover:border-gold-500/30 hover:text-gold-200 transition-all"
+                    >
+                      <FileText className="w-4 h-4 text-gold-400" />
+                      {docName(selected.linkedDocId)}
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Merge / Consolidation utilities (Hearing/Filing specific) */}
+              {(selected.nodeType === 'HEARING' || selected.nodeType === 'FILING') && (
+                <div className="card bg-navy-950/40 border-gold-500/10 p-5 space-y-4">
+                  <div className="flex items-center gap-1.5 pb-2 border-b border-gold-500/5">
+                    <GitMerge className="w-4 h-4 text-gold-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-gold-300">Consolidation Matrix</span>
+                  </div>
+                  {(() => {
+                    const contributors = nodes.filter((n) => n.mergeIntoId === selected.id)
+                    const unmerged = contributors.filter((c) => !c.merged)
+                    return (
+                      <>
+                        {contributors.length === 0 ? (
+                          <p className="text-[10px] text-text-muted leading-relaxed italic">
+                            No branches converge into this node yet. Connect findings to this target when adding milestones.
+                          </p>
+                        ) : (
+                          <div className="space-y-3">
+                            <ul className="space-y-2 max-h-40 overflow-y-auto scrollbar-thin pr-1">
+                              {contributors.map((c) => (
+                                <li key={c.id} className="flex items-center justify-between text-xs font-mono">
+                                  <span className="truncate max-w-[140px] text-text-secondary">{c.title}</span>
+                                  {c.merged ? (
+                                    <span className="text-[9px] text-emerald-400 bg-success/15 px-1.5 py-0.5 rounded border border-success/30">CONSOLIDATED</span>
+                                  ) : (
+                                    <span className="text-[9px] text-gold-300 bg-gold-500/10 px-1.5 py-0.5 rounded border border-gold-500/20">PENDING</span>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+
+                            <button
+                              onClick={() => handleConsolidate(selected)}
+                              disabled={merging || unmerged.length === 0}
+                              className="btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-wider shrink-0"
+                            >
+                              {merging ? (
+                                <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Consolidating...</>
+                              ) : unmerged.length === 0 ? (
+                                <><Check className="w-3.5 h-3.5 mr-1" /> Bound Consolidated</>
+                              ) : (
+                                <><GitMerge className="w-3.5 h-3.5 mr-1.5" /> Consolidate {unmerged.length} Nodes</>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add milestone Modal */}
       {showAdd && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-heading font-bold text-text-primary">Add to Case Journey</h2>
-              <button onClick={() => setShowAdd(false)} className="text-text-muted hover:text-text-primary"><X className="w-5 h-5" /></button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="card w-full max-w-lg bg-navy-900 border-gold-500/20 p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-gold-500/10 pb-3">
+              <h2 className="font-serif text-xl font-bold text-gold-300">Add Milestone Entry</h2>
+              <button
+                onClick={() => setShowAdd(false)}
+                className="p-1 rounded-lg border border-gold-500/10 text-text-secondary hover:text-text-primary hover:border-gold-500/30 transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div>
-              <label className="label">Title *</label>
-              <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Found inconsistency in lease clause 7" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="space-y-4 text-xs">
               <div>
-                <label className="label">Type</label>
-                <select className="input" value={nodeType} onChange={(e) => setNodeType(e.target.value)}>
-                  {TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <label className="label">Milestone Title *</label>
+                <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Discovered evidence chain breach in server logs" />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Milestone Classification</label>
+                  <select className="input" value={nodeType} onChange={(e) => setNodeType(e.target.value)}>
+                    {TYPES.map((t) => <option key={t} value={t} className="bg-navy-950">{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Branch From node</label>
+                  <select className="input" value={parentId} onChange={(e) => setParentId(e.target.value)}>
+                    <option value="" className="bg-navy-950">(root mat)</option>
+                    {nodes.map((n) => <option key={n.id} value={n.id} className="bg-navy-950">{n.title}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Merge Into target (optional)</label>
+                  <select className="input" value={mergeIntoId} onChange={(e) => setMergeIntoId(e.target.value)}>
+                    <option value="" className="bg-navy-950">(none)</option>
+                    {nodes.filter((n) => n.nodeType === 'HEARING' || n.nodeType === 'FILING').map((n) => (
+                      <option key={n.id} value={n.id} className="bg-navy-950">{n.title} ({n.nodeType})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Evidentiary doc link (optional)</label>
+                  <select className="input" value={linkedDocId} onChange={(e) => setLinkedDocId(e.target.value)}>
+                    <option value="" className="bg-navy-950">(none)</option>
+                    {docs.map((d) => <option key={d.id} value={d.id} className="bg-navy-950">{d.fileName}</option>)}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <label className="label">Branch from</label>
-                <select className="input" value={parentId} onChange={(e) => setParentId(e.target.value)}>
-                  <option value="">(root)</option>
-                  {nodes.map((n) => <option key={n.id} value={n.id}>{n.title}</option>)}
-                </select>
+                <label className="label">Briefing / Audit Notes</label>
+                <textarea className="input min-h-[90px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Record summary of evidence, depositions details..." />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Converges into (optional)</label>
-                <select className="input" value={mergeIntoId} onChange={(e) => setMergeIntoId(e.target.value)}>
-                  <option value="">(none)</option>
-                  {nodes.filter((n) => n.nodeType === 'HEARING' || n.nodeType === 'FILING').map((n) => (
-                    <option key={n.id} value={n.id}>{n.title} ({n.nodeType})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Link document (optional)</label>
-                <select className="input" value={linkedDocId} onChange={(e) => setLinkedDocId(e.target.value)}>
-                  <option value="">(none)</option>
-                  {docs.map((d) => <option key={d.id} value={d.id}>{d.fileName}</option>)}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="label">Details</label>
-              <textarea className="input min-h-[90px] resize-y" value={description} onChange={(e) => setDescription(e.target.value)}
-                placeholder="Finding, research note, evidence reference…" />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowAdd(false)} className="btn border border-border text-text-secondary py-2 px-4">Cancel</button>
-              <button onClick={handleAdd} disabled={saving || !title.trim()} className="btn-primary py-2 px-4 disabled:opacity-50">
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Adding…</> : <><Plus className="w-4 h-4" /> Add</>}
+
+            <div className="flex gap-2 justify-end pt-3 border-t border-gold-500/10">
+              <button onClick={() => setShowAdd(false)} className="btn-secondary text-xs uppercase tracking-wider py-2 px-4">Cancel</button>
+              <button onClick={handleAdd} disabled={saving || !title.trim()} className="btn-primary text-xs uppercase tracking-wider font-bold py-2.5 px-4 disabled:opacity-50">
+                {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Submitting...</> : 'Log Milestone'}
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }

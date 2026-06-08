@@ -1,14 +1,42 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useInView } from 'react-intersection-observer'
-import { ChevronRight, Shield, Lock, FileCheck, BarChart3, MessageSquare, ArrowRight, Layers, Cpu, Globe } from 'lucide-react'
+import { ChevronDown, ArrowRight, Shield, Activity, Award, CheckCircle2 } from 'lucide-react'
+import {
+  JusticeSvg, ScalesSvg, WaxSealSvg, ChainLinkSvg,
+  ColumnDividerSvg, DocumentSealSvg, VaultSvg, ConstellationBg
+} from '../components/ui/SvgAssets'
 
-function useFadeIn(threshold = 0.15) {
-  const { ref, inView } = useInView({ triggerOnce: true, threshold })
-  return { ref, inView }
+// Self-counting stats component on mount or inView
+function Counter({ value, suffix = '', duration = 1500 }: { value: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0)
+  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
+
+  useEffect(() => {
+    if (!inView) return
+    let start = 0
+    const end = value
+    if (start === end) return
+    const stepTime = Math.abs(Math.floor(duration / end))
+    const timer = setInterval(() => {
+      start += Math.ceil(end / 40)
+      if (start >= end) {
+        clearInterval(timer)
+        setCount(end)
+      } else {
+        setCount(start)
+      }
+    }, Math.max(stepTime, 20))
+    return () => clearInterval(timer)
+  }, [inView, value, duration])
+
+  return (
+    <span ref={ref} className="font-mono text-3xl md:text-4xl font-bold text-gold-300">
+      {count.toLocaleString()}{suffix}
+    </span>
+  )
 }
 
-// ── Navbar ─────────────────────────────────────────────────────────────────
 function LandingNav() {
   const [scrolled, setScrolled] = useState(false)
   useEffect(() => {
@@ -18,29 +46,33 @@ function LandingNav() {
   }, [])
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled
-        ? 'bg-white/95 backdrop-blur-xl shadow-sm border-b border-stone-200/80'
-        : 'bg-transparent'
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+      scrolled ? 'bg-navy-950/90 backdrop-blur-md border-b border-gold-500/10 shadow-gold-sm' : 'bg-transparent'
     }`}>
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="PangoChain" className="h-9 w-auto" />
+      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-navy-900 border border-gold-500/20 p-1.5 overflow-hidden">
+            <img src="/logo-mark.png" alt="PangoChain Logo" className="h-full w-auto filter-gold" />
+          </div>
+          <div>
+            <p className="font-serif text-sm font-bold text-gold-300 tracking-wide">PangoChain</p>
+            <p className="text-[9px] font-semibold text-text-secondary uppercase tracking-widest">Justice Platform</p>
+          </div>
         </div>
         <div className="hidden md:flex items-center gap-8">
-          {['Technology', 'How It Works', 'For Law Firms'].map(l => (
+          {['Technology', 'How It Works', 'Security', 'Testimonials'].map(l => (
             <a key={l} href={`#${l.toLowerCase().replace(/ /g, '-')}`}
-              className={`text-sm font-medium transition-colors ${scrolled ? 'text-stone-700 hover:text-amber-800' : 'text-white/75 hover:text-amber-300'}`}>
+              className="text-xs font-semibold uppercase tracking-wider text-text-secondary hover:text-gold-300 transition-colors duration-300">
               {l}
             </a>
           ))}
         </div>
-        <div className="flex items-center gap-3">
-          <Link to="/login" className={`text-sm font-medium transition-colors ${scrolled ? 'text-stone-700 hover:text-amber-800' : 'text-white/80 hover:text-amber-300'}`}>
-            Sign In
+        <div className="flex items-center gap-4">
+          <Link to="/login" className="text-xs font-bold uppercase tracking-wider text-text-primary hover:text-gold-300 transition-colors duration-300">
+            Enter Platform
           </Link>
-          <Link to="/register" className="btn-primary text-sm px-4 py-2">
-            Get Started <ChevronRight className="w-3.5 h-3.5" />
+          <Link to="/register" className="btn-primary text-xs tracking-wider uppercase px-4 py-2">
+            Get Started MATTERS
           </Link>
         </div>
       </div>
@@ -48,362 +80,333 @@ function LandingNav() {
   )
 }
 
-// ── Hero ───────────────────────────────────────────────────────────────────
 function Hero() {
   return (
-    <section className="relative min-h-screen flex items-center px-6 pt-16 overflow-hidden bg-black">
-      <img
-        src="/legal/lady-justice.png"
-        alt="Lady Justice statue"
-        className="absolute inset-0 h-full w-full object-cover opacity-60"
-      />
-      {/* Rich overlay with subtle gold radial */}
-      <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(0,0,0,0.97)_0%,rgba(10,10,12,0.88)_50%,rgba(30,25,20,0.55)_100%),radial-gradient(ellipse_at_70%_30%,rgba(212,175,55,0.28),transparent_40%)]" />
-      {/* Subtle horizontal rule */}
-      <div className="absolute inset-x-0 top-16 h-px bg-gradient-to-r from-transparent via-amber-200/20 to-transparent pointer-events-none" />
+    <section className="relative min-h-screen flex items-center px-6 pt-20 overflow-hidden bg-navy-950">
+      {/* Background Constellation stars */}
+      <ConstellationBg density={50} />
 
-      <div className="relative z-10 max-w-6xl mx-auto w-full py-24">
-        <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.08] border border-white/[0.12] text-amber-200 text-xs font-semibold mb-10 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse shadow-[0_0_12px_rgba(251,191,36,0.9)]" />
-            Trusted legal data command center
+      {/* Half-viewport geometric Lady Justice SVG on the right */}
+      <div className="absolute right-0 bottom-0 top-16 w-full lg:w-1/2 opacity-45 lg:opacity-85 pointer-events-none flex items-center justify-end z-0">
+        <JusticeSvg className="w-full h-full max-h-[85vh] text-gold-500/35 stroke-current animate-drift drop-shadow-[0_0_12px_rgba(201,168,76,0.3)]" />
+      </div>
+
+      {/* Radial shade */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-navy-950 via-navy-950/90 to-transparent pointer-events-none z-0" />
+
+      {/* Hero content */}
+      <div className="relative z-10 max-w-7xl mx-auto w-full py-20 lg:py-32 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-300 text-xs font-semibold mb-8 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse shadow-gold-sm" />
+            THE COGNITIVE LEDGER MATTERS PLATFORM
           </div>
 
-          <h1 className="font-heading text-6xl md:text-7xl font-extrabold text-white leading-[0.92] tracking-tight mb-6">
-            Pango<span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-amber-500">Chain</span>
+          <h1 className="font-serif text-5xl md:text-7xl font-bold leading-[1.05] tracking-tight mb-8 text-text-primary">
+            Justice, <br />
+            <span className="relative inline-block text-gold-300">
+              Engineered.
+              <svg className="absolute left-0 bottom-[-8px] w-full h-2 text-gold-500" viewBox="0 0 100 10" preserveAspectRatio="none">
+                <path d="M0,5 Q50,0 100,5" stroke="currentColor" strokeWidth="2" fill="none" className="stroke-draw-line"
+                  style={{ strokeDasharray: '1000', strokeDashoffset: '1000', animation: 'draw-line 2s ease-out forwards 0.5s' }} />
+              </svg>
+            </span>
           </h1>
 
-          <p className="text-lg text-white/65 leading-relaxed mb-10 max-w-xl">
-            A modern legal workspace for encrypted evidence, blockchain audit trails, client collaboration, and courtroom-ready document custody.
+          <p className="text-base md:text-lg text-text-secondary leading-relaxed mb-10 max-w-lg">
+            A premium cognitive legal infrastructure connecting multi-firm vaults, immutable blockchain audit events, and defense-grade client portals.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-start gap-4 mb-16">
-            <Link to="/register" className="btn-primary text-base px-7 py-3 gap-2 shadow-lg shadow-black/40">
-              Start Free Trial <ArrowRight className="w-4 h-4" />
+          <div className="flex flex-wrap items-center gap-4">
+            <Link to="/register" className="btn-primary text-xs uppercase tracking-wider px-8 py-3.5 gap-2 shadow-gold-md hover:scale-[1.02]">
+              Enter Platform <ArrowRight className="w-4 h-4" />
             </Link>
-            <Link to="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.08] px-7 py-3 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/[0.12] hover:border-white/30">
-              Sign In to Portal
-            </Link>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-white/45">
-            {['No credit card required', 'SOC 2 compliant', 'End-to-end encrypted', '99.9% uptime SLA'].map(t => (
-              <span key={t} className="flex items-center gap-2">
-                <span className="w-1 h-1 rounded-full bg-amber-400" />
-                {t}
-              </span>
-            ))}
+            <button className="btn-secondary text-xs uppercase tracking-wider px-8 py-3.5 hover:scale-[1.02]">
+              Request Demo
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Stats strip at bottom of hero */}
-      <div className="absolute bottom-0 left-0 right-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 pb-12 hidden lg:grid grid-cols-4 gap-px">
-          {[
-            { value: '50k+', label: 'Documents secured' },
-            { value: '300+', label: 'Law firms' },
-            { value: '99.9%', label: 'Uptime SLA' },
-            { value: '<2s', label: 'Verification' },
-          ].map((s) => (
-            <div key={s.label} className="text-center px-6 py-4 bg-white/[0.04] border-x border-white/[0.06] first:border-l-0 last:border-r-0 backdrop-blur-sm">
-              <p className="font-heading text-2xl font-bold text-amber-300">{s.value}</p>
-              <p className="text-xs text-white/45 mt-0.5">{s.label}</p>
-            </div>
-          ))}
-        </div>
-        <div className="h-24 bg-gradient-to-t from-[#f3f1ed] to-transparent pointer-events-none" />
+      {/* Bouncing scroll indicator */}
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 cursor-pointer z-10 opacity-70 hover:opacity-100 transition-opacity">
+        <span className="text-[9px] font-bold uppercase tracking-widest text-gold-400/80">Scroll to Explore</span>
+        <ChevronDown className="w-4 h-4 text-gold-400 animate-bounce" />
       </div>
     </section>
   )
 }
-
-// ── Logo Cloud ─────────────────────────────────────────────────────────────
-const firms = [
-  'Kirkland & Ellis', 'Skadden', 'Freshfields', 'Linklaters',
-  'Allen & Overy', 'Latham & Watkins', 'Clifford Chance', 'Baker McKenzie',
-]
-
-function LogoCloud() {
-  const repeated = [...firms, ...firms]
-  return (
-    <section className="py-12 bg-[#f3f1ed] border-y border-stone-200/60">
-      <p className="text-center text-[11px] font-bold text-stone-400 uppercase tracking-[0.22em] mb-7">
-        Trusted by industry leaders
-      </p>
-      <div className="logo-scroller">
-        <div className="logo-scroller-inner">
-          {repeated.map((name, i) => (
-            <div key={i} className="logo-item">
-              <span className="font-heading font-bold text-stone-400 text-sm whitespace-nowrap tracking-tight">
-                {name}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Features ───────────────────────────────────────────────────────────────
-const features = [
-  {
-    icon: FileCheck,
-    title: 'Immutable Document Vault',
-    desc: 'Every document is cryptographically registered on the blockchain, creating a permanent, verifiable record that cannot be altered or disputed.',
-    accent: 'from-amber-500 to-amber-800',
-  },
-  {
-    icon: Lock,
-    title: 'Dynamic Access Control',
-    desc: 'Manage precisely who can view, edit, or share documents. Role-based permissions and time-limited access rules are enforced automatically.',
-    accent: 'from-slate-600 to-slate-900',
-  },
-  {
-    icon: BarChart3,
-    title: 'Unbreakable Audit Trail',
-    desc: 'A live, unchangeable log records every action — who, what, and when. Complete transparency for compliance and litigation support.',
-    accent: 'from-stone-500 to-stone-900',
-  },
-  {
-    icon: MessageSquare,
-    title: 'Secure Collaboration',
-    desc: 'Share files and communicate through encrypted channels. Collect legally binding e-signatures directly within the platform.',
-    accent: 'from-zinc-500 to-zinc-900',
-  },
-]
 
 function Features() {
-  const { ref, inView } = useFadeIn()
-  return (
-    <section id="technology" className="relative py-28 px-6 bg-[#f3f1ed] overflow-hidden">
-      {/* Decorative grid */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.03] bg-[linear-gradient(rgba(0,0,0,1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,1)_1px,transparent_1px)] bg-[size:60px_60px]" />
+  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
 
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <div className="max-w-2xl mb-16">
-          <p className="text-[11px] font-bold text-amber-700 uppercase tracking-[0.22em] mb-4">Platform Technology</p>
-          <h2 className="font-heading text-4xl md:text-5xl font-extrabold text-slate-900 leading-tight mb-5">
-            A New Standard for<br />Legal Security
-          </h2>
-          <p className="text-slate-500 text-lg leading-relaxed">
-            Built from the ground up for law firms that can't afford to compromise on security or compliance.
-          </p>
-        </div>
-
-        <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {features.map((f, i) => {
-            const Icon = f.icon
-            return (
-              <div
-                key={f.title}
-                className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white/90 p-6 shadow-[0_1px_4px_rgba(0,0,0,0.04),0_8px_24px_-10px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-amber-200/60 hover:shadow-[0_4px_24px_-6px_rgba(15,23,42,0.14)]"
-                style={{
-                  opacity: inView ? 1 : 0,
-                  transform: inView ? 'translateY(0)' : 'translateY(28px)',
-                  transition: `opacity 0.55s ease ${i * 0.1}s, transform 0.55s ease ${i * 0.1}s, box-shadow 0.2s ease, border-color 0.2s ease`,
-                }}
-              >
-                {/* Subtle corner accent */}
-                <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-[4rem] bg-gradient-to-bl from-amber-50/60 to-transparent pointer-events-none" />
-                <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${f.accent} flex items-center justify-center mb-5 shadow-lg`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                <h3 className="font-heading font-bold text-slate-900 text-lg mb-2">{f.title}</h3>
-                <p className="text-slate-500 leading-relaxed text-sm">{f.desc}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── How It Works ───────────────────────────────────────────────────────────
-const steps = [
-  {
-    num: '01',
-    icon: Shield,
-    title: 'Register & Verify',
-    desc: 'Securely register your legal documents. A unique, permanent fingerprint is generated on the PangoChain ledger for irrefutable proof of existence.',
-  },
-  {
-    num: '02',
-    icon: Lock,
-    title: 'Control & Govern',
-    desc: 'Your documents are securely stored. Govern exactly who has access with dynamic, role-based permission controls — automatically enforced at every request.',
-  },
-  {
-    num: '03',
-    icon: FileCheck,
-    title: 'Transact & Enforce',
-    desc: 'Share documents, collaborate with clients, and collect legally binding e-signatures. Verify any document\'s authenticity in seconds.',
-  },
-]
-
-function HowItWorks() {
-  const { ref, inView } = useFadeIn(0.1)
-  return (
-    <section id="how-it-works" className="relative py-28 px-6 bg-[#0e0e0f] overflow-hidden">
-      {/* Gold dot grid */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.04] bg-[radial-gradient(rgba(212,175,55,1)_1px,transparent_1px)] bg-[size:28px_28px]" />
-      <div className="pointer-events-none absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-[#0e0e0f] to-transparent" />
-
-      <div className="relative z-10 max-w-6xl mx-auto">
-        <div className="max-w-2xl mb-16">
-          <p className="text-[11px] font-bold text-amber-400 uppercase tracking-[0.22em] mb-4">Workflow</p>
-          <h2 className="font-heading text-4xl md:text-5xl font-extrabold text-white leading-tight mb-5">
-            A Seamless Workflow<br />for Unbreakable Trust
-          </h2>
-          <p className="text-slate-400 text-lg leading-relaxed">
-            Three simple steps to transform how your firm manages and protects legal documents.
-          </p>
-        </div>
-
-        <div ref={ref} className="grid grid-cols-1 md:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
-          {steps.map((s, i) => {
-            const Icon = s.icon
-            return (
-              <div
-                key={s.num}
-                className="relative bg-[#0e0e0f] p-8 overflow-hidden group hover:bg-[#141415] transition-colors duration-200"
-                style={{
-                  opacity: inView ? 1 : 0,
-                  transform: inView ? 'translateY(0)' : 'translateY(28px)',
-                  transition: `opacity 0.55s ease ${i * 0.15}s, transform 0.55s ease ${i * 0.15}s`,
-                }}
-              >
-                <span className="absolute top-5 right-6 font-heading font-extrabold text-6xl text-white/[0.04] select-none leading-none">
-                  {s.num}
-                </span>
-                <div className="w-12 h-12 rounded-xl border border-amber-400/25 bg-amber-400/10 flex items-center justify-center mb-6 group-hover:border-amber-400/40 group-hover:bg-amber-400/15 transition-all">
-                  <Icon className="w-5 h-5 text-amber-400" />
-                </div>
-                <p className="text-[10px] font-bold text-amber-400/60 uppercase tracking-[0.18em] mb-2">Step {s.num}</p>
-                <h3 className="font-heading font-bold text-white text-lg mb-3">{s.title}</h3>
-                <p className="text-slate-400 leading-relaxed text-sm">{s.desc}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
-    </section>
-  )
-}
-
-// ── Tech Pillars ───────────────────────────────────────────────────────────
-function TechPillars() {
-  const { ref, inView } = useFadeIn()
-  const pillars = [
-    { icon: Layers, label: 'Hyperledger Fabric', desc: 'Permissioned ledger for tamper-proof audit records' },
-    { icon: Cpu, label: 'AES-256-GCM', desc: 'Military-grade encryption on every document at rest' },
-    { icon: Globe, label: 'IPFS Storage', desc: 'Decentralised content-addressed document pinning' },
-    { icon: Shield, label: 'Role-Based ACL', desc: 'Granular access down to individual document fields' },
+  // 6 feature cards: scales, vault, blockchain node, document seal, handshake, shield
+  const featuresList = [
+    {
+      icon: <ScalesSvg className="w-6 h-6 text-gold-400" />,
+      title: 'Balanced Case Intelligence',
+      desc: 'Deep AI-backed timeline and evidentiary analysis mapped directly onto active matters for complete legal foresight.'
+    },
+    {
+      icon: <VaultSvg className="w-6 h-6 text-gold-400" />,
+      title: 'Evidentiary Vaults',
+      desc: 'Military-grade client and partner vault sharing. AES-256 encrypted payloads backed by decentralized IPFS pinning.'
+    },
+    {
+      icon: <Activity className="w-6 h-6 text-gold-400" />,
+      title: 'Hyperledger Blockchain Node',
+      desc: 'Permissioned decentralized network logging metadata digests and cryptographic hashes into immutable state.'
+    },
+    {
+      icon: <DocumentSealSvg className="w-6 h-6 text-gold-400" />,
+      title: 'Embossed Digital Seals',
+      desc: 'State-certified wax seal generators embedding verifiable proof of authorship and time directly into PDF structures.'
+    },
+    {
+      icon: <CheckCircle2 className="w-6 h-6 text-gold-400" />,
+      title: 'Decentralized Handshakes',
+      desc: 'Mutually validated legal workflows enabling opposing firms to agree on schedules, evidence checklists, and parameters.'
+    },
+    {
+      icon: <Shield className="w-6 h-6 text-gold-400" />,
+      title: 'Shield Gate ACL',
+      desc: 'Zero-trust role constraints securing information down to specific case nodes, directories, and communication logs.'
+    }
   ]
+
   return (
-    <section className="py-20 px-6 bg-white border-y border-slate-100">
-      <div ref={ref} className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-        {pillars.map((p, i) => {
-          const Icon = p.icon
-          return (
+    <section id="technology" className="relative py-28 px-6 bg-navy-900 border-t border-gold-500/10">
+      <div className="max-w-7xl mx-auto">
+        <div className="max-w-3xl mb-20 text-center mx-auto">
+          <p className="text-[10px] font-bold text-gold-500 uppercase tracking-[0.25em] mb-4">Architecture</p>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-gold-300 leading-tight">
+            Designed for Authoritative Legal Governance
+          </h2>
+          <div className="w-16 h-px bg-gold-500/30 mx-auto mt-6" />
+        </div>
+
+        <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {featuresList.map((f, i) => (
             <div
-              key={p.label}
-              className="text-center"
+              key={f.title}
+              className="group relative overflow-hidden rounded-2xl border border-gold-500/10 bg-navy-950/40 p-8 shadow-card backdrop-blur-md transition-all duration-500 hover:-translate-y-1 hover:border-gold-500/30 hover:shadow-gold-sm"
               style={{
                 opacity: inView ? 1 : 0,
-                transform: inView ? 'translateY(0)' : 'translateY(20px)',
-                transition: `opacity 0.5s ease ${i * 0.1}s, transform 0.5s ease ${i * 0.1}s`,
+                transform: inView ? 'translateY(0)' : 'translateY(30px)',
+                transition: `opacity 0.6s ease ${i * 0.1}s, transform 0.6s ease ${i * 0.1}s, border-color 0.3s, shadow 0.3s`
               }}
             >
-              <div className="w-12 h-12 rounded-2xl bg-slate-950 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-slate-950/10">
-                <Icon className="w-5 h-5 text-amber-400" />
+              {/* Glowing top border indicator */}
+              <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-gold-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              
+              <div className="w-12 h-12 rounded-xl bg-gold-500/10 flex items-center justify-center mb-6 group-hover:bg-gold-500/20 transition-all duration-300">
+                {f.icon}
               </div>
-              <p className="font-heading font-bold text-slate-900 text-sm mb-1">{p.label}</p>
-              <p className="text-xs text-slate-400 leading-relaxed">{p.desc}</p>
+              <h3 className="font-serif text-xl font-semibold text-gold-300 mb-3 group-hover:text-gold-100 transition-colors duration-300">{f.title}</h3>
+              <p className="text-text-secondary text-sm leading-relaxed">{f.desc}</p>
             </div>
-          )
-        })}
-      </div>
-    </section>
-  )
-}
-
-// ── CTA ────────────────────────────────────────────────────────────────────
-function CTA() {
-  const { ref, inView } = useFadeIn()
-  return (
-    <section className="py-28 px-6 bg-[#f3f1ed]">
-      <div
-        ref={ref}
-        className="max-w-4xl mx-auto rounded-[2rem] overflow-hidden relative"
-        style={{
-          opacity: inView ? 1 : 0,
-          transform: inView ? 'translateY(0)' : 'translateY(24px)',
-          transition: 'opacity 0.6s ease, transform 0.6s ease',
-        }}
-      >
-        <div className="bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.30),transparent_55%),linear-gradient(135deg,#0c0c0d,#1c1a18)] px-10 py-16 text-center">
-          {/* Gold line accents */}
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-amber-400/20 to-transparent" />
-
-          <p className="text-[11px] font-bold text-amber-400 uppercase tracking-[0.22em] mb-5">Get Started</p>
-          <h2 className="font-heading text-4xl md:text-5xl font-extrabold text-white leading-tight mb-5">
-            Ready to Secure<br />Your Practice?
-          </h2>
-          <p className="text-slate-400 text-lg mb-10 max-w-lg mx-auto leading-relaxed">
-            Join hundreds of law firms using PangoChain to protect their clients and their reputation.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link to="/register" className="btn-primary text-base px-8 py-3.5 shadow-lg shadow-black/40">
-              Access the Portal <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link to="/login" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/[0.08] px-8 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition-all hover:bg-white/[0.12]">
-              Sign In
-            </Link>
-          </div>
+          ))}
         </div>
       </div>
     </section>
   )
 }
 
-// ── Footer ─────────────────────────────────────────────────────────────────
+function HowItWorks() {
+  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
+
+  return (
+    <section id="how-it-works" className="relative py-28 px-6 bg-navy-950 border-t border-gold-500/10">
+      <div className="max-w-7xl mx-auto">
+        <div className="max-w-3xl mb-20 text-center mx-auto">
+          <p className="text-[10px] font-bold text-gold-500 uppercase tracking-[0.25em] mb-4">The Workflow</p>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-gold-300 leading-tight">
+            Three Epochs of Evidence Custody
+          </h2>
+          <div className="w-16 h-px bg-gold-500/30 mx-auto mt-6" />
+        </div>
+
+        <div ref={ref} className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative">
+          {/* Roman columns connect line */}
+          <div className="hidden lg:block absolute top-1/2 left-20 right-20 h-0.5 bg-gradient-to-r from-gold-500/10 via-gold-500/30 to-gold-500/10 -translate-y-1/2 pointer-events-none" />
+
+          {[
+            {
+              roman: 'I',
+              title: 'Ingest & Encrypt',
+              desc: 'Drag evidentiary documents into legal data rooms. Payloads are instantly encrypted client-side using unique AES-256 keys.'
+            },
+            {
+              roman: 'II',
+              title: 'Anchor on Ledger',
+              desc: 'Cryptographic block hashes are generated. The metadata hash triggers smart contracts on Hyperledger Fabric for immutable provenance.'
+            },
+            {
+              roman: 'III',
+              title: 'Decrypt & Collaborate',
+              desc: 'Share verified files securely. Authenticated lawyers, partners, and judges decrypt payloads locally via ECIES keys.'
+            }
+          ].map((step, idx) => (
+            <div
+              key={step.roman}
+              className="relative rounded-2xl border border-gold-500/10 bg-navy-900/50 p-8 shadow-card backdrop-blur-md overflow-hidden group hover:border-gold-500/20 transition-all duration-300"
+              style={{
+                opacity: inView ? 1 : 0,
+                transform: inView ? 'translateY(0)' : 'translateY(30px)',
+                transition: `opacity 0.6s ease ${idx * 0.15}s, transform 0.6s ease ${idx * 0.15}s`
+              }}
+            >
+              {/* Giant roman numeral behind card */}
+              <div className="absolute bottom-4 right-6 font-serif font-bold text-7xl text-gold-500/[0.04] select-none pointer-events-none transition-all duration-300 group-hover:text-gold-500/[0.08]">
+                {step.roman}
+              </div>
+
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold-500/30 bg-gold-500/10 text-xs font-bold text-gold-300 mb-6">
+                {idx + 1}
+              </div>
+              <h3 className="font-serif text-xl font-bold text-gold-300 mb-3">{step.title}</h3>
+              <p className="text-text-secondary text-sm leading-relaxed">{step.desc}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function StatsBar() {
+  return (
+    <section className="relative py-16 bg-navy-900/80 border-y border-gold-500/20 backdrop-blur-sm">
+      <div className="max-w-7xl mx-auto px-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+          {[
+            { value: 10000, suffix: '+', label: 'Cases Managed' },
+            { value: 99.9, suffix: '%', label: 'Uptime SLA' },
+            { value: 256, suffix: '-bit', label: 'AES Encryption' },
+            { value: 2, suffix: ' Compliance', label: 'SOC 2 Compliant' },
+          ].map((s) => (
+            <div key={s.label} className="text-center px-4">
+              <p className="mb-1">
+                {typeof s.value === 'number' ? (
+                  <Counter value={s.value} suffix={s.suffix} />
+                ) : (
+                  <span className="font-mono text-3xl md:text-4xl font-bold text-gold-300">{s.value}</span>
+                )}
+              </p>
+              <p className="text-xs font-semibold tracking-wider text-text-secondary uppercase">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Testimonials() {
+  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
+  const reviews = [
+    {
+      quote: "PangoChain has transformed our evidentiary file chain. In court, demonstrating blockchain-based file integrity eliminates defense claims of file tampering completely.",
+      name: "Marcus Vance",
+      firm: "Vance & Associates LLP",
+      status: "verified" as const
+    },
+    {
+      quote: "The combination of IPFS document custody and local ECIES key cryptography gives our partners maximum confidence in handling class-action litigation material.",
+      name: "Sarah Sterling",
+      firm: "Sterling Chambers Group",
+      status: "verified" as const
+    }
+  ]
+
+  return (
+    <section id="testimonials" className="relative py-28 px-6 bg-navy-950 border-t border-gold-500/10">
+      <div className="max-w-7xl mx-auto">
+        <div className="max-w-3xl mb-20 text-center mx-auto">
+          <p className="text-[10px] font-bold text-gold-500 uppercase tracking-[0.25em] mb-4">Adoption</p>
+          <h2 className="font-serif text-3xl md:text-5xl font-bold text-gold-300 leading-tight">
+            Endorsed by Managing Partners
+          </h2>
+          <div className="w-16 h-px bg-gold-500/30 mx-auto mt-6" />
+        </div>
+
+        <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {reviews.map((r, i) => (
+            <div
+              key={r.name}
+              className="card relative flex flex-col justify-between group hover:border-gold-500/20"
+              style={{
+                opacity: inView ? 1 : 0,
+                transform: inView ? 'translateY(0)' : 'translateY(35px)',
+                transition: `opacity 0.6s ease ${i * 0.15}s, transform 0.6s ease ${i * 0.15}s`
+              }}
+            >
+              {/* Decorative quotation marks SVG */}
+              <div className="absolute top-4 right-6 text-gold-500/5 select-none pointer-events-none font-serif text-8xl">
+                “
+              </div>
+
+              <div>
+                <p className="text-text-primary text-base italic leading-relaxed mb-8 relative z-10">
+                  "{r.quote}"
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-gold-500/10 pt-6 mt-auto">
+                <div>
+                  <h4 className="font-serif text-base font-bold text-gold-300">{r.name}</h4>
+                  <p className="text-xs text-text-secondary">{r.firm}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-emerald-500 tracking-wider">SECURE ADOPTER</span>
+                  <WaxSealSvg status={r.status} className="w-8 h-8 text-emerald-500" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function Footer() {
   return (
-    <footer className="bg-[#0e0e0f] border-t border-white/[0.07] py-10 px-6">
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+    <footer className="relative bg-navy-950 border-t border-gold-500/20 py-16 px-6">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="PangoChain" className="h-8 w-auto brightness-0 invert opacity-80" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 border border-gold-500/20 p-1 overflow-hidden">
+            <img src="/logo-mark.png" alt="PangoChain Logo" className="h-full w-auto filter-gold" />
+          </div>
+          <div>
+            <p className="font-serif text-xs font-bold text-gold-300 tracking-wide">PangoChain</p>
+            <p className="text-[8px] font-semibold text-text-secondary uppercase">Secure Infrastructure</p>
+          </div>
         </div>
-        <p className="text-sm text-slate-600">
-          © {new Date().getFullYear()} PangoChain. All rights reserved.
+
+        <p className="text-xs text-text-secondary font-mono">
+          © {new Date().getFullYear()} PangoChain. Built for enterprise justice. Fabric 2.4 active nodes.
         </p>
-        <div className="flex items-center gap-6 text-sm text-slate-600">
-          <a href="#" className="hover:text-amber-400 transition-colors">Privacy</a>
-          <a href="#" className="hover:text-amber-400 transition-colors">Terms</a>
-          <a href="#" className="hover:text-amber-400 transition-colors">Security</a>
+
+        <div className="flex items-center gap-6 text-xs text-text-secondary font-semibold uppercase tracking-wider">
+          <a href="#" className="hover:text-gold-300 transition-colors duration-300">Privacy Policy</a>
+          <a href="#" className="hover:text-gold-300 transition-colors duration-300">Platform Terms</a>
+          <a href="#" className="hover:text-gold-300 transition-colors duration-300">Security Disclosures</a>
         </div>
       </div>
     </footer>
   )
 }
 
-// ── Page ───────────────────────────────────────────────────────────────────
 export default function Landing() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-navy-950 text-text-primary selection:bg-gold-500/20 selection:text-gold-300 overflow-x-hidden">
       <LandingNav />
       <Hero />
-      <LogoCloud />
       <Features />
       <HowItWorks />
-      <TechPillars />
-      <CTA />
+      <StatsBar />
+      <Testimonials />
       <Footer />
     </div>
   )

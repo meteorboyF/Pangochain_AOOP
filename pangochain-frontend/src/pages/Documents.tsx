@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, Filter, AlertCircle, Plus } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, Filter, AlertCircle, Plus, Folder, ChevronDown, Lock } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { SignDocumentModal } from '../components/SignDocumentModal'
@@ -9,12 +9,20 @@ import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
 import { queryKeys } from '../lib/queryKeys'
-import { EmptyState, PageHero, QuickActionGrid } from '../components/ui/PageChrome'
+import { PageHero, QuickActionGrid } from '../components/ui/PageChrome'
 import { Tooltip } from '../components/ui/Tooltip'
+import { DocumentSealSvg } from '../components/ui/SvgAssets'
 
 type DocCategory = 'ALL' | 'GENERAL' | 'CONTRACT' | 'EVIDENCE' | 'PLEADING' | 'CORRESPONDENCE'
 
-const CATEGORIES: DocCategory[] = ['ALL', 'GENERAL', 'CONTRACT', 'EVIDENCE', 'PLEADING', 'CORRESPONDENCE']
+const CATEGORIES: { id: DocCategory; label: string; desc: string }[] = [
+  { id: 'ALL', label: 'All Matters', desc: 'Every record' },
+  { id: 'GENERAL', label: 'General Repository', desc: 'Misc files' },
+  { id: 'CONTRACT', label: 'Contracts & Agreements', desc: 'Signed execution deeds' },
+  { id: 'EVIDENCE', label: 'Litigation Evidence', desc: 'Court exhibits & affidavits' },
+  { id: 'PLEADING', label: 'Pleadings & Motions', desc: 'Case dockets & answers' },
+  { id: 'CORRESPONDENCE', label: 'Client Correspondence', desc: 'Privileged communication' }
+]
 
 interface DocumentDto {
   id: string
@@ -72,181 +80,208 @@ export default function Documents() {
   const docs = page?.content ?? []
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in text-text-primary">
       <PageHero
-        eyebrow="Encrypted evidence vault"
-        title="Documents"
-        description="Find, sign, verify, and download legal documents with visible custody, version history, IPFS CIDs, and Fabric transaction references."
+        eyebrow="Encrypted Evidence & Registry"
+        title="Evidentiary Vaults"
+        description="Decrypt high-clearance case files, review multi-party signatures, and verify document ledger blocks in real time."
         icon={FileText}
         actions={(
           <>
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
-              <Shield className="w-3.5 h-3.5" /> AES-256-GCM + IPFS
+            <div className="flex items-center gap-2 rounded-xl bg-gold-500/10 border border-gold-500/30 px-3 py-2 text-xs font-semibold text-gold-300">
+              <Shield className="w-3.5 h-3.5" /> AES-256-GCM Secure
             </div>
-            <button onClick={() => setShowUpload(true)} className="btn-primary">
-              <Plus className="w-4 h-4" /> Upload
+            <button onClick={() => setShowUpload(true)} className="btn-primary text-xs uppercase tracking-wider font-bold">
+              <Plus className="w-4 h-4" /> Ingest File
             </button>
           </>
         )}
       >
         <QuickActionGrid
           actions={[
-            { label: 'Upload encrypted file', description: 'Add a document, encrypt it client-side, and refresh this vault.', onClick: () => setShowUpload(true), icon: Plus, tone: 'cyan' },
-            { label: 'Review custody', description: 'Use the custody action on any row to inspect access and provenance.', to: '/audit', icon: Network, tone: 'emerald' },
-            { label: 'Version history', description: 'Track document revisions and integrity over time.', to: '/documents', icon: History, tone: 'amber' },
-            { label: 'Secure download', description: 'Decrypt authorized documents through the secure download flow.', to: '/documents', icon: Download, tone: 'violet' },
+            { label: 'Upload encrypted file', description: 'Add a document, encrypt it client-side, and refresh this vault.', onClick: () => setShowUpload(true), icon: Plus, tone: 'amber' },
+            { label: 'Review custody', description: 'Use the custody action on any row to inspect access and provenance.', to: '/audit', icon: Network, tone: 'cyan' },
+            { label: 'Version history', description: 'Track document revisions and integrity over time.', to: '/documents', icon: History, tone: 'emerald' },
+            { label: 'Secure download', description: 'Decrypt authorized documents through the secure download flow.', to: '/documents', icon: Download, tone: 'amber' },
           ]}
         />
       </PageHero>
 
-      {/* Search + Category Filter */}
-      <div className="glass-panel flex flex-col gap-3 p-3 lg:flex-row lg:items-center">
-        <div className="relative max-w-md flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-          <input
-            className="input pl-9"
-            placeholder="Search documents…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-1 lg:pb-0">
-          {CATEGORIES.map((cat) => (
-            <Tooltip key={cat} content={cat === 'ALL' ? 'Show all document categories.' : `Show ${cat.toLowerCase()} documents only.`} side="bottom">
-              <button
-                onClick={() => setCategory(cat)}
-                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-all ${
-                  category === cat
-                    ? 'bg-slate-950 text-white border-slate-950 shadow-md'
-                    : 'bg-white text-text-secondary border-border hover:border-cyan-300 hover:bg-cyan-50'
-                }`}
-              >
-                {cat === 'ALL' ? <><Filter className="w-3 h-3" />All</> : cat}
-              </button>
-            </Tooltip>
-          ))}
-        </div>
-      </div>
-
-      {/* States */}
-      {loading && <ListSkeleton />}
-
-      {error && !loading && (
-        <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-error">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
-        </div>
-      )}
-
-      {!loading && !error && docs.length === 0 && (
-        <EmptyState
-          icon={FileText}
-          title="No documents yet"
-          description="Upload a document from within a case, or directly here. Uploaded files can be encrypted, pinned to IPFS, signed, and audited."
-          action={<button onClick={() => setShowUpload(true)} className="btn-primary"><Plus className="w-4 h-4" /> Upload Document</button>}
-        />
-      )}
-
-      {!loading && !error && docs.length > 0 && (
-        <div className="card p-0 overflow-hidden">
-          <div className="flex flex-col gap-1 border-b border-border bg-white/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-heading text-sm font-bold text-slate-950">{page?.totalElements ?? 0} secured documents</p>
-              <p className="text-xs text-slate-500">Hover row actions to see what each tool does.</p>
-            </div>
-            <p className="text-xs font-mono text-cyan-700">Fabric + IPFS evidence layer</p>
+      {/* Vault explorer structure */}
+      <div className="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-6 items-start">
+        
+        {/* Left Panel: Explorer folder tree */}
+        <div className="card bg-navy-900/60 p-4 border-gold-500/10 space-y-4">
+          <div className="flex items-center justify-between px-2 pb-2 border-b border-gold-500/5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gold-300 flex items-center gap-1.5">
+              <Folder className="w-3.5 h-3.5 text-gold-400" /> Vault Hierarchy
+            </span>
           </div>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface-muted">
-                <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide">Document</th>
-                <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide hidden md:table-cell">IPFS CID</th>
-                <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide hidden lg:table-cell">Uploaded By</th>
-                <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide hidden lg:table-cell">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-text-muted text-xs uppercase tracking-wide hidden xl:table-cell">Fabric Tx</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+
+          <div className="space-y-1 relative pl-2">
+            {/* Indentation line */}
+            <div className="absolute left-[13px] top-4 bottom-4 w-0.5 bg-gold-500/10" />
+
+            {CATEGORIES.map((cat) => {
+              const active = category === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={`w-full flex items-start gap-2.5 px-3 py-2 rounded-xl text-left transition-all duration-300 relative group ${
+                    active
+                      ? 'bg-gold-500/10 text-gold-300 font-semibold border-l-2 border-gold-500'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }`}
+                >
+                  <Folder className={`w-4 h-4 mt-0.5 shrink-0 transition-colors ${active ? 'text-gold-400' : 'text-gold-500/60'}`} />
+                  <div className="min-w-0">
+                    <p className="text-xs truncate">{cat.label}</p>
+                    <p className="text-[9px] text-text-muted truncate mt-0.5">{cat.desc}</p>
+                  </div>
+                </button>
+              )}
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel: File Grid & Tools */}
+        <div className="space-y-4">
+          {/* Action header with search */}
+          <div className="card p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                className="input pl-9"
+                placeholder="Search file registries..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 text-xs font-mono text-gold-500/80">
+              <DocumentSealSvg className="w-5 h-5 text-gold-500/50" />
+              <span>IPFS Storage + Fabric ACL Active</span>
+            </div>
+          </div>
+
+          {/* Loaders */}
+          {loading && <ListSkeleton />}
+
+          {error && !loading && (
+            <div className="flex items-center gap-3 bg-error/10 border border-error/30 rounded-xl px-4 py-3 text-xs text-rose-400">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && !error && docs.length === 0 && (
+            <div className="card text-center py-16">
+              <FileText className="w-12 h-12 text-gold-500/20 mx-auto mb-4" />
+              <h3 className="font-serif text-lg font-bold text-gold-300 mb-2">No documents indexed</h3>
+              <p className="text-text-secondary text-xs max-w-sm mx-auto mb-6">
+                No ledger files found matching the category or query filters.
+              </p>
+              <button onClick={() => setShowUpload(true)} className="btn-primary text-xs uppercase tracking-wider font-bold">
+                <Plus className="w-3.5 h-3.5" /> Upload Document
+              </button>
+            </div>
+          )}
+
+          {/* Document Grid Cards */}
+          {!loading && !error && docs.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {docs.map((doc) => (
-                <tr key={doc.id} className="hover:bg-surface-muted transition-colors group">
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg leading-none">{fileIcon(doc.fileName)}</span>
-                      <div className="min-w-0">
-                        <p className="font-medium text-text-primary truncate max-w-[200px] group-hover:text-[#1d6464] transition-colors">
-                          {doc.fileName}
-                        </p>
-                        <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1">
-                          <Shield className="w-3 h-3 text-[#1d6464]" /> v{doc.version} · {doc.status}
-                        </p>
+                <div
+                  key={doc.id}
+                  className="card relative flex flex-col justify-between overflow-hidden bg-navy-900/60 p-0 border-gold-500/10 hover:border-gold-500/20 hover:shadow-gold-sm transition-all duration-300 min-h-[220px] group"
+                >
+                  {/* Dark Geometric preview grid */}
+                  <div className="h-24 bg-navy-950/80 flex items-center justify-center relative border-b border-gold-500/5 overflow-hidden">
+                    {/* Abstract lines decoration */}
+                    <div className="absolute inset-0 opacity-[0.03] bg-[linear-gradient(rgba(255,255,255,1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,1)_1px,transparent_1px)] bg-[size:10px_10px]" />
+                    <div className="absolute -left-4 -bottom-4 w-16 h-16 rounded-full border border-gold-500/5" />
+                    
+                    <span className="text-4xl select-none filter drop-shadow-md">{fileIcon(doc.fileName)}</span>
+                    
+                    {/* Version label */}
+                    <span className="absolute top-2.5 left-2.5 font-mono text-[9px] font-bold bg-navy-900 text-gold-400 border border-gold-500/20 px-1.5 py-0.5 rounded">
+                      V{doc.version}
+                    </span>
+
+                    {/* Encryption status */}
+                    <span className="absolute top-2.5 right-2.5 flex items-center gap-1 font-mono text-[9px] bg-gold-500/10 text-gold-300 border border-gold-500/20 px-1.5 py-0.5 rounded">
+                      <Lock className="w-2.5 h-2.5 text-gold-400" /> E2E
+                    </span>
+                  </div>
+
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h4 className="font-serif font-bold text-sm text-gold-300 line-clamp-1 group-hover:text-gold-100 transition-colors" title={doc.fileName}>
+                        {doc.fileName}
+                      </h4>
+                      <p className="text-[9px] text-text-secondary truncate mt-1">
+                        BY: {doc.ownerEmail}
+                      </p>
+                      {doc.category && (
+                        <span className="inline-block text-[8px] bg-gold-500/5 border border-gold-500/10 text-gold-400 font-bold px-1.5 py-0.5 rounded uppercase mt-2">
+                          {doc.category}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Actions toolbar */}
+                    <div className="flex items-center justify-between pt-3 border-t border-gold-500/5 mt-4">
+                      <span className="text-[9px] font-mono text-text-muted flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {new Date(doc.createdAt).toLocaleDateString()}
+                      </span>
+
+                      {/* Tooltip action group */}
+                      <div className="flex items-center gap-1.5">
+                        <Tooltip content="Sign Verification" side="top">
+                          <button
+                            onClick={() => setSignTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <PenTool className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
+                        
+                        <Tooltip content="Version History" side="top">
+                          <button
+                            onClick={() => setHistoryTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <History className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip content="Custody Log" side="top">
+                          <button
+                            onClick={() => setCustodyTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <Network className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
+
+                        <Tooltip content="Secure Download" side="top">
+                          <button
+                            onClick={() => setDownloadTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/20 bg-gold-500/5 hover:bg-gold-500/10 text-gold-300 transition-all"
+                          >
+                            <Download className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-3.5 hidden md:table-cell">
-                    <code className="text-[11px] text-text-muted font-mono truncate max-w-[120px] block">
-                      {doc.ipfsCid.slice(0, 12)}…
-                    </code>
-                  </td>
-                  <td className="px-4 py-3.5 hidden lg:table-cell">
-                    <span className="text-text-secondary text-xs">{doc.ownerEmail}</span>
-                  </td>
-                  <td className="px-4 py-3.5 hidden lg:table-cell">
-                    <span className="text-text-muted text-xs flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(doc.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 hidden xl:table-cell">
-                    <code className="text-[11px] text-[#1d6464] font-mono">
-                      {doc.fabricTxId ? `${doc.fabricTxId.slice(0, 10)}…` : '—'}
-                    </code>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1 opacity-100 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
-                      <Tooltip content="Create or verify an ECDSA signature for this document." side="left">
-                        <button
-                          onClick={() => setSignTarget(doc)}
-                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
-                          aria-label="Sign document"
-                        >
-                          <PenTool className="w-3.5 h-3.5" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Open previous document versions and integrity metadata." side="left">
-                        <button
-                          onClick={() => setHistoryTarget(doc)}
-                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
-                          aria-label="Version history"
-                        >
-                          <History className="w-3.5 h-3.5" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Trace access, custody, and provenance for this file." side="left">
-                        <button
-                          onClick={() => setCustodyTarget(doc)}
-                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
-                          aria-label="Chain of custody"
-                        >
-                          <Network className="w-3.5 h-3.5" />
-                        </button>
-                      </Tooltip>
-                      <Tooltip content="Download through the secure authorization and decrypt flow." side="left">
-                        <button
-                          onClick={() => setDownloadTarget(doc)}
-                          className="p-1.5 rounded-lg hover:bg-cyan-50 text-text-muted hover:text-cyan-700 transition-colors"
-                          aria-label="Secure download"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                      </Tooltip>
-                    </div>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       {showUpload && (
         <DocumentUploadDropzone

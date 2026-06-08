@@ -106,31 +106,31 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
 
   const stageInfo: Record<Stage, { label: string; color: string }> = {
     idle:       { label: '',                               color: '' },
-    encrypting: { label: 'Encrypting with AES-256-GCM…',  color: 'text-amber-600' },
-    wrapping:   { label: 'Wrapping key with ECIES P-256…', color: 'text-blue-600' },
-    uploading:  { label: 'Uploading to IPFS + Fabric…',   color: 'text-[#1d6464]' },
-    done:       { label: 'Registered on blockchain ✓',    color: 'text-success' },
-    error:      { label: errorMsg,                         color: 'text-error' },
+    encrypting: { label: 'Encrypting with AES-256-GCM…',  color: 'text-gold-400' },
+    wrapping:   { label: 'Wrapping key with ECIES P-256…', color: 'text-gold-400' },
+    uploading:  { label: 'Uploading to IPFS + Fabric…',   color: 'text-gold-300' },
+    done:       { label: 'Registered on blockchain ✓',    color: 'text-emerald-400' },
+    error:      { label: errorMsg,                         color: 'text-rose-400' },
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
+        <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2">
-            <Lock className="w-5 h-5 text-[#1d6464]" />
-            <h2 className="font-heading font-semibold text-text-primary">{previousVersionId ? 'Upload New Version' : 'Secure Upload'}</h2>
+            <Lock className="w-5 h-5 text-gold-500" />
+            <h2 className="font-serif font-semibold text-lg text-gold-300">{previousVersionId ? 'Upload New Version' : 'Secure Upload'}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
-            <X className="w-4 h-4 text-text-muted" />
+          <button onClick={onClose} className="p-1.5 hover:bg-navy-950/60 rounded-lg text-text-secondary hover:text-text-primary transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-5 space-y-4">
           {/* Encryption notice */}
-          <div className="flex items-start gap-2.5 bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-xl px-3.5 py-3 text-xs text-[#1d6464]">
-            <Shield className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-2.5 bg-gold-500/10 border border-gold-500/20 rounded-xl px-3.5 py-3 text-xs text-gold-300 leading-relaxed">
+            <Shield className="w-4 h-4 mt-0.5 shrink-0 text-gold-400" />
             <span>Your file is encrypted in this browser before upload. The server only receives ciphertext — plaintext never leaves your device.</span>
           </div>
 
@@ -141,26 +141,28 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
               onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
               onDragLeave={() => setDragOver(false)}
               onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-                dragOver ? 'border-[#1d6464] bg-[#1d6464]/5' : 'border-border hover:border-[#1d6464]/50 hover:bg-surface-muted'
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+                dragOver 
+                  ? 'border-gold-500 bg-gold-500/10 shadow-gold-sm' 
+                  : 'border-gold-500/20 hover:border-gold-500/50 hover:bg-navy-900/40'
               }`}
             >
-              <Upload className="w-8 h-8 text-text-muted mx-auto mb-2" />
+              <Upload className="w-8 h-8 text-gold-500/50 mx-auto mb-2" />
               <p className="font-medium text-text-primary text-sm">Drop file here or click to browse</p>
-              <p className="text-text-muted text-xs mt-1">PDF, DOCX, XLSX, ZIP — up to 50 MB</p>
+              <p className="text-text-secondary text-xs mt-1">PDF, DOCX, XLSX, ZIP — up to 50 MB</p>
               <input ref={fileRef} type="file" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
             </div>
           ) : (
-            <div className="border border-border rounded-xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#1d6464]/10 rounded-lg flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 text-[#1d6464]" />
+            <div className="border border-gold-500/15 bg-navy-950/40 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gold-500/10 border border-gold-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-gold-400" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-text-primary text-sm truncate">{file.name}</p>
-                <p className="text-text-muted text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                <p className="text-text-secondary text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
               </div>
               {stage === 'idle' && (
-                <button onClick={() => { setFile(null); setSuggestion(null) }} className="p-1 text-text-muted hover:text-error transition-colors">
+                <button onClick={() => { setFile(null); setSuggestion(null) }} className="p-1 text-text-secondary hover:text-rose-400 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -171,18 +173,18 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
           {file && stage === 'idle' && (
             <div>
               <label className="label">Category</label>
-              <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+              <select className="input bg-navy-950 text-text-primary border-gold-500/20" value={category} onChange={(e) => setCategory(e.target.value)}>
                 {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
               </select>
               {suggestion && (
-                <div className="mt-1.5 flex items-start gap-2 text-xs text-[#1d6464] bg-[#1d6464]/5 border border-[#1d6464]/20 rounded-lg px-2.5 py-1.5">
-                  <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <div className="mt-1.5 flex items-start gap-2 text-xs text-gold-300 bg-gold-500/10 border border-gold-500/20 rounded-lg px-2.5 py-1.5">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
                   <span>
                     AI suggests <strong>{suggestion.category}</strong> ({suggestion.confidence}% confidence)
                     {category !== suggestion.category && (
-                      <button type="button" onClick={() => setCategory(suggestion.category)} className="ml-1 underline">apply</button>
+                      <button type="button" onClick={() => setCategory(suggestion.category)} className="ml-1 underline text-gold-400 hover:text-gold-300 font-semibold">apply</button>
                     )}
-                    <span className="block text-text-muted">{suggestion.rationale}</span>
+                    <span className="block text-text-muted mt-0.5">{suggestion.rationale}</span>
                   </span>
                 </div>
               )}
@@ -191,20 +193,20 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
 
           {/* Progress */}
           {stage !== 'idle' && (
-            <div className="flex items-center gap-2.5">
-              {stage === 'done'  && <CheckCircle className="w-4 h-4 text-success shrink-0" />}
-              {stage === 'error' && <AlertCircle className="w-4 h-4 text-error shrink-0" />}
+            <div className="flex items-center gap-2.5 py-2">
+              {stage === 'done'  && <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />}
+              {stage === 'error' && <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />}
               {['encrypting', 'wrapping', 'uploading'].includes(stage) && (
-                <Loader2 className="w-4 h-4 animate-spin text-[#1d6464] shrink-0" />
+                <Loader2 className="w-4 h-4 animate-spin text-gold-500 shrink-0" />
               )}
-              <p className={`text-sm font-medium ${stageInfo[stage].color}`}>{stageInfo[stage].label}</p>
+              <p className={`text-sm font-semibold ${stageInfo[stage].color}`}>{stageInfo[stage].label}</p>
             </div>
           )}
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3 p-5 pt-0">
-          <button onClick={onClose} className="flex-1 btn border border-border text-text-secondary hover:bg-surface-muted py-2.5">
+        <div className="flex gap-3 p-5 pt-0 bg-navy-950/20">
+          <button onClick={onClose} className="flex-1 btn-secondary py-2.5">
             Cancel
           </button>
           <button
@@ -213,7 +215,7 @@ export function DocumentUploadDropzone({ caseId, onClose, onUploaded, previousVe
             className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50"
           >
             {['encrypting', 'wrapping', 'uploading'].includes(stage)
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing…</>
+              ? <><Loader2 className="w-4 h-4 animate-spin text-navy-950" /> Processing…</>
               : <><Lock className="w-4 h-4" /> Encrypt & Upload</>}
           </button>
         </div>
