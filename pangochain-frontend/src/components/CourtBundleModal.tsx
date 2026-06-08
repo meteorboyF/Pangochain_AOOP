@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 interface DocItem {
   id: string
   fileName: string
+  ipfsCid?: string
   documentHash?: string
   documentHashSha256?: string
 }
@@ -20,9 +21,11 @@ interface Props {
 }
 
 const BUNDLE_TYPES = ['Evidence Bundle', 'Discovery Bundle']
+const isDemoDoc = (doc?: DocItem) => !!doc?.ipfsCid?.startsWith('QmDemo')
 
 export function CourtBundleModal({ caseId, documents, onClose }: Props) {
   const { user } = useAuthStore()
+  const safeDocuments = Array.isArray(documents) ? documents : []
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bundleType, setBundleType] = useState(BUNDLE_TYPES[0])
   const [password, setPassword] = useState('')
@@ -43,25 +46,31 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
     setBusy(true)
     setError('')
     try {
-      // Unlock the ECIES private key once for the whole bundle
-      const stored = loadWrappedPrivateKey(user!.id)
-      if (!stored) { setError('No private key on this device — log in again to provision your keys.'); setBusy(false); return }
-      let privateKey: CryptoKey
-      try {
-        privateKey = await unwrapPrivateKey(password, stored.saltB64, stored.ivB64, stored.encryptedB64)
-      } catch {
-        setError('Incorrect password — your private key could not be unlocked.'); setBusy(false); return
-      }
-
       // Decrypt each selected document locally; send plaintext only for textual docs
       const items: { documentId: string; plaintextBase64: string | null }[] = []
-      const picks = documents.filter((d) => selected.has(d.id))
+      const picks = safeDocuments.filter((d) => selected.has(d.id))
+      const realEncryptedPicks = picks.filter((d) => !isDemoDoc(d))
+      let privateKey: CryptoKey | null = null
+      if (realEncryptedPicks.length > 0) {
+        const stored = user ? loadWrappedPrivateKey(user.id) : null
+        if (!stored) { setError('No private key on this device — log in again to provision your keys.'); setBusy(false); return }
+        try {
+          privateKey = await unwrapPrivateKey(password, stored.saltB64, stored.ivB64, stored.encryptedB64)
+        } catch {
+          setError('Incorrect password — your private key could not be unlocked.'); setBusy(false); return
+        }
+      }
       for (let i = 0; i < picks.length; i++) {
         const doc = picks[i]
-        setProgress(`Decrypting ${i + 1}/${picks.length}: ${doc.fileName}`)
-        const bytes = await decryptDocumentToBytes(doc.id, privateKey, doc.documentHashSha256 ?? doc.documentHash)
-        const text = bytesToTextIfPrintable(bytes)
-        items.push({ documentId: doc.id, plaintextBase64: text != null ? bytesToBase64(new Uint8Array(bytes)) : null })
+        if (isDemoDoc(doc)) {
+          setProgress(`Adding reference ${i + 1}/${picks.length}: ${doc.fileName}`)
+          items.push({ documentId: doc.id, plaintextBase64: null })
+        } else {
+          setProgress(`Decrypting ${i + 1}/${picks.length}: ${doc.fileName}`)
+          const bytes = await decryptDocumentToBytes(doc.id, privateKey!, doc.documentHashSha256 ?? doc.documentHash)
+          const text = bytesToTextIfPrintable(bytes)
+          items.push({ documentId: doc.id, plaintextBase64: text != null ? bytesToBase64(new Uint8Array(bytes)) : null })
+        }
       }
 
       setProgress('Assembling court-ready PDF…')
@@ -84,6 +93,8 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
       setProgress('')
     }
   }
+
+  const selectedRealCount = safeDocuments.filter((d) => selected.has(d.id) && !isDemoDoc(d)).length
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -109,24 +120,25 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
           <div>
             <label className="label">Documents ({selected.size} selected)</label>
             <div className="border border-gold-500/15 rounded-xl divide-y divide-gold-500/10 bg-navy-950/40 max-h-52 overflow-y-auto scrollbar-thin">
-              {documents.length === 0 && <p className="text-text-secondary text-sm p-3">No documents on this case.</p>}
-              {documents.map((d) => (
+              {safeDocuments.length === 0 && <p className="text-text-secondary text-sm p-3">No documents on this case.</p>}
+              {safeDocuments.map((d) => (
                 <label key={d.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-navy-900/40 transition-colors">
                   <input type="checkbox" className="rounded border-gold-500/30 text-gold-500 focus:ring-gold-500/30 bg-navy-950" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
                   <span className="text-sm text-text-primary truncate">{d.fileName}</span>
+                  {isDemoDoc(d) && <span className="text-[9px] text-gold-300 border border-gold-500/20 rounded px-1">reference</span>}
                 </label>
               ))}
             </div>
           </div>
 
-          <div>
+          <div className={selectedRealCount === 0 ? 'opacity-60' : ''}>
             <label className="label">Password (to unlock your key for decryption)</label>
-            <input type="password" className="input font-mono" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+            <input type="password" className="input font-mono" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={selectedRealCount === 0 ? 'not needed for reference docs' : '••••••••'} disabled={selectedRealCount === 0} />
           </div>
 
           <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
-            Documents are decrypted in your browser. The integrity appendix lists each document SHA-256 hash and Fabric tx ID for independent ledger verification.
+            Uploaded encrypted documents are decrypted in your browser. Demo/reference documents are bundled by metadata and integrity hash so the court packet still downloads cleanly.
           </div>
 
           {progress && <div className="flex items-center gap-2 text-sm text-gold-400"><Loader2 className="w-4 h-4 animate-spin text-gold-500" /> {progress}</div>}
@@ -136,7 +148,7 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
 
         <div className="flex gap-3 p-5 pt-0 bg-navy-950/20">
           <button onClick={onClose} className="flex-1 btn-secondary py-2.5">Close</button>
-          <button onClick={generate} disabled={busy || selected.size === 0 || !password} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
+          <button onClick={generate} disabled={busy || selected.size === 0 || (selectedRealCount > 0 && !password)} className="flex-1 btn-primary py-2.5 justify-center disabled:opacity-50">
             {busy ? <><Loader2 className="w-4 h-4 animate-spin text-navy-950" /> Generating…</> : <><Lock className="w-4 h-4" /> Generate Bundle</>}
           </button>
         </div>

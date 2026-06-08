@@ -462,6 +462,7 @@ public class DataSeeder implements ApplicationRunner {
         User partner = ensureUser("partner@pangolawfirm.com", "Partner123!", "Nadia Rahman", UserRole.PARTNER_SENIOR, firmA);
         User secretary = ensureUser("secretary@pangolawfirm.com", "Secretary123!", "Mina Patel", UserRole.SECRETARY, firmA);
         User regulator = ensureUser("regulator@pangolawfirm.com", "Regulator123!", "Owen Brooks", UserRole.REGULATOR, firmA);
+        ensureDemoPublicKeys();
         User associateA = userRepository.findByEmail("a@pangolawfirm.com").orElse(lawyer);
         User associateB = userRepository.findByEmail("b@pangolawfirm.com").orElse(lawyer);
 
@@ -503,6 +504,37 @@ public class DataSeeder implements ApplicationRunner {
         seedClosedCaseDemo(northstar, admin, client, secretary);
 
         log.info("✅ Showcase demo data seeded — portfolio cases, documents, signatures, annotations, custody, billing, and client/admin stories.");
+    }
+
+    private void ensureDemoPublicKeys() {
+        String eciesPublicJwk = """
+                {"key_ops":[],"ext":true,"kty":"EC","x":"1ppV0lOMaLqtylioKdgcIGkq0V3Vz2xa3tspgtyRMyQ","y":"DpE5aWrWirrFs9cbZLXOriZK_dq8bJNqyfi6uPh4YPo","crv":"P-256"}
+                """.trim();
+        String signingPublicJwk = """
+                {"key_ops":["verify"],"ext":true,"kty":"EC","x":"kCSbE1cJqS-Y0flpwc0ZYT9dQGoyTYj8rnRxZYiovBs","y":"9pqWHiiQ36SG98SgialNtMY0c7As1Bh1G8tWu9LQdyU","crv":"P-256"}
+                """.trim();
+        em.createNativeQuery("""
+                UPDATE users
+                SET public_key_ecies = COALESCE(public_key_ecies, :ecies),
+                    signing_public_key = COALESCE(signing_public_key, :signing)
+                WHERE email IN (
+                    'admin@pangolawfirm.com',
+                    'lawyer@pangolawfirm.com',
+                    'paralegal@pangolawfirm.com',
+                    'client@demo.com',
+                    'client2@demo.com',
+                    'a@pangolawfirm.com',
+                    'b@pangolawfirm.com',
+                    'c@pangolawfirm.com',
+                    'd@pangolawfirm.com',
+                    'partner@pangolawfirm.com',
+                    'secretary@pangolawfirm.com',
+                    'regulator@pangolawfirm.com'
+                )
+                """)
+                .setParameter("ecies", eciesPublicJwk)
+                .setParameter("signing", signingPublicJwk)
+                .executeUpdate();
     }
 
     private java.util.Optional<Case> findCase(String titlePrefix) {

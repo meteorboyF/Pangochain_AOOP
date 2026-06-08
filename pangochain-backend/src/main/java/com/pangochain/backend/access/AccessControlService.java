@@ -90,14 +90,16 @@ public class AccessControlService {
         }
 
         DocumentAccess.Capability cap = DocumentAccess.Capability.valueOf(req.getCapability().toLowerCase());
-        DocumentAccess access = DocumentAccess.builder()
-                .docId(docId)
-                .userId(granteeId)
-                .capability(cap)
-                .grantedBy(granter.getId())
-                .expiresAt(expiresAt)
-                .wrappedKeyToken(req.getWrappedKeyToken())
-                .build();
+        DocumentAccess access = accessRepository.findActiveEntry(docId, granteeId)
+                .orElseGet(() -> DocumentAccess.builder()
+                        .docId(docId)
+                        .userId(granteeId)
+                        .build());
+        access.setCapability(cap);
+        access.setGrantedBy(granter.getId());
+        access.setExpiresAt(expiresAt);
+        access.setWrappedKeyToken(req.getWrappedKeyToken());
+        access.setTokenObsolete(false);
         access = accessRepository.save(access);
 
         // Notify grantee (real-time push + persisted)

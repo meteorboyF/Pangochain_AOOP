@@ -6,7 +6,7 @@ import {
 import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
 import {
-  loadWrappedPrivateKey, unwrapPrivateKey, eciesUnwrapKey, eciesWrapKey,
+  loadWrappedPrivateKey, unwrapPrivateKey, eciesUnwrapKey, eciesWrapKey, bytesToBase64,
 } from '../lib/crypto'
 import toast from 'react-hot-toast'
 
@@ -18,10 +18,16 @@ interface Member {
   roleInCase: string
   hasPublicKey: boolean
 }
-interface Doc { id: string; fileName: string; category?: string; confidential?: boolean }
+interface Doc { id: string; fileName: string; ipfsCid?: string; category?: string; confidential?: boolean }
 interface BatchItemResult { docId: string; granteeId: string; ok: boolean; error: string | null }
 
 const cellKey = (docId: string, memberId: string) => `${docId}|${memberId}`
+const isDemoDoc = (doc?: Doc) => !!doc?.ipfsCid?.startsWith('QmDemo')
+
+async function demoDocumentKeyB64(docId: string) {
+  const hash = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(`pangochain-demo-doc-key:${docId}`))
+  return bytesToBase64(new Uint8Array(hash))
+}
 
 export default function DistributeAccess() {
   const { id: caseId } = useParams<{ id: string }>()
@@ -61,6 +67,14 @@ export default function DistributeAccess() {
   const noKeyMembers = members.filter((m) => m.userId !== user?.id && !m.hasPublicKey)
 
   const selectedCount = Object.values(selected).filter(Boolean).length
+  const selectedRealDocCount = useMemo(() => {
+    const byId = new Map(docs.map((d) => [d.id, d]))
+    return Object.entries(selected).filter(([key, on]) => {
+      if (!on) return false
+      const [docId] = key.split('|')
+      return !isDemoDoc(byId.get(docId))
+    }).length
+  }, [docs, selected])
 
   const toggle = (docId: string, memberId: string) =>
     setSelected((s) => ({ ...s, [cellKey(docId, memberId)]: !s[cellKey(docId, memberId)] }))
@@ -95,12 +109,12 @@ export default function DistributeAccess() {
   }
 
   const handleDistribute = async () => {
-    if (!privateKey) { toast.error('Unlock your key first'); return }
     const pairs: Array<{ docId: string; memberId: string }> = []
     for (const d of docs) for (const g of grantees) {
       if (selected[cellKey(d.id, g.userId)]) pairs.push({ docId: d.id, memberId: g.userId })
     }
     if (pairs.length === 0) { toast.error('Select at least one document/member'); return }
+    if (selectedRealDocCount > 0 && !privateKey) { toast.error('Unlock your key first'); return }
 
     setDistributing(true)
     setResults(null)
@@ -111,10 +125,15 @@ export default function DistributeAccess() {
 
       const grants = []
       for (const { docId, memberId } of pairs) {
+        const doc = docs.find((d) => d.id === docId)
         // Unwrap the document key once per doc, using MY wrapped token + private key.
         if (!docKeyCache.has(docId)) {
-          const { data: token } = await api.get(`/documents/${docId}/wrapped-key`)
-          docKeyCache.set(docId, await eciesUnwrapKey(privateKey, token))
+          if (isDemoDoc(doc)) {
+            docKeyCache.set(docId, await demoDocumentKeyB64(docId))
+          } else {
+            const { data: token } = await api.get(`/documents/${docId}/wrapped-key`)
+            docKeyCache.set(docId, await eciesUnwrapKey(privateKey!, token))
+          }
         }
         // Fetch each grantee's public key once.
         if (!pubKeyCache.has(memberId)) {
@@ -177,6 +196,9 @@ export default function DistributeAccess() {
               {unlocking ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Unlock'}
             </button>
           </div>
+          <p className="text-[11px] text-amber-800/80 mt-2">
+            Demo-seeded documents can be distributed without unlocking because they are reference records. Uploaded encrypted documents still require your private key.
+          </p>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-medium w-fit">
@@ -200,7 +222,7 @@ export default function DistributeAccess() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-text-muted">{selectedCount} selected</span>
-          <button onClick={handleDistribute} disabled={distributing || !privateKey || selectedCount === 0}
+          <button onClick={handleDistribute} disabled={distributing || selectedCount === 0 || (selectedRealDocCount > 0 && !privateKey)}
             className="btn-primary px-5 py-2.5 disabled:opacity-50">
             {distributing ? <><Loader2 className="w-4 h-4 animate-spin" /> Distributing…</> : <><Share2 className="w-4 h-4" /> Distribute</>}
           </button>
@@ -239,6 +261,7 @@ export default function DistributeAccess() {
                     <div className="flex items-center gap-2">
                       {d.confidential ? <Lock className="w-4 h-4 text-red-500 shrink-0" /> : <FileText className="w-4 h-4 text-[#1d6464] shrink-0" />}
                       <span className="truncate max-w-[14rem]" title={d.fileName}>{d.fileName}</span>
+                      {isDemoDoc(d) && <span className="text-[9px] text-gold-300 border border-gold-500/20 rounded px-1">demo</span>}
                       <button onClick={() => toggleRow(d.id, true)} className="text-[10px] text-[#1d6464] hover:underline ml-1">all</button>
                     </div>
                   </td>
