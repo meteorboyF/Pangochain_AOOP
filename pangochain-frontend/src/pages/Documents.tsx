@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, AlertCircle, Plus, Folder, Lock, MessageCircle, Eraser, Share2 } from 'lucide-react'
+import { FileText, Search, Download, Shield, Clock, History, PenTool, Network, AlertCircle, Plus, Folder, Lock, MessageCircle, Eraser, Share2, Eye, Hash } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
 import { SignDocumentModal } from '../components/SignDocumentModal'
@@ -8,6 +8,7 @@ import { VersionHistoryPanel } from '../components/VersionHistoryPanel'
 import { ChainOfCustodyModal } from '../components/ChainOfCustodyModal'
 import { AnnotationModal } from '../components/AnnotationModal'
 import { RedactionModal } from '../components/RedactionModal'
+import { DocumentEditorModal } from '../components/DocumentEditorModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { ListSkeleton } from '../components/ui/Skeleton'
 import api from '../lib/api'
@@ -53,6 +54,10 @@ function fileIcon(name: string) {
   return '📎'
 }
 
+function shortHash(hash?: string) {
+  return hash ? `${hash.slice(0, 10)}...${hash.slice(-6)}` : ''
+}
+
 export default function Documents() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<DocCategory>('ALL')
@@ -64,6 +69,7 @@ export default function Documents() {
   const [custodyTarget, setCustodyTarget] = useState<DocumentDto | null>(null)
   const [annotateTarget, setAnnotateTarget] = useState<DocumentDto | null>(null)
   const [redactTarget, setRedactTarget] = useState<DocumentDto | null>(null)
+  const [editTarget, setEditTarget] = useState<DocumentDto | null>(null)
   const [accessTarget, setAccessTarget] = useState<DocumentDto | null>(null)
 
   useEffect(() => {
@@ -238,13 +244,29 @@ export default function Documents() {
 
                     {/* Actions toolbar */}
                     <div className="flex items-center justify-between pt-3 border-t border-gold-500/5 mt-4">
-                      <span className="text-[9px] font-mono text-text-muted flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {new Date(doc.createdAt).toLocaleDateString()}
-                      </span>
+                      <div className="min-w-0 text-[9px] font-mono text-text-muted space-y-1">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(doc.createdAt).toLocaleDateString()}
+                        </span>
+                        {doc.documentHash && (
+                          <span className="flex items-center gap-1 text-gold-400 truncate" title={doc.documentHash}>
+                            <Hash className="w-3 h-3 shrink-0 text-gold-500/50" />
+                            {shortHash(doc.documentHash)}
+                          </span>
+                        )}
+                      </div>
 
                       {/* Tooltip action group */}
                       <div className="flex items-center gap-1.5">
+                        <Tooltip content="Open in browser" side="top">
+                          <button
+                            onClick={() => setEditTarget(doc)}
+                            className="p-1.5 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </button>
+                        </Tooltip>
                         <Tooltip content="Annotate / comments" side="top">
                           <button
                             onClick={() => setAnnotateTarget(doc)}
@@ -369,6 +391,18 @@ export default function Documents() {
           documentHashSha256={redactTarget.documentHash}
           onClose={() => setRedactTarget(null)}
           onRedacted={() => { setRedactTarget(null); refetch() }}
+        />
+      )}
+      {editTarget && (
+        <DocumentEditorModal
+          docId={editTarget.id}
+          caseId={editTarget.caseId}
+          fileName={editTarget.fileName}
+          category={editTarget.category}
+          version={editTarget.version}
+          documentHashSha256={editTarget.documentHash}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); refetch() }}
         />
       )}
       {accessTarget && (

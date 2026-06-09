@@ -161,12 +161,16 @@ start_backend() {
   log "Starting backend on :$BACKEND_PORT (log: $BACKEND_LOG)"
   local fabric_flag="true"
   [[ "$WITH_FABRIC" == "1" ]] || fabric_flag="false"
+  local material_db_fallback="${DOCUMENT_MATERIAL_DB_FALLBACK:-true}"
+  if [[ "$WITH_FABRIC" != "1" && "${DOCUMENT_MATERIAL_DB_FALLBACK+x}" != "x" ]]; then
+    material_db_fallback="true"
+  fi
 
   start_background \
     "$ROOT_DIR/pangochain-backend" \
     "$BACKEND_PID_FILE" \
     "$BACKEND_LOG" \
-    "FABRIC_ENABLED=$fabric_flag ./mvnw spring-boot:run"
+    "FABRIC_ENABLED=$fabric_flag DOCUMENT_MATERIAL_DB_FALLBACK=$material_db_fallback ./mvnw spring-boot:run"
 
   pid="$(read_pid_file "$BACKEND_PID_FILE")"
   log "Backend PID: $pid"

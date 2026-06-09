@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Eraser, Loader2, Lock, CheckCircle, AlertCircle, ShieldCheck, Highlighter } from 'lucide-react'
+import JSZip from 'jszip'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import {
-  loadWrappedPrivateKey, unwrapPrivateKey, encryptDocument, eciesWrapKey,
+  loadWrappedPrivateKey, unwrapPrivateKey, encryptDocument, eciesWrapKey, verifyIntegrity,
 } from '../lib/crypto'
 import { decryptDocumentToBytes, bytesToTextIfPrintable } from '../lib/decryptDoc'
 import toast from 'react-hot-toast'
@@ -22,15 +23,12 @@ interface Props {
 }
 
 type Stage = 'unlock' | 'editing' | 'saving' | 'done' | 'error'
+export type SourceFormat = 'text' | 'docx'
 
 const BLOCK = '█'
 const isDemoDoc = (ipfsCid?: string) => !!ipfsCid?.startsWith('QmDemo')
-const isFabricUnavailable = (e: any) =>
-  e?.response?.status === 503
-  || e?.response?.data?.error === 'FABRIC_UNAVAILABLE'
-  || `${e?.response?.data?.detail ?? e?.response?.data?.message ?? e?.message ?? ''}`
-    .toLowerCase()
-    .includes('blockchain network')
+const WORD_EXT_RE = /\.docx$/i
+const LEGACY_WORD_EXT_RE = /\.doc$/i
 
 function demoRedactionText(fileName: string) {
   return [
@@ -46,15 +44,58 @@ function demoRedactionText(fileName: string) {
   ].join('\n')
 }
 
+function decodeXmlEntities(value: string) {
+  const doc = new DOMParser().parseFromString(`<root>${value}</root>`, 'application/xml')
+  return doc.documentElement.textContent ?? value
+}
+
+export function normalizeRedactedName(fileName: string, nextVersion: number, format: SourceFormat) {
+  const withoutRedactionSuffix = fileName
+    .replace(/\s*\(redacted\)/ig, '')
+    .replace(/\s+v\d+\s+redacted/ig, '')
+  const base = withoutRedactionSuffix.replace(/\.[^.]+$/, '')
+  const ext = format === 'docx' ? '.txt' : (withoutRedactionSuffix.match(/(\.[^.]+)$/)?.[1] ?? '.txt')
+  return `${base} v${nextVersion} redacted${ext}`
+}
+
+async function extractDocxText(buffer: ArrayBuffer) {
+  const zip = await JSZip.loadAsync(buffer)
+  const main = zip.file('word/document.xml')
+  if (!main) throw new Error('This Word document has no editable document body.')
+  const xml = await main.async('text')
+  const paragraphs = xml
+    .split(/<\/w:p>/i)
+    .map((paragraph) => {
+      const textRuns = [...paragraph.matchAll(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi)]
+      return textRuns.map((match) => decodeXmlEntities(match[1])).join('')
+    })
+    .filter((line) => line.trim().length > 0)
+  return paragraphs.join('\n')
+}
+
+export async function extractEditableText(buffer: ArrayBuffer, fileName: string): Promise<{ text: string; format: SourceFormat }> {
+  if (WORD_EXT_RE.test(fileName)) {
+    return { text: await extractDocxText(buffer), format: 'docx' }
+  }
+  if (LEGACY_WORD_EXT_RE.test(fileName)) {
+    throw new Error('Legacy .doc files cannot be safely redacted in-browser. Convert the file to .docx, .txt, or .md first.')
+  }
+  const asText = bytesToTextIfPrintable(buffer)
+  if (asText == null) {
+    throw new Error('This document is not readable text. The redaction editor supports .txt, .md, and .docx documents.')
+  }
+  return { text: asText, format: 'text' }
+}
+
 export function RedactionModal({ docId, caseId, fileName, category, version = 1, ipfsCid, documentHashSha256, onClose, onRedacted }: Props) {
   const { user } = useAuthStore()
   const demoMode = isDemoDoc(ipfsCid)
   const [password, setPassword] = useState('')
   const [stage, setStage] = useState<Stage>(demoMode ? 'editing' : 'unlock')
   const [text, setText] = useState(demoMode ? demoRedactionText(fileName) : '')
+  const [sourceFormat, setSourceFormat] = useState<SourceFormat>('text')
   const [redactions, setRedactions] = useState(0)
   const [error, setError] = useState('')
-  const [referenceMode, setReferenceMode] = useState(demoMode)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
   const unlock = async () => {
@@ -74,21 +115,12 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
         setError('Incorrect password — your private key could not be unlocked.'); return
       }
       const bytes = await decryptDocumentToBytes(docId, privateKey, documentHashSha256)
-      const asText = bytesToTextIfPrintable(bytes)
-      if (asText == null) {
-        setError('This document is not a text document. The redaction editor supports text-based documents.')
-        return
-      }
-      setText(asText)
+      const extracted = await extractEditableText(bytes, fileName)
+      setText(extracted.text)
+      setSourceFormat(extracted.format)
+      setRedactions(0)
       setStage('editing')
     } catch (e: any) {
-      if (isFabricUnavailable(e)) {
-        setText(demoRedactionText(fileName))
-        setReferenceMode(true)
-        setStage('editing')
-        toast('Fabric authorization is unavailable, so a reference redaction worksheet was opened.')
-        return
-      }
       setError(e.message === 'INTEGRITY_FAILED'
         ? 'Document failed integrity verification against the ledger.'
         : (e.response?.data?.detail ?? e.message ?? 'Failed to open document'))
@@ -107,6 +139,7 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
   }
 
   const save = async () => {
+    if (demoMode) { setError('Demo records do not contain the original encrypted file, so they cannot be saved as redacted versions.'); return }
     if (redactions === 0) { setError('Make at least one redaction before saving.'); return }
     setStage('saving')
     setError('')
@@ -114,6 +147,11 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
       // Encrypt the redacted plaintext with a FRESH key (never reuse the original document key)
       const buffer = new TextEncoder().encode(text).buffer as ArrayBuffer
       const encrypted = await encryptDocument(buffer)
+      if (documentHashSha256 && await verifyIntegrity(buffer, documentHashSha256)) {
+        setStage('editing')
+        setError('The redacted copy has the same hash as the original. Change the document before saving v2.')
+        return
+      }
 
       let wrappedKeyToken = encrypted.keyB64
       try {
@@ -122,10 +160,7 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
         wrappedKeyToken = await eciesWrapKey(ownerPubKeyJwk, encrypted.keyB64)
       } catch { /* demo-mode raw key fallback */ }
 
-      const cleanedName = fileName
-        .replace(/\s*\(redacted\)/ig, '')
-        .replace(/\s+v\d+\s+redacted/ig, '')
-      const redactedName = cleanedName.replace(/(\.[^.]+)?$/, ` v${version + 1} redacted$1`)
+      const redactedName = normalizeRedactedName(fileName, version + 1, sourceFormat)
       const { data: newDoc } = await api.post('/documents/upload', {
         caseId,
         fileName: redactedName,
@@ -167,9 +202,9 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
         <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
           <div className="flex items-start gap-1.5 text-[11px] text-text-secondary leading-relaxed">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0 mt-0.5 text-gold-400" />
-            {referenceMode
-              ? 'This document is open in reference-redaction mode because the encrypted payload cannot be read right now. The saved copy is still encrypted as a new version and linked to the original redaction record.'
-              : 'The document is decrypted in your browser. The redacted copy is re-encrypted with a fresh key and uploaded as a new document; the server never sees the pre-redaction plaintext.'}
+            {demoMode
+              ? 'Demo records do not contain retrievable encrypted payloads. Real documents must decrypt successfully before a redacted copy can be saved.'
+              : 'The document is decrypted and redacted in your browser. The saved copy is re-encrypted with a fresh key, gets a new hash, and is uploaded as the next document version.'}
           </div>
 
           {(stage === 'unlock' || stage === 'error') && (
@@ -188,7 +223,10 @@ export function RedactionModal({ docId, caseId, fileName, category, version = 1,
           {(stage === 'editing' || stage === 'saving') && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs text-text-secondary">Select text below, then click <strong>Redact selection</strong>.</p>
+                <p className="text-xs text-text-secondary">
+                  Browser view: select sensitive text, then click <strong>Redact selection</strong>.
+                  {sourceFormat === 'docx' && !demoMode ? ' Word files are saved as redacted text copies.' : ''}
+                </p>
                 <span className="text-[11px] font-bold text-gold-400">{redactions} redaction(s)</span>
               </div>
               <textarea

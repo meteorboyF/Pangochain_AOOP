@@ -24,6 +24,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loginStage, setLoginStage] = useState<LoginStage>('password')
   const [challengeToken, setChallengeToken] = useState('')
+  const [setupToken, setSetupToken] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -93,6 +94,7 @@ export default function Login() {
       const body = err.response?.data
 
       if (status === 403 && body?.requiresMfaSetup) {
+        setSetupToken(body.setupToken ?? '')
         setLoginStage('mfa_setup_required')
         return
       }
@@ -205,7 +207,8 @@ export default function Login() {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/profile/mfa')}
+                onClick={() => navigate('/mfa/setup', { state: { setupToken, password } })}
+                disabled={!setupToken}
                 className="btn-primary w-full justify-center py-3"
               >
                 Set up MFA now

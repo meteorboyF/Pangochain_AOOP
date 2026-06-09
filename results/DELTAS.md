@@ -24,6 +24,7 @@ _(to be filled in as each experiment completes)_
 | RQ2 Fabric CheckAccess **overhead** vs DB | "<1 ms overhead" (claim) | **≈ −0.5 ms (cold), −0.65 ms (warmed)** → \|overhead\| < 1 ms, within noise | Confirms RQ2. CheckAccess is a Fabric *evaluate* (query, no ordering/commit), so it adds negligible time over the PG-ACL lookup; both dominated by ~7ms HTTP/app round-trip. |
 | Exp3 fabric commit constant | — | 2131.7 ms (peer_cli, n=5) | IPFS add p50 1MB=10ms→50MB=95ms |
 | Exp4 audit verification | — | PG query p50=3.85ms vs CSV+SHA256 chain p50=86.3ms (1000 events) | |
+| Exp6 browser/WebCrypto crypto benchmark | no raw CSV/JSON evidence in repo | **Node WebCrypto fallback measured:** PBKDF2-600k p50=100.44ms; ECDH P-256 keygen p50=0.255ms; ECDSA P-256 keygen p50=0.095ms; ECIES wrap/unwrap p50=0.403/0.603ms; RSA-OAEP-2048 wrap p50=0.037ms; AES-GCM 1/10/50MB encrypt p50=0.596/4.270/44.418ms; decrypt p50=0.887/7.577/61.939ms; SHA-256 1/10/50MB p50=0.704/5.795/44.427ms; ECDSA sign/verify p50=0.183/0.097ms; ECIES token=125B, RSA token=256B, reduction=51.171875% | Raw evidence in `results/exp6_crypto.csv`, `results/exp6_crypto.summary.json`, `results/exp6_crypto.environment.json`, `results/exp6_crypto.raw.txt`. Playwright/Puppeteer were unavailable, so runtime is explicitly recorded as `node-webcrypto`, not browser WebCrypto. |
 | Exp7 GetHistoryForKey (depth 107) | — | p50=135.5ms (10 trials, raw recorded) | |
 | **SENS** clean BatchTimeout sensitivity (conc=50, duration60s, 10 reps) | (tool disagreement: Phase B fixedcount said 250ms>500ms; duration60s said 250ms<500ms) | **2s=67.7, 500ms=193.0, 250ms=179.8 TPS** (mean); client CPU 2.0 / 11.2 / 14.1%; err=0 | `exp_batchtimeout_sens.{csv,summary.json}`. **Resolved:** non-monotonicity (250ms < 500ms) is **reproducible**, and **NOT a load-generator artifact** — client CPU is only ~14% (nowhere near saturation). 500ms is the sustained-throughput sweet spot; pushing to 250ms cuts ~2× as many small blocks → higher per-block commit/validation overhead + noisier latency (250ms block ranged 137–206 TPS, p50 62–227ms) → slightly lower net throughput. The fixedcount tool ranked 250ms higher because it times fixed-batch completion (latency-favoring), not sustained throughput; the canonical sustained **duration60s** tool is the representative throughput metric. |
 
@@ -43,6 +44,18 @@ _(to be filled in as each experiment completes)_
   (by container DNS name) so they auto-reconnect across restarts. Secondary `cat` went from
   >10 s timeout → 13 ms. This restores the pre-reboot steady state; it does not change any
   measured system property.
+
+## Potential future experiments / limitations
+- **Expired-token CheckAccess contention not measured.** `pangochain-chaincode/legalcc/chaincode.go`
+  attempts to mark an expired user-level grant as `EXPIRED` inside `CheckAccess` by calling
+  `putAsset(ctx, docKey(docID), doc)`, while the backend calls this path via Fabric
+  `evaluateTransaction("CheckAccess", ...)`. No benchmark in this campaign isolates concurrent
+  access checks against already-expired grants, so expired-token MVCC/contention behavior should be
+  treated as unmeasured unless a dedicated benchmark is added.
+- **Fail-closed outage behavior not measured.** The backend supports `fabric.enabled=false`, but
+  `DocumentService.downloadCiphertext` uses the DB ACL fallback both when Fabric is disabled and
+  when `FabricException` is thrown. No separate configuration flag was found to disable ACL fallback
+  and force fail-closed behavior during Fabric outage. The completed S2 experiment is fail-open only.
 
 ## Blockers recorded (campaign continues regardless)
 

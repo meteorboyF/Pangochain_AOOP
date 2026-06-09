@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X, FileStack, Loader2, Lock, CheckCircle, AlertCircle, ShieldCheck } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
@@ -23,9 +24,28 @@ interface Props {
 const BUNDLE_TYPES = ['Evidence Bundle', 'Discovery Bundle']
 const isDemoDoc = (doc?: DocItem) => !!doc?.ipfsCid?.startsWith('QmDemo')
 
+async function describeApiError(error: any): Promise<string> {
+  const data = error?.response?.data
+  if (data instanceof Blob) {
+    try {
+      const text = await data.text()
+      const parsed = JSON.parse(text)
+      return parsed.detail ?? parsed.message ?? parsed.error ?? error.message ?? 'Request failed'
+    } catch {
+      return error.message ?? 'Request failed'
+    }
+  }
+  return data?.detail ?? data?.message ?? data?.error ?? error?.message ?? 'Request failed'
+}
+
+function canIncludeByReference(error: any) {
+  const status = error?.response?.status
+  return status === 403 || status === 503 || error?.message === 'Network Error'
+}
+
 export function CourtBundleModal({ caseId, documents, onClose }: Props) {
   const { user } = useAuthStore()
-  const safeDocuments = Array.isArray(documents) ? documents : []
+  const safeDocuments = Array.isArray(documents) ? documents.filter((doc): doc is DocItem => !!doc?.id) : []
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [bundleType, setBundleType] = useState(BUNDLE_TYPES[0])
   const [password, setPassword] = useState('')
@@ -49,6 +69,7 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
       // Decrypt each selected document locally; send plaintext only for textual docs
       const items: { documentId: string; plaintextBase64: string | null }[] = []
       const picks = safeDocuments.filter((d) => selected.has(d.id))
+      if (picks.length === 0) { setError('Select at least one document'); setBusy(false); return }
       const realEncryptedPicks = picks.filter((d) => !isDemoDoc(d))
       let privateKey: CryptoKey | null = null
       if (realEncryptedPicks.length > 0) {
@@ -60,6 +81,7 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
           setError('Incorrect password — your private key could not be unlocked.'); setBusy(false); return
         }
       }
+      const referenced: string[] = []
       for (let i = 0; i < picks.length; i++) {
         const doc = picks[i]
         if (isDemoDoc(doc)) {
@@ -67,9 +89,16 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
           items.push({ documentId: doc.id, plaintextBase64: null })
         } else {
           setProgress(`Decrypting ${i + 1}/${picks.length}: ${doc.fileName}`)
-          const bytes = await decryptDocumentToBytes(doc.id, privateKey!, doc.documentHashSha256 ?? doc.documentHash)
-          const text = bytesToTextIfPrintable(bytes)
-          items.push({ documentId: doc.id, plaintextBase64: text != null ? bytesToBase64(new Uint8Array(bytes)) : null })
+          try {
+            const bytes = await decryptDocumentToBytes(doc.id, privateKey!, doc.documentHashSha256 ?? doc.documentHash)
+            const text = bytesToTextIfPrintable(bytes)
+            items.push({ documentId: doc.id, plaintextBase64: text != null ? bytesToBase64(new Uint8Array(bytes)) : null })
+          } catch (docError: any) {
+            if (docError?.message === 'INTEGRITY_FAILED') throw docError
+            if (!canIncludeByReference(docError)) throw docError
+            referenced.push(doc.fileName || 'Untitled document')
+            items.push({ documentId: doc.id, plaintextBase64: null })
+          }
         }
       }
 
@@ -84,10 +113,13 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
 
       setDone(true)
       toast.success('Court bundle generated')
+      if (referenced.length > 0) {
+        toast(`Included ${referenced.length} document(s) by reference because encrypted content was unavailable.`)
+      }
     } catch (e: any) {
       setError(e.message === 'INTEGRITY_FAILED'
         ? 'A document failed integrity verification against the ledger — bundle aborted.'
-        : (e.response?.data?.detail ?? e.message ?? 'Bundle generation failed'))
+        : await describeApiError(e))
     } finally {
       setBusy(false)
       setProgress('')
@@ -96,9 +128,9 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
 
   const selectedRealCount = safeDocuments.filter((d) => selected.has(d.id) && !isDemoDoc(d)).length
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="card w-full max-w-lg max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden">
+  const modal = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="card w-full max-w-lg max-h-[90vh] flex flex-col p-0 border border-gold-500/20 shadow-gold-md overflow-hidden bg-navy-900" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-gold-500/10">
           <div className="flex items-center gap-2">
             <FileStack className="w-5 h-5 text-gold-500" />
@@ -124,7 +156,7 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
               {safeDocuments.map((d) => (
                 <label key={d.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-navy-900/40 transition-colors">
                   <input type="checkbox" className="rounded border-gold-500/30 text-gold-500 focus:ring-gold-500/30 bg-navy-950" checked={selected.has(d.id)} onChange={() => toggle(d.id)} />
-                  <span className="text-sm text-text-primary truncate">{d.fileName}</span>
+                  <span className="text-sm text-text-primary truncate">{d.fileName || 'Untitled document'}</span>
                   {isDemoDoc(d) && <span className="text-[9px] text-gold-300 border border-gold-500/20 rounded px-1">reference</span>}
                 </label>
               ))}
@@ -155,4 +187,6 @@ export function CourtBundleModal({ caseId, documents, onClose }: Props) {
       </div>
     </div>
   )
+
+  return createPortal(modal, document.body)
 }

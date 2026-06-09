@@ -19,8 +19,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * MFA/TOTP endpoints.
@@ -40,6 +42,7 @@ public class MfaController {
     private final AuditService auditService;
     private final AuthService authService;
     private final RecoveryCodeService recoveryCodeService;
+    private final JwtTokenProvider jwtTokenProvider;
 
     private static final GoogleAuthenticator gAuth = new GoogleAuthenticator();
 
@@ -52,8 +55,10 @@ public class MfaController {
      * The secret is NOT yet activated — the user must call /verify to confirm enrollment.
      */
     @PostMapping("/setup")
-    public ResponseEntity<Map<String, String>> setup(@AuthenticationPrincipal User user) {
-        if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+    public ResponseEntity<Map<String, String>> setup(
+            @AuthenticationPrincipal User principal,
+            @RequestBody(required = false) MfaSetupRequest req) {
+        User user = resolveMfaSetupUser(principal, req != null ? req.setupToken() : null);
 
         GoogleAuthenticatorKey credentials = gAuth.createCredentials();
         String secret = credentials.getKey();
@@ -79,10 +84,10 @@ public class MfaController {
      */
     @PostMapping("/verify")
     public ResponseEntity<Map<String, Object>> verify(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal User principal,
             @Valid @RequestBody MfaVerifyRequest req) {
 
-        if (user == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        User user = resolveMfaSetupUser(principal, req.setupToken());
 
         String secret = user.getMfaSecret();
         if (secret == null || secret.isBlank()) {
@@ -120,6 +125,20 @@ public class MfaController {
         if (newlyEnabled) {
             body.put("recoveryCodes", recoveryCodeService.regenerate(user.getId()));
             auditService.log("RECOVERY_CODES_GENERATED", user.getId(), "USER", user.getId().toString(), null, null);
+        }
+
+        if (req.setupToken() != null && !req.setupToken().isBlank()) {
+            user.setLastLoginAt(Instant.now());
+            userRepository.save(user);
+            auditService.log("USER_LOGIN", user.getId(), "USER", user.getId().toString(), null, "mfa-setup");
+            body.put("accessToken", jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name()));
+            body.put("refreshToken", jwtTokenProvider.generateRefreshToken(user.getId(), user.getEmail(), user.getRole().name()));
+            body.put("userId", user.getId());
+            body.put("email", user.getEmail());
+            body.put("fullName", user.getFullName());
+            body.put("role", user.getRole());
+            body.put("firmId", user.getFirm() != null ? user.getFirm().getId().toString() : null);
+            body.put("mfaRequired", false);
         }
         return ResponseEntity.ok(body);
     }
@@ -170,8 +189,11 @@ public class MfaController {
     }
 
     public record MfaVerifyRequest(
-            @NotBlank @Size(min = 6, max = 6) @Pattern(regexp = "\\d{6}") String code
+            @NotBlank @Size(min = 6, max = 6) @Pattern(regexp = "\\d{6}") String code,
+            String setupToken
     ) {}
+
+    public record MfaSetupRequest(String setupToken) {}
 
     public record MfaChallengeRequest(
             @NotBlank String challengeToken,
@@ -182,4 +204,21 @@ public class MfaController {
             @NotBlank String challengeToken,
             @NotBlank @Size(max = 64) String recoveryCode
     ) {}
+
+    private User resolveMfaSetupUser(User principal, String setupToken) {
+        if (principal != null) return principal;
+        if (setupToken == null || setupToken.isBlank()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        try {
+            if (!jwtTokenProvider.isMfaSetupToken(setupToken)) {
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid setup token");
+            }
+            UUID userId = jwtTokenProvider.extractUserId(setupToken);
+            return userRepository.findById(userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired setup token");
+        }
+    }
 }

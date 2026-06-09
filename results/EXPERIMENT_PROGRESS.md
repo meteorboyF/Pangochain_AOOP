@@ -95,6 +95,19 @@ Resume note: if crash mid-W, just re-run `run-W-wan-sweep.sh` (it overwrites). P
 
 **TOP-UP PHASE 2 COMPLETE (2026-06-01 ~13:55).** W/PG/DB/SENS all done; affected summaries regenerated; DELTAS finalized old→new. Network verified left at **BatchTimeout=2s**, backend **fabric mode** (gateway write path proven: on-chain `fabricTxId` returned), IPFS dual-pin + Postgres up. Key results: WAN sweep (bridge 68→61, bridge_veth 69→38 TPS over 0–150ms); PG peak ≈279 TPS (~4.1× Fabric, harness saturates >conc100); DB CheckAccess overhead ≈ −0.5ms (<1ms, RQ2 ✓); SENS 500ms=193 / 250ms=180 / 2s=68 TPS with client CPU ≤14% (load gen NOT the ceiling; 500ms = sweet spot). New scripts: `run-W-wan-sweep.sh`, `run-PG-throughput.sh`, `run-SENS-batchtimeout.sh`, `/tmp/launch-backend-dbonly.sh`.
 
+## EXP6 CRYPTO TOP-UP (2026-06-05)
+Reviewer-safety evidence for Experiment 6 was generated without rerunning the Fabric/IPFS campaign.
+New script: `experiments/run-exp6-crypto-benchmark.mjs`.
+Outputs:
+- `results/exp6_crypto.csv` — 170 raw rows (17 operations × 10 trials)
+- `results/exp6_crypto.summary.json`
+- `results/exp6_crypto.environment.json`
+- `results/exp6_crypto.raw.txt`
+
+Runtime: `node-webcrypto` fallback (`crypto.webcrypto.subtle`) because Playwright/Puppeteer were not installed (`ERR_MODULE_NOT_FOUND`). This is explicitly recorded in CSV notes, environment JSON, and summary JSON; it is not labelled as browser WebCrypto.
+Key validation: ECIES token size = 125 bytes; RSA-OAEP-2048 token size = 256 bytes; token-size reduction = 51.171875%; every operation has n=10 and p50/p95 summary values.
+Optional reviewer-safety inspection recorded in `DELTAS.md`: expired-token `CheckAccess` contention and fail-closed outage behavior remain unmeasured limitations/future experiments.
+
 ## Checkpoint log
 - 2026-06-01 ~10:05: Resume inventory complete. Confirmed Phase A valid, Phase B incomplete, V2–S3 not started. Found host rebooted 09:15 (/tmp wiped); reconstructed launch-backend.sh; verified crypto-config + jar survived. Set configtx back to BatchTimeout=2s. About to start postgres + ledger-only rebuild at 2s. Nothing measured yet.
 - 2026-06-01 ~10:10: **Network REBUILT at 2s.** Postgres started (accepting connections); IPFS up. Fabric: down -v, regen channel-artifacts @2s, up -d (all 10 containers), created legal-channel, joined 3 peers, deployed legalcc (smoke test RegisterCase = status 200 PASS). Verified backend certs vs live crypto: tls-ca-cert MATCH, admin-cert MATCH (no cert re-sync needed). Starting backend now; next = assert gateway commit, then V2.

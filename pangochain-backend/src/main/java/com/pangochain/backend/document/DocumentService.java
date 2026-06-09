@@ -5,6 +5,7 @@ import com.pangochain.backend.audit.AuditService;
 import com.pangochain.backend.blockchain.FabricException;
 import com.pangochain.backend.blockchain.FabricGatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import com.pangochain.backend.cases.Case;
 import com.pangochain.backend.cases.CaseRepository;
 import com.pangochain.backend.document.dto.DocumentDto;
@@ -36,6 +37,8 @@ public class DocumentService {
     private final IpfsService ipfsService;
     @Autowired(required = false)
     private FabricGatewayService fabricGatewayService;
+    @Value("${documents.material-db-fallback-enabled:true}")
+    private boolean materialDbFallbackEnabled = true;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -68,14 +71,15 @@ public class DocumentService {
         // version (version = previous + 1) rather than starting a fresh v1 chain.
         int versionNumber = 1;
         UUID previousVersionId = null;
+        Document previousVersion = null;
         if (req.getPreviousVersionId() != null && !req.getPreviousVersionId().isBlank()) {
-            Document previous = documentRepository.findById(UUID.fromString(req.getPreviousVersionId()))
+            previousVersion = documentRepository.findById(UUID.fromString(req.getPreviousVersionId()))
                     .orElseThrow(() -> new IllegalArgumentException("Previous version not found"));
-            if (accessRepository.findActiveEntry(previous.getId(), uploader.getId()).isEmpty()) {
+            if (accessRepository.findActiveEntry(previousVersion.getId(), uploader.getId()).isEmpty()) {
                 throw new AccessDeniedException("You do not have access to the document you are versioning");
             }
-            versionNumber = previous.getVersion() + 1;
-            previousVersionId = previous.getId();
+            versionNumber = previousVersion.getVersion() + 1;
+            previousVersionId = previousVersion.getId();
         }
 
         // Persist document FIRST — establishes the authoritative UUID in PostgreSQL.
@@ -131,6 +135,17 @@ public class DocumentService {
         auditService.log("DOC_REGISTERED", uploader.getId(), "DOCUMENT",
                 doc.getId().toString(), fabricTxId,
                 toJson(Map.of("fileName", req.getFileName(), "cid", cid)));
+        if (previousVersion != null) {
+            auditService.log("DOC_VERSION_CREATED", uploader.getId(), "DOCUMENT",
+                    doc.getId().toString(), fabricTxId,
+                    toJson(Map.of(
+                            "previousVersionId", previousVersion.getId().toString(),
+                            "previousVersion", previousVersion.getVersion(),
+                            "previousHash", previousVersion.getDocumentHashSha256(),
+                            "newVersion", doc.getVersion(),
+                            "newHash", doc.getDocumentHashSha256(),
+                            "fileName", doc.getFileName())));
+        }
 
         log.info("Document {} uploaded: CID={} txId={}", doc.getId(), cid, fabricTxId);
         return toDto(doc, uploader.getEmail());
@@ -414,12 +429,15 @@ public class DocumentService {
     }
 
     /**
-     * Protected document material is fail-closed: PostgreSQL access rows are never
-     * used to authorize ciphertext or wrapped-key release when Fabric is unavailable.
+     * Protected document material uses Fabric CheckAccess first, then falls back to the local
+     * document_access ACL when Fabric is unavailable. This is fail-open with respect to Fabric,
+     * but not open access: the requester must still have an active DB grant, and every fallback
+     * access is audited. Strict fail-closed mode is available by disabling materialDbFallbackEnabled.
      */
     private void enforceFabricAccessOrFailClosed(UUID docId, User requester) throws FabricException {
         if (fabricGatewayService == null) {
             FabricException e = new FabricException("Fabric authorization service is not configured");
+            if (allowDbAclFallback(docId, requester, e)) return;
             logFabricOutageAccessDenied(docId, requester, e);
             throw e;
         }
@@ -432,6 +450,7 @@ public class DocumentService {
                     requester.getFirm() != null ? requester.getFirm().getMspId() : "FirmAMSP");
         } catch (FabricException e) {
             log.warn("Fabric ACL check failed closed for doc={}: {}", docId, e.getMessage());
+            if (allowDbAclFallback(docId, requester, e)) return;
             logFabricOutageAccessDenied(docId, requester, e);
             throw e;
         }
@@ -439,6 +458,23 @@ public class DocumentService {
         log.info("ACL check: Layer1=PASS Layer2={} doc={} user={}",
                 allowed ? "PASS" : "FAIL", docId, requester.getEmail());
         if (!allowed) throw new AccessDeniedException("Access denied for document " + docId);
+    }
+
+    private boolean allowDbAclFallback(UUID docId, User requester, FabricException cause) {
+        if (!materialDbFallbackEnabled) return false;
+
+        boolean allowed = accessRepository.findActiveEntry(docId, requester.getId()).isPresent();
+        if (!allowed) {
+            return false;
+        }
+
+        auditService.log("ACL_FABRIC_FALLBACK", requester.getId(), "DOCUMENT", docId.toString(), null,
+                toJson(Map.of(
+                        "reason", cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName(),
+                        "mode", "db_acl_fallback"
+                )));
+        log.warn("DB ACL fallback allowed document material access for doc={} user={}", docId, requester.getEmail());
+        return true;
     }
 
     private void logFabricOutageAccessDenied(UUID docId, User requester, FabricException e) {

@@ -163,22 +163,17 @@ class DocumentServiceTest {
                 .hasMessageContaining("Fabric unreachable");
 
         verify(ipfsService, never()).cat(any());
-        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(accessRepository).findActiveEntry(docId, userId);
         verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
         verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
     }
 
     @Test
-    void downloadCiphertext_fabricUnavailableWithValidDbAcl_stillDeniesFailClosed() throws Exception {
-        DocumentAccess access = DocumentAccess.builder()
-                .docId(docId).userId(userId)
-                .capability(DocumentAccess.Capability.read)
-                .wrappedKeyToken("wkt").build();
-
+    void downloadCiphertext_fabricUnavailableWithValidDbAclAndFallbackDisabled_deniesFailClosed() throws Exception {
+        ReflectionTestUtils.setField(documentService, "materialDbFallbackEnabled", false);
         when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
         when(fabricGatewayService.checkAccess(any(), any(), any()))
                 .thenThrow(new FabricException("Fabric unreachable"));
-        when(accessRepository.findActiveEntry(docId, userId)).thenReturn(Optional.of(access));
 
         assertThatThrownBy(() -> documentService.downloadCiphertext(docId, uploader))
                 .isInstanceOf(FabricException.class);
@@ -187,6 +182,29 @@ class DocumentServiceTest {
         verify(accessRepository, never()).findActiveEntry(docId, userId);
         verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
         verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void downloadCiphertext_fabricUnavailableWithFallbackAndValidDbAcl_returnsBytesAndAuditsFallback() throws Exception {
+        byte[] ciphertextBlob = new byte[]{4, 5, 6};
+        DocumentAccess access = DocumentAccess.builder()
+                .docId(docId).userId(userId)
+                .capability(DocumentAccess.Capability.read)
+                .wrappedKeyToken("wkt").build();
+
+        ReflectionTestUtils.setField(documentService, "materialDbFallbackEnabled", true);
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(any(), any(), any()))
+                .thenThrow(new FabricException("Fabric unreachable"));
+        when(accessRepository.findActiveEntry(docId, userId)).thenReturn(Optional.of(access));
+        when(ipfsService.cat("Qm123")).thenReturn(ciphertextBlob);
+
+        byte[] result = documentService.downloadCiphertext(docId, uploader);
+
+        assertThat(result).isEqualTo(ciphertextBlob);
+        verify(ipfsService).cat("Qm123");
+        verify(auditService).log(eq("ACL_FABRIC_FALLBACK"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -231,8 +249,28 @@ class DocumentServiceTest {
                 .isInstanceOf(FabricException.class)
                 .hasMessageContaining("UNAVAILABLE");
 
-        verify(accessRepository, never()).findActiveEntry(docId, userId);
+        verify(accessRepository).findActiveEntry(docId, userId);
         verify(auditService).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
         verify(auditService, never()).log(eq("ACL_FABRIC_FALLBACK"), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void getWrappedKey_fabricUnavailableWithFallbackAndValidDbAcl_returnsTokenAndAuditsFallback() throws Exception {
+        DocumentAccess access = DocumentAccess.builder()
+                .docId(docId).userId(userId)
+                .capability(DocumentAccess.Capability.read)
+                .wrappedKeyToken("wkt").build();
+
+        ReflectionTestUtils.setField(documentService, "materialDbFallbackEnabled", true);
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(savedDoc));
+        when(fabricGatewayService.checkAccess(any(), any(), any()))
+                .thenThrow(new FabricException("UNAVAILABLE: io exception"));
+        when(accessRepository.findActiveEntry(docId, userId)).thenReturn(Optional.of(access));
+
+        String token = documentService.getWrappedKey(docId, uploader);
+
+        assertThat(token).isEqualTo("wkt");
+        verify(auditService).log(eq("ACL_FABRIC_FALLBACK"), eq(userId), eq("DOCUMENT"), eq(docId.toString()), isNull(), any());
+        verify(auditService, never()).log(eq("FABRIC_OUTAGE_ACCESS_DENIED"), any(), any(), any(), any(), any());
     }
 }

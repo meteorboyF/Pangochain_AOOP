@@ -28,6 +28,13 @@ const INTEGRITY_MSG =
   '⚠ Integrity check failed. The downloaded file does not match the blockchain record. ' +
   'This document may have been tampered with. Do NOT use this document. Contact your IT administrator.'
 
+const isFabricUnavailable = (err: any) =>
+  err?.response?.status === 503
+  || err?.response?.data?.error === 'FABRIC_UNAVAILABLE'
+  || `${err?.response?.data?.detail ?? err?.response?.data?.message ?? err?.message ?? ''}`
+    .toLowerCase()
+    .includes('blockchain network')
+
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
@@ -140,7 +147,10 @@ export function SecureDownloadModal({ docId, fileName, expectedHash, onClose }: 
       setStage('done')
       setTimeout(() => triggerDownload(plaintext), 500)
     } catch (err: any) {
-      fail('generic', stage, err?.message ?? 'Download failed')
+      const detail = err?.response?.data?.detail ?? err?.response?.data?.message
+      fail('generic', stage, isFabricUnavailable(err)
+        ? 'Blockchain access verification is unavailable. The DB fallback could not release this file, so confirm your document access grant or disable strict fail-closed mode.'
+        : (detail ?? err?.message ?? 'Download failed'))
     }
   }
 

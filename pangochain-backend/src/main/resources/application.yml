@@ -70,6 +70,12 @@ fabric:
   channel-name: ${FABRIC_CHANNEL:legal-channel}
   chaincode-name: ${FABRIC_CHAINCODE:legalcc}
 
+documents:
+  # Fabric CheckAccess is attempted first. If Fabric is unavailable, document material falls
+  # back to the PostgreSQL document_access ACL so authorized users can still decrypt/redact.
+  # Set DOCUMENT_MATERIAL_DB_FALLBACK=false for strict fail-closed outage tests.
+  material-db-fallback-enabled: ${DOCUMENT_MATERIAL_DB_FALLBACK:true}
+
 ipfs:
   api:
     host: ${IPFS_API_HOST:http://localhost}

@@ -1,13 +1,20 @@
 import { useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Shield, QrCode, Loader2, CheckCircle, AlertCircle, Copy, KeyRound, Download } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
+import { ensureUserKeys } from '../lib/provisionKeys'
 
 type Stage = 'idle' | 'loading' | 'scan' | 'verify' | 'recovery' | 'done' | 'error'
 
 export default function MfaSetup() {
-  const { user, updateUser } = useAuthStore()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const setupState = location.state as { setupToken?: string; password?: string } | null
+  const setupToken = setupState?.setupToken ?? ''
+  const setupPassword = setupState?.password ?? ''
+  const { user, updateUser, setAuth } = useAuthStore()
   const [stage, setStage] = useState<Stage>('idle')
   const [qrUri, setQrUri] = useState('')
   const [secret, setSecret] = useState('')
@@ -19,7 +26,7 @@ export default function MfaSetup() {
     setStage('loading')
     setError('')
     try {
-      const { data } = await api.post('/auth/mfa/setup')
+      const { data } = await api.post('/auth/mfa/setup', setupToken ? { setupToken } : {})
       setQrUri(data.qrUri)
       setSecret(data.secret)
       setStage('scan')
@@ -34,8 +41,22 @@ export default function MfaSetup() {
     setStage('loading')
     setError('')
     try {
-      const { data } = await api.post('/auth/mfa/verify', { code })
-      updateUser({ mfaEnabled: true })
+      const { data } = await api.post('/auth/mfa/verify', setupToken ? { code, setupToken } : { code })
+      if (data.accessToken && data.refreshToken) {
+        setAuth(data.accessToken, data.refreshToken, {
+          id: data.userId,
+          email: data.email,
+          fullName: data.fullName,
+          role: data.role,
+          firmId: data.firmId,
+          mfaEnabled: true,
+        })
+        if (setupPassword) {
+          try { await ensureUserKeys(data.userId, setupPassword) } catch { /* non-fatal */ }
+        }
+      } else {
+        updateUser({ mfaEnabled: true })
+      }
       toast.success('Two-factor authentication enabled!')
       if (Array.isArray(data?.recoveryCodes) && data.recoveryCodes.length > 0) {
         setRecoveryCodes(data.recoveryCodes)
@@ -204,7 +225,7 @@ export default function MfaSetup() {
               <Download className="w-4 h-4" /> Download
             </button>
           </div>
-          <button onClick={() => setStage('done')} className="btn-primary w-full justify-center py-2.5">
+          <button onClick={() => setupToken ? navigate('/dashboard') : setStage('done')} className="btn-primary w-full justify-center py-2.5">
             I've saved my recovery codes
           </button>
         </div>
@@ -217,6 +238,11 @@ export default function MfaSetup() {
           <p className="text-sm text-text-muted text-center">
             You'll be asked for a 6-digit code from your authenticator app each time you log in.
           </p>
+          {setupToken && (
+            <button onClick={() => navigate('/dashboard')} className="btn-primary w-full justify-center py-2.5 mt-2">
+              Continue to Dashboard
+            </button>
+          )}
         </div>
       )}
     </div>

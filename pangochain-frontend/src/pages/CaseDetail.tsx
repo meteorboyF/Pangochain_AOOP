@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, FolderOpen, FileText, Clock, Shield, Plus,
   Download, Users, Lock, Gavel, Activity,
-  Calendar, Loader2, AlertCircle, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser,
+  Calendar, Loader2, AlertCircle, Share2, GitBranch, Milestone, Receipt, FileStack, Scale, MessageCircle, PenTool, Eraser, Eye, Hash,
 } from 'lucide-react'
 import { DocumentUploadDropzone } from '../components/DocumentUploadDropzone'
 import { CourtBundleModal } from '../components/CourtBundleModal'
@@ -12,6 +12,7 @@ import { AnnotationModal } from '../components/AnnotationModal'
 import { SignatureWorkflowModal } from '../components/SignatureWorkflowModal'
 import { RedactionModal } from '../components/RedactionModal'
 import { SecureDownloadModal } from '../components/SecureDownloadModal'
+import { DocumentEditorModal } from '../components/DocumentEditorModal'
 import { TeamAccessPanel } from '../components/TeamAccessPanel'
 import { MilestoneTimeline } from '../components/MilestoneTimeline'
 import { CaseDeadlinesPanel } from '../components/CaseDeadlinesPanel'
@@ -73,6 +74,7 @@ interface Hearing {
 type Tab = 'documents' | 'hearings' | 'team' | 'timeline' | 'progress' | 'billing' | 'settlement'
 
 const docHash = (doc: DocItem) => doc.documentHashSha256 ?? doc.documentHash
+const shortHash = (hash?: string) => hash ? `${hash.slice(0, 10)}...${hash.slice(-6)}` : ''
 
 const HEARING_CREATE_ROLES = ['MANAGING_PARTNER', 'PARTNER_SENIOR', 'PARTNER_JUNIOR', 'ASSOCIATE_SENIOR', 'ASSOCIATE_JUNIOR']
 
@@ -92,6 +94,7 @@ export default function CaseDetail() {
   const [annotateTarget, setAnnotateTarget] = useState<DocItem | null>(null)
   const [signTarget, setSignTarget] = useState<DocItem | null>(null)
   const [redactTarget, setRedactTarget] = useState<DocItem | null>(null)
+  const [editTarget, setEditTarget] = useState<DocItem | null>(null)
   const [teamMembers, setTeamMembers] = useState<Array<{ userId: string; fullName: string; roleInCase: string }>>([])
 
   // Hearing form state
@@ -354,6 +357,15 @@ export default function CaseDetail() {
                                     {new Date(doc.createdAt).toLocaleDateString()}
                                   </span>
                                 )}
+                                {docHash(doc) && (
+                                  <>
+                                    <span className="opacity-30">•</span>
+                                    <span className="flex items-center gap-1 text-gold-400" title={docHash(doc)}>
+                                      <Hash className="w-3 h-3 text-gold-500/50" />
+                                      {shortHash(docHash(doc))}
+                                    </span>
+                                  </>
+                                )}
                                 <span className="opacity-30">•</span>
                                 {doc.fabricTxId && (
                                   <span className="text-gold-400">tx: {doc.fabricTxId.slice(0, 8)}…</span>
@@ -370,6 +382,13 @@ export default function CaseDetail() {
                               title="Access List"
                             >
                               <Users className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditTarget(doc)}
+                              className="p-2 rounded-lg border border-gold-500/5 bg-navy-950/60 hover:bg-gold-500/10 text-text-secondary hover:text-gold-300 transition-all"
+                              title="Open in Browser"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setAnnotateTarget(doc)}
@@ -597,6 +616,18 @@ export default function CaseDetail() {
           documentHashSha256={docHash(redactTarget)}
           onClose={() => setRedactTarget(null)}
           onRedacted={() => { setRedactTarget(null); loadData() }}
+        />
+      )}
+      {editTarget && (
+        <DocumentEditorModal
+          docId={editTarget.id}
+          caseId={id!}
+          fileName={editTarget.fileName}
+          category={editTarget.category}
+          version={editTarget.version}
+          documentHashSha256={docHash(editTarget)}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => { setEditTarget(null); loadData() }}
         />
       )}
     </div>

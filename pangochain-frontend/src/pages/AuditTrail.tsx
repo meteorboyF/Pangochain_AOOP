@@ -10,8 +10,11 @@ interface AuditLog {
   id: number
   eventType: string
   actorId: string | null
+  actorName: string | null
+  actorEmail: string | null
   resourceType: string
   resourceId: string
+  resourceName: string | null
   fabricTxId: string | null
   timestamp: string
   metadataJson: string | null
@@ -21,9 +24,15 @@ interface Page<T> { content: T[]; totalElements: number; totalPages: number }
 
 const EVENT_LABEL: Record<string, string> = {
   DOC_REGISTERED:      'Doc Registered',
+  DOC_VERSION_CREATED: 'Doc Version Created',
+  DOC_VERSION_RESTORED:'Doc Version Restored',
+  DOC_METADATA_UPDATED:'Doc Metadata Updated',
   ACCESS_GRANTED:      'Access Granted',
   ACCESS_REVOKED:      'Access Revoked',
   DOC_VIEWED:          'Doc Viewed',
+  RECORD_REDACTION:    'Redaction Saved',
+  MFA_VERIFY_SUCCESS:  'MFA Verified',
+  RECOVERY_CODES_GENERATED: 'Recovery Codes Generated',
   CASE_REGISTERED:     'Case Created',
   USER_REGISTERED:     'User Registered',
   USER_LOGIN:          'User Login',
@@ -31,7 +40,22 @@ const EVENT_LABEL: Record<string, string> = {
   ACL_FABRIC_FALLBACK: 'ACL Fabric Fallback',
 }
 
-const EVENT_TYPES = ['ALL', 'DOC_REGISTERED', 'ACCESS_GRANTED', 'ACCESS_REVOKED', 'DOC_VIEWED', 'CASE_REGISTERED', 'ACL_FABRIC_FALLBACK']
+const EVENT_TYPES = [
+  'ALL',
+  'DOC_REGISTERED',
+  'DOC_VERSION_CREATED',
+  'RECORD_REDACTION',
+  'DOC_VIEWED',
+  'ACCESS_GRANTED',
+  'ACCESS_REVOKED',
+  'CASE_REGISTERED',
+  'ACL_FABRIC_FALLBACK',
+]
+
+function actorLabel(entry: AuditLog) {
+  if (entry.actorName && entry.actorEmail) return `${entry.actorName} (${entry.actorEmail})`
+  return entry.actorName || entry.actorEmail || entry.actorId || 'system-node'
+}
 
 export default function AuditTrail() {
   const user = useAuthStore((s) => s.user)
@@ -185,6 +209,22 @@ export default function AuditTrail() {
 
                   {/* Hash / ID block in monospace gold */}
                   <div className="space-y-2">
+                    {(e.resourceName || e.actorName || e.actorEmail) && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-3">
+                        <div className="rounded-lg border border-gold-500/10 bg-navy-950/70 px-3 py-2">
+                          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-widest">Document</p>
+                          <p className="text-xs text-gold-300 truncate mt-1" title={e.resourceName || e.resourceId}>
+                            {e.resourceName || e.resourceId}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-gold-500/10 bg-navy-950/70 px-3 py-2">
+                          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-widest">Changed By</p>
+                          <p className="text-xs text-gold-300 truncate mt-1" title={actorLabel(e)}>
+                            {actorLabel(e)}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest">Resource Node Hash</p>
                     <code className="block text-xs font-mono text-gold-300 bg-navy-950 p-2.5 rounded-lg border border-gold-500/10 break-all select-all">
                       {e.resourceId}
@@ -195,7 +235,7 @@ export default function AuditTrail() {
                   <div className="flex flex-wrap items-center justify-between gap-4 pt-4 mt-4 border-t border-gold-500/5 text-xs text-text-secondary">
                     <div className="flex items-center gap-1.5">
                       <UserIcon className="w-3.5 h-3.5 text-gold-500/50" />
-                      <span>Actor: {e.actorId || 'system-node'}</span>
+                      <span>Actor: {actorLabel(e)}</span>
                     </div>
                     <div className="flex items-center gap-3 font-mono text-[10px]">
                       <span className="flex items-center gap-1">
